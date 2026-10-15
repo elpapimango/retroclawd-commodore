@@ -5,7 +5,7 @@ edition = "2024"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "577447c0755a69f757fb97c885345cd71922ffc8" }
 c1541 = { path = "../1541" }
 d81 = { path = "../../formats/d81" }
 

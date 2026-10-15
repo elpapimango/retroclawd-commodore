@@ -8,9 +8,9 @@ license = "GPL-3.0-or-later"
 name = "c64_machine_plugin_impl"
 
 [dependencies]
-machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
-plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
-mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "577447c0755a69f757fb97c885345cd71922ffc8" }
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "577447c0755a69f757fb97c885345cd71922ffc8" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "577447c0755a69f757fb97c885345cd71922ffc8" }
 serde = { version = "1", features = ["derive"] }
 c64 = { path = "../../machines/c64" }
 c1541 = { path = "../../machines/1541" }
