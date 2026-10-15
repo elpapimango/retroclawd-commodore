@@ -1,0 +1,22 @@
+[package]
+name = "c128-machine-plugin"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[lib]
+name = "c128_machine_plugin_impl"
+
+[dependencies]
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+z80 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+serde = { version = "1", features = ["derive"] }
+c128 = { path = "../../machines/c128" }
+c1541 = { path = "../../machines/1541" }
+drive-link = { path = "../../machines/drive-link" }
+d64 = { path = "../../formats/d64" }
+g64 = { path = "../../formats/g64" }
+d71 = { path = "../../formats/d71" }
+d81 = { path = "../../formats/d81" }

@@ -1,0 +1,12 @@
+[package]
+name = "d64"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+cbm-dos = { path = "../cbm-dos" }
+
+[dev-dependencies]
+d71 = { path = "../d71" }
+d81 = { path = "../d81" }

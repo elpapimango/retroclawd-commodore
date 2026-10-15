@@ -1,0 +1,104 @@
+# Which firmware satisfies which machine option, by SHA-1 (see sinclair/firmware.toml for the format).
+
+# ---- C64: the US/EU revision 3 set first, older revisions after it.
+
+[[rom]]
+machines = ["c64"]
+option = "rom_kernal"
+label = "C64 KERNAL"
+sha1 = [
+  "1d503e56df85a62fee696e7618dc5b4e781df1bb", # 901227-03 (rev 3)
+  "0e2e4ee3f2d41f00bed72f9ab588b83e306fdb13", # 901227-02 (rev 2)
+  "87cc04d61fc748b82df09856847bb5c2754a2033", # 901227-01 (rev 1)
+]
+
+[[rom]]
+machines = ["c64"]
+option = "rom_basic"
+label = "C64 BASIC"
+sha1 = ["79015323128650c742a3694c9429aa91f355905e"] # 901226-01
+
+[[rom]]
+machines = ["c64"]
+option = "rom_char"
+label = "C64 character ROM"
+sha1 = ["adc7c31e18c7c7413d54802ef2f4193da14711aa"] # 901225-01
+
+# ---- C128
+
+# One 32K file if the server has it, otherwise the two halves joined (BASIC low, then BASIC high).
+[[rom]]
+machines = ["c128"]
+option = "rom_basic"
+label = "C128 BASIC 32K"
+sha1 = ["953dcdf5784a6b39ef84dd6fd968c7a03d8d6816"]
+
+[[rom]]
+machines = ["c128"]
+option = "rom_basic"
+label = "C128 BASIC (318018-04 + 318019-04)"
+parts = [
+  "d53a7884404f7d18ebd60dd3080c8f8d71067441", # basiclo-318018-04
+  "c4fb4a714e48a7bf6c28659de0302183a0e0d6c0", # basichi-318019-04
+]
+
+[[rom]]
+machines = ["c128"]
+option = "rom_kernal"
+label = "C128 KERNAL (editor + Z80 BIOS + kernal)"
+sha1 = [
+  "ceb6e1a1bf7e08eb9cbc651afa29e26adccf38ab", # 318020-05
+  "3629b3fa28b6a30bcc027b647f26654929ed1b0f", # 315078-03
+]
+
+[[rom]]
+machines = ["c128"]
+option = "rom_char"
+label = "C128 character ROM (C64 set, then C128 set)"
+sha1 = ["29ed066d513f2d5c09ff26d9166ba23c2afb2b3f"] # 390059-01
+
+[[rom]]
+machines = ["c128"]
+option = "rom_c64_basic"
+label = "C128 C64-mode BASIC"
+sha1 = ["79015323128650c742a3694c9429aa91f355905e"] # 901226-01
+
+[[rom]]
+machines = ["c128"]
+option = "rom_c64_kernal"
+label = "C128 C64-mode KERNAL"
+sha1 = ["1d503e56df85a62fee696e7618dc5b4e781df1bb"] # 901227-03
+
+# ---- Drive DOS for --true-drive, chosen by --drive-type.
+
+[[rom]]
+machines = ["c64", "c128"]
+option = "rom_1541"
+label = "1541 DOS"
+when = { true_drive = "true", drive_type = "1541" }
+sha1 = [
+  "ab16f56989b27d89babe5f89c5a8cb3da71a82f0", # 325302-01 + 901229-05
+  "d3b78c3dbac55f5199f33f3fe0036439811f7fb3", # 1541-II 251968-03
+  "38a7a489c7bbc8661cf63476bf1eb07b38b1c704", # 1541-C
+]
+
+[[rom]]
+machines = ["c64", "c128"]
+option = "rom_1541"
+label = "1570 DOS"
+when = { true_drive = "true", drive_type = "1570" }
+sha1 = ["5fc06dc82ff6840f183bd43a4d9b8a16956b2f56"]
+
+[[rom]]
+machines = ["c64", "c128"]
+option = "rom_1541"
+label = "1571 DOS"
+when = { true_drive = "true", drive_type = "1571" }
+sha1 = ["f1be619c106641a685f6609e4d43d6fc9eac1e70"]
+
+[[rom]]
+machines = ["c64", "c128"]
+option = "rom_1541"
+label = "1581 DOS"
+when = { true_drive = "true", drive_type = "1581" }
+sha1 = ["01228eae6f066bd9b7b2b6a7fa3f667e41dad393"]

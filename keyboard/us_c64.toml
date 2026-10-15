@@ -1,0 +1,52 @@
+# US (ANSI) keyboard -> Commodore 64 keymap.
+#
+# Left side: a host key as a QMK keycode (https://docs.qmk.fm/keycodes_basic).
+# Shifted QMK keycodes (KC_PLUS = Shift + the "=" key, KC_AT = Shift + 2, ...) are
+# chords: their Shift is consumed, so the C64 does not also see its own Shift.
+# Right side: a C64 key name (`retroclawd c64 --list-keys` lists them).
+#
+# The aim is that every key types what its US keycap says. The positional default
+# gets the letters, digits and `, . /` right but not the rest: the C64 has its own
+# "+", ":", "@", "*", "^", pound and left-arrow keys in other places, and its Shift
+# row differs (Shift+2 is `"` there, `@` on a US keyboard; Shift+9 is `)`, `(` on US).
+#
+# Loaded by retroclawd.toml: [machines.c64.input] keymap = "keyboard/us_c64.toml"
+
+layout = "positional"
+
+[machines.c64.keys]
+# Unshifted punctuation.
+KC_MINS = "Minus"
+KC_EQL = "Equals"
+KC_SCLN = "Semicolon"
+KC_QUOT = "Apostrophe"          # Shift+7 on the C64
+KC_LBRC = "LeftBracket"         # Shift+: on the C64
+KC_RBRC = "RightBracket"        # Shift+; on the C64
+KC_BSLS = "Pound"
+KC_GRV = "LeftArrow"            # the key at the top left of a C64
+
+# Shifted: what the US keycap says, typed with the C64's own key or Shift combo.
+KC_EXLM = "Exclamation"
+KC_AT = "At"
+KC_HASH = "Hash"
+KC_DLR = "Dollar"
+KC_PERC = "Percent"
+KC_CIRC = "UpArrow"
+KC_AMPR = "Ampersand"
+KC_ASTR = "Asterisk"
+KC_LPRN = "LeftParen"           # Shift+8 on the C64
+KC_RPRN = "RightParen"          # Shift+9 on the C64
+KC_UNDS = "LeftArrow"           # PETSCII "_"
+KC_PLUS = "Plus"
+KC_COLN = "Colon"
+KC_DQUO = "DoubleQuote"
+KC_LABK = "LessThan"
+KC_RABK = "GreaterThan"
+KC_QUES = "Question"
+
+# Numeric keypad.
+KC_PPLS = "Plus"
+KC_PMNS = "Minus"
+KC_PAST = "Asterisk"
+KC_PSLS = "Slash"
+KC_PENT = "Enter"

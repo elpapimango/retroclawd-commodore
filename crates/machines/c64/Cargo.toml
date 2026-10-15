@@ -1,0 +1,30 @@
+[package]
+name = "c64"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+vic-ii = { path = "../../chips/vic-ii" }
+sid = { path = "../../chips/sid" }
+cia6526 = { path = "../../chips/cia-6526" }
+acia6551 = { path = "../../chips/acia-6551" }
+cs8900a = { path = "../../chips/cs8900a" }
+c64-tape = { path = "../../formats/c64-tape" }
+c64-cartridge = { path = "../../formats/c64-cartridge" }
+cbm-dos = { path = "../../formats/cbm-dos" }
+d64 = { path = "../../formats/d64" }
+d71 = { path = "../../formats/d71" }
+d81 = { path = "../../formats/d81" }
+serde = { version = "1", features = ["derive"] }
+bincode = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+# Only for tests/iec_1541.rs, which proves the real IEC bus wiring between
+# this crate and c1541 actually works end to end -- neither crate has a
+# production dependency on the other in either direction, this is purely a
+# test-time coupling Cargo's own dev-dependency mechanism exists for.
+c1541 = { path = "../1541" }
+c64-tape = { path = "../../formats/c64-tape" }

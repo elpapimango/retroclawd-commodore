@@ -1,0 +1,23 @@
+[package]
+name = "c128"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+z80 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "d64444aa6a1e38ab5068af216a58091f7ffb2a57" }
+vic-ii = { path = "../../chips/vic-ii" }
+sid = { path = "../../chips/sid" }
+cia6526 = { path = "../../chips/cia-6526" }
+vdc8563 = { path = "../../chips/vdc-8563" }
+serde = { version = "1", features = ["derive"] }
+bincode = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+drive-link = { path = "../drive-link" }
+d64 = { path = "../../formats/d64" }
+d71 = { path = "../../formats/d71" }
+d81 = { path = "../../formats/d81" }
+c1541 = { path = "../1541" }
