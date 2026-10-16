@@ -279,6 +279,11 @@ The notes below were written in the host repository before the split and refer t
   free, so a bad line with sprites over-charges by up to 3 cycles per run). The `Vic` save state gained
   `line_sprites` (older `.state` files no longer load). Tests: `vic-ii` lib (collision wrap, MxX 504, wrapped
   render, 7 line-mode cost cases) and `cycle` (crunch, 6-bit MCBASE).
+- **C64 CPU port read-back (2026-10-16)**: `C64Bus::port01` masks the result with `0x3F`: the 6510 in the C64 has six port
+  pins, bits 6 and 7 do not exist and read 0, so `PEEK(1)` is 55 (`$37`) in the standard configuration (c64-wiki "Memory
+  Map"), not 247 as it was while those bits floated high. Found by the `rc-suite` C64 cases (BASIC `PRINT PEEK(1)`);
+  unit test `the_cpu_port_reads_back_only_its_six_pins`. `firmware.toml` is checked against each plugin's declared file options by
+  `firmware_toml_names_only_file_options_the_plugin_declares` in the `c64` and `c128` plugin crates.
 - **`c64`** (`crates/machines/c64`) — thin, same shape as `zx81`/
   `zx-spectrum`: `mos6502::Cpu` + `C64Bus` (private to the crate, same
   "Bus impl stays internal, only the `Machine` impl is exported"

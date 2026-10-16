@@ -20,3 +20,6 @@ d64 = { path = "../../formats/d64" }
 g64 = { path = "../../formats/g64" }
 d71 = { path = "../../formats/d71" }
 d81 = { path = "../../formats/d81" }
+
+[dev-dependencies]
+toml = "0.8"

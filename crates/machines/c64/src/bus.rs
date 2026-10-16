@@ -490,7 +490,9 @@ impl C64Bus {
     /// `LORAM=HIRAM=CHAREN=1`, exactly the banking the CPU needs in order
     /// to fetch its own reset vector from KERNAL ROM in the first place.
     fn port01(&self) -> u8 {
-        let base = (self.port_data & self.port_ddr) | !self.port_ddr;
+        // The 6510 in the C64 has six port pins: bits 6 and 7 do not exist and read back 0, so `PEEK(1)` is 55 ($37) in the
+        // standard configuration (c64-wiki "Memory Map"), not 247.
+        let base = ((self.port_data & self.port_ddr) | !self.port_ddr) & 0x3F;
         // Real hardware: cassette SENSE (bit 4) reads low (active) exactly
         // when the Datasette senses a button pressed, if left configured
         // as input -- confirmed against VICE's own real `c64pla.c`
@@ -2285,6 +2287,19 @@ mod tests {
             vec![0xCC; CHAR_ROM_SIZE],
         )
         .unwrap()
+    }
+
+    #[test]
+    fn the_cpu_port_reads_back_only_its_six_pins() {
+        // The KERNAL's start-up values: DDR $2F, port $37. Bits 6 and 7 of a 6510 port do not exist: PEEK(1) is 55.
+        let mut c64 = test_c64();
+        c64.bus.write(0x0000, 0x2F);
+        c64.bus.write(0x0001, 0x37);
+        assert_eq!(c64.bus.read(0x0001), 0x37);
+        assert_eq!(c64.bus.read(0x0000), 0x2F);
+        // Even when every pin is an input (the power-on DDR of 0) the unconnected bits stay low.
+        c64.bus.write(0x0000, 0x00);
+        assert_eq!(c64.bus.read(0x0001) & 0xC0, 0);
     }
 
     #[test]
