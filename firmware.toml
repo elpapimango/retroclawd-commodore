@@ -4,7 +4,7 @@
 
 [[rom]]
 machines = ["c64"]
-option = "rom_kernal"
+option = "kernal"
 label = "C64 KERNAL"
 sha1 = [
   "1d503e56df85a62fee696e7618dc5b4e781df1bb", # 901227-03 (rev 3)
@@ -14,13 +14,13 @@ sha1 = [
 
 [[rom]]
 machines = ["c64"]
-option = "rom_basic"
+option = "basic"
 label = "C64 BASIC"
 sha1 = ["79015323128650c742a3694c9429aa91f355905e"] # 901226-01
 
 [[rom]]
 machines = ["c64"]
-option = "rom_char"
+option = "char"
 label = "C64 character ROM"
 sha1 = ["adc7c31e18c7c7413d54802ef2f4193da14711aa"] # 901225-01
 
@@ -29,13 +29,13 @@ sha1 = ["adc7c31e18c7c7413d54802ef2f4193da14711aa"] # 901225-01
 # One 32K file if the server has it, otherwise the two halves joined (BASIC low, then BASIC high).
 [[rom]]
 machines = ["c128"]
-option = "rom_basic"
+option = "basic"
 label = "C128 BASIC 32K"
 sha1 = ["953dcdf5784a6b39ef84dd6fd968c7a03d8d6816"]
 
 [[rom]]
 machines = ["c128"]
-option = "rom_basic"
+option = "basic"
 label = "C128 BASIC (318018-04 + 318019-04)"
 parts = [
   "d53a7884404f7d18ebd60dd3080c8f8d71067441", # basiclo-318018-04
@@ -44,7 +44,7 @@ parts = [
 
 [[rom]]
 machines = ["c128"]
-option = "rom_kernal"
+option = "kernal"
 label = "C128 KERNAL (editor + Z80 BIOS + kernal)"
 sha1 = [
   "ceb6e1a1bf7e08eb9cbc651afa29e26adccf38ab", # 318020-05
@@ -53,19 +53,19 @@ sha1 = [
 
 [[rom]]
 machines = ["c128"]
-option = "rom_char"
+option = "char"
 label = "C128 character ROM (C64 set, then C128 set)"
 sha1 = ["29ed066d513f2d5c09ff26d9166ba23c2afb2b3f"] # 390059-01
 
 [[rom]]
 machines = ["c128"]
-option = "rom_c64_basic"
+option = "c64_basic"
 label = "C128 C64-mode BASIC"
 sha1 = ["79015323128650c742a3694c9429aa91f355905e"] # 901226-01
 
 [[rom]]
 machines = ["c128"]
-option = "rom_c64_kernal"
+option = "c64_kernal"
 label = "C128 C64-mode KERNAL"
 sha1 = ["1d503e56df85a62fee696e7618dc5b4e781df1bb"] # 901227-03
 
