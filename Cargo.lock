@@ -244,7 +244,7 @@ dependencies = [
 [[package]]
 name = "machine"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=577447c0755a69f757fb97c885345cd71922ffc8#577447c0755a69f757fb97c885345cd71922ffc8"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf#318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf"
 
 [[package]]
 name = "memchr"
@@ -255,7 +255,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "mos6502"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=577447c0755a69f757fb97c885345cd71922ffc8#577447c0755a69f757fb97c885345cd71922ffc8"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf#318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf"
 dependencies = [
  "machine",
  "serde",
@@ -264,7 +264,7 @@ dependencies = [
 [[package]]
 name = "plugin-api"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=577447c0755a69f757fb97c885345cd71922ffc8#577447c0755a69f757fb97c885345cd71922ffc8"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf#318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf"
 dependencies = [
  "bincode",
  "serde",
@@ -464,7 +464,7 @@ dependencies = [
 [[package]]
 name = "z80"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=577447c0755a69f757fb97c885345cd71922ffc8#577447c0755a69f757fb97c885345cd71922ffc8"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf#318a2cc4cc1d758aeebfe2a46f962c3506a8a0cf"
 dependencies = [
  "machine",
  "serde",
