@@ -30,6 +30,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "build-info"
+version = "0.1.0"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=a8cfb2ef44aef943d6900c98bce02758acf926eb#a8cfb2ef44aef943d6900c98bce02758acf926eb"
+
+[[package]]
 name = "bytemuck"
 version = "1.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -59,6 +64,7 @@ dependencies = [
 name = "c128-machine-plugin"
 version = "0.1.0"
 dependencies = [
+ "build-info",
  "c128",
  "c1541",
  "d64",
@@ -128,6 +134,7 @@ version = "0.1.0"
 name = "c64-machine-plugin"
 version = "0.1.0"
 dependencies = [
+ "build-info",
  "c1541",
  "c64",
  "c64-cartridge",
@@ -244,7 +251,7 @@ dependencies = [
 [[package]]
 name = "machine"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=4291f5dbe8733b0e743d45becadb1ece1d60746c#4291f5dbe8733b0e743d45becadb1ece1d60746c"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=a8cfb2ef44aef943d6900c98bce02758acf926eb#a8cfb2ef44aef943d6900c98bce02758acf926eb"
 
 [[package]]
 name = "memchr"
@@ -255,7 +262,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "mos6502"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=4291f5dbe8733b0e743d45becadb1ece1d60746c#4291f5dbe8733b0e743d45becadb1ece1d60746c"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=a8cfb2ef44aef943d6900c98bce02758acf926eb#a8cfb2ef44aef943d6900c98bce02758acf926eb"
 dependencies = [
  "machine",
  "serde",
@@ -264,7 +271,7 @@ dependencies = [
 [[package]]
 name = "plugin-api"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=4291f5dbe8733b0e743d45becadb1ece1d60746c#4291f5dbe8733b0e743d45becadb1ece1d60746c"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=a8cfb2ef44aef943d6900c98bce02758acf926eb#a8cfb2ef44aef943d6900c98bce02758acf926eb"
 dependencies = [
  "bincode",
  "serde",
@@ -464,7 +471,7 @@ dependencies = [
 [[package]]
 name = "z80"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=4291f5dbe8733b0e743d45becadb1ece1d60746c#4291f5dbe8733b0e743d45becadb1ece1d60746c"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=a8cfb2ef44aef943d6900c98bce02758acf926eb#a8cfb2ef44aef943d6900c98bce02758acf926eb"
 dependencies = [
  "machine",
  "serde",

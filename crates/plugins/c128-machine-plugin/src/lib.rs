@@ -19,7 +19,7 @@ use plugin_api::{
 };
 
 const PLUGIN_ID: &[u8] = b"retroclawd.c128.machine";
-const PLUGIN_VERSION: &[u8] = env!("CARGO_PKG_VERSION").as_bytes();
+const PLUGIN_VERSION: &[u8] = build_info::version_tag!().as_bytes();
 
 use drive_link as drive;
 

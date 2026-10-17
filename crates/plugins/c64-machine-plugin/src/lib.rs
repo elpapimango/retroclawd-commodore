@@ -15,7 +15,7 @@ use plugin_api::{
 };
 
 const PLUGIN_ID: &[u8] = b"retroclawd.c64.machine";
-const PLUGIN_VERSION: &[u8] = env!("CARGO_PKG_VERSION").as_bytes();
+const PLUGIN_VERSION: &[u8] = build_info::version_tag!().as_bytes();
 
 const KERNAL_ROM_SIZE: usize = 0x2000;
 const BASIC_ROM_SIZE: usize = 0x2000;
