@@ -14,7 +14,7 @@ mod save_state;
 mod tape_recorder;
 
 pub use bus::{C64, JoystickButton, VicAccuracy};
-pub use cartridge::Cartridge;
+pub use cartridge::{Cartridge, UNIFIED_DIAG_HARDWARE};
 pub use controllers::{MouseMode, PaddleDirection};
 pub use georam::GeoRam;
 pub use keyboard::C64Key;

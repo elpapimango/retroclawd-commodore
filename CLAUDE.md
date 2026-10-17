@@ -430,7 +430,12 @@ The notes below were written in the host repository before the split and refer t
   read of $DE00-$DE0F), 18 Zaxxon (ROML reads pick the ROMH bank), 19 Magic
   Desk ($DE00 bank, bit 7 off), 32 EasyFlash (jumper-off boot decode table,
   Ultimax at reset, `$DE00` bank, `$DE02` mode, 256 bytes RAM at `$DF00`;
-  flash programming is modelled, see below). Any other hardware type is a clear error listing the supported
+  flash programming is modelled, see below), and **0xC640, crystalct's C64 Unified Diagnostic Cartridge**
+  (`Mapper::UnifiedDiag`, 2026-10-17; our own number, the board has no `.crt` type): 8K chips at `$8000` (the standard diagnostic) and
+  `$E000` (the modified dead test), the header's EXROM/GAME levels give the start mode (Ultimax by default, the JPE/JPG jumpers), and a
+  write to the I/O1 window sets the mode from data bit 0 (1 = ordinary 8K cartridge, 0 = Ultimax; the flip-flop is read off the dead
+  test's own switch routine `LDA #$01 / STA $DE00 / JMP $FCE2`, no schematic here). A reset returns to the start mode; the mode is in the
+  save state; the second 16K image (jumper JPS) is not modelled. Any other hardware type is a clear error listing the supported
   ones. `Machine::reset` also resets the cartridge (banked types return to
   bank 0, EasyFlash keeps its RAM); loading a cartridge resets the machine so
   the KERNAL finds `CBM80` at `$8004` or an Ultimax cartridge supplies the
@@ -439,7 +444,7 @@ The notes below were written in the host repository before the split and refer t
   `cartridge::tests` (18, per mapper), `bus::tests` (PLA maps, I/O routing,
   reset/eject, Epyx timing, save state), and the real-KERNAL
   `tests/cartridge.rs` (CBM80 autostart, Ultimax reset vector, EasyFlash
-  Ultimax boot then switch to 8K); live through the binary a hand-made
+  Ultimax boot then switch to 8K, the unified cartridge's Ultimax-to-standard switch and KERNAL restart); live through the binary a hand-made
   `.crt` autostarted (`--dump-memory` showed its marker). `.p00` (PC64
   container: `C64File\0` + 16-byte name + 2 bytes, then `.prg` data) is
   handled next to `.prg` in `main.rs::resolve_program_load`

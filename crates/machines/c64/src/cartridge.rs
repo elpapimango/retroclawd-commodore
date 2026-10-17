@@ -20,7 +20,14 @@ const BANK: usize = 0x2000;
 /// than a cartridge that silently does not work.
 const SUPPORTED: &str = "0 Normal, 1 Action Replay, 2 KCS Power, 3 Final Cartridge III, \
 4 Simons' BASIC, 5 Ocean, 7 Fun Play, 8 Super Games, 10 Epyx Fastload, 15 System 3, 17 Dinamic, \
-18 Zaxxon, 19 Magic Desk, 32 EasyFlash, 36 Retro Replay, 62 Expert";
+18 Zaxxon, 19 Magic Desk, 32 EasyFlash, 36 Retro Replay, 62 Expert, 0xC640 Unified Diagnostic Cartridge";
+
+/// The hardware type of crystalct's C64 Unified Diagnostic Cartridge
+/// (<https://github.com/crystalct/C64UnifDiagCart>): a number of this project's own, since the `.crt` format has no entry for
+/// that board (the real ones are written straight to an EPROM). A `.crt` of this type holds an 8K chip at `$8000` (the standard
+/// diagnostic, run as an ordinary cartridge) and an 8K chip at `$E000` (the modified dead test, run in Ultimax mode); the header's
+/// EXROM/GAME levels give the mode the board starts in (the board's JPE/JPG jumpers; Ultimax by default).
+pub const UNIFIED_DIAG_HARDWARE: u16 = 0xC640;
 
 /// Cycles the Epyx Fastload capacitor needs to recharge and drop the ROM
 /// out of the memory map (`EPYX_ROM_CYCLES` in VICE).
@@ -44,6 +51,9 @@ enum Mapper {
     FinalIII,
     RetroReplay,
     Expert,
+    /// crystalct's Unified Diagnostic Cartridge: a flip-flop on the expansion port that a write to the I/O1 window switches
+    /// between Ultimax (the dead test in ROMH) and an ordinary 8K cartridge (the standard diagnostic in ROML).
+    UnifiedDiag,
 }
 
 /// The register state of a cartridge -- the part a save state carries. Field
@@ -151,6 +161,7 @@ impl Cartridge {
             3 => Mapper::FinalIII,
             36 => Mapper::RetroReplay,
             62 => Mapper::Expert,
+            UNIFIED_DIAG_HARDWARE => Mapper::UnifiedDiag,
             other => {
                 return Err(format!(
                     "cartridge hardware type {other} ({:?}) is not supported; supported: {SUPPORTED}",
@@ -274,6 +285,15 @@ impl Cartridge {
                     }
                     self.state.ram = chip.data.clone();
                 }
+                Mapper::UnifiedDiag => match (chip.load_address, size) {
+                    (0x8000, BANK) => put(&mut self.roml, 0, &chip.data),
+                    (0xE000, BANK) => put(&mut self.romh, 0, &chip.data),
+                    _ => {
+                        return Err(bad(
+                            "the unified diagnostic cartridge is 8K chips at $8000 and $E000",
+                        ));
+                    }
+                },
                 Mapper::EasyFlash => {
                     if bank >= 64 {
                         return Err(bad("EasyFlash has 64 banks"));
@@ -365,6 +385,13 @@ impl Cartridge {
         match self.mapper {
             Mapper::Epyx => self.discharge(),
             Mapper::Kcs | Mapper::FinalIII => self.state.mode = 1,
+            // Back to the mode the jumpers choose, the CRT header's lines.
+            Mapper::UnifiedDiag => {
+                self.state.mode = match self.header_lines {
+                    (false, true) => 3,
+                    _ => 0,
+                }
+            }
             Mapper::EasyFlash => {
                 // A reset line does not reset the flash command state on real
                 // hardware either; only a power cycle does, but a stuck
@@ -475,9 +502,11 @@ impl Cartridge {
                 2 => (true, true),
                 _ => (false, true),
             },
-            Mapper::ActionReplay | Mapper::Kcs | Mapper::FinalIII | Mapper::RetroReplay => {
-                Self::mode_lines(self.state.mode)
-            }
+            Mapper::ActionReplay
+            | Mapper::Kcs
+            | Mapper::FinalIII
+            | Mapper::RetroReplay
+            | Mapper::UnifiedDiag => Self::mode_lines(self.state.mode),
             // Prg: 8K game with the RAM at ROML. On/Off leave the map alone;
             // the RAM is overlaid by `overlay_read`/`write_hook`.
             Mapper::Expert => {
@@ -841,6 +870,9 @@ impl Cartridge {
         let offset = addr & 0xFF;
         match self.mapper {
             Mapper::Simons => self.state.enabled = true,
+            // The flip-flop takes data bit 0: 1 = an ordinary 8K cartridge (the standard diagnostic at `$8000`), 0 = Ultimax.
+            // The board has no schematic here: it is read off the dead test's own switch routine (`LDA #$01 / STA $DE00`).
+            Mapper::UnifiedDiag => self.state.mode = if value & 1 != 0 { 0 } else { 3 },
             Mapper::Ocean => {
                 let mask = (self.roml_banks().next_power_of_two() - 1).min(0x3F) as u16;
                 self.state.bank = value as u16 & mask;
@@ -1342,6 +1374,64 @@ mod tests {
         assert_eq!(cart.io2_read(0xDF80), Some(0x99));
         cart.reset();
         assert_eq!(cart.io2_read(0xDF80), Some(0x99), "RAM survives a reset");
+    }
+
+    fn unified(exrom: bool, game: bool) -> Cartridge {
+        Cartridge::from_crt(&crt(
+            UNIFIED_DIAG_HARDWARE,
+            exrom,
+            game,
+            vec![chip(0, 0x8000, 0x11, BANK), chip(0, 0xE000, 0x22, BANK)],
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn the_unified_diagnostic_cartridge_starts_as_its_header_says_and_flips_on_an_io1_write() {
+        // Header EXROM high / GAME low = the Ultimax start the board is wired for by default.
+        let mut cart = unified(true, false);
+        assert_eq!(cart.lines(), (false, true), "Ultimax");
+        assert_eq!(cart.read_romh(0xE000), 0x22, "the dead test's ROM at $E000");
+        assert!(cart.vic_ultimax());
+        // A write with data bit 0 set (what the dead test's routine does) makes it an ordinary 8K cartridge.
+        cart.io1_write(0xDE00, 0x01);
+        assert_eq!(cart.lines(), (true, false), "8K");
+        assert_eq!(
+            cart.peek_roml(0x8000),
+            0x11,
+            "the standard diagnostic at $8000"
+        );
+        assert!(!cart.vic_ultimax());
+        // Data bit 0 clear flips it back; any address in the I/O1 window does it.
+        cart.io1_write(0xDE40, 0x00);
+        assert_eq!(cart.lines(), (false, true));
+        // A reset puts the jumper-chosen mode back.
+        cart.io1_write(0xDE00, 0x01);
+        cart.reset();
+        assert_eq!(cart.lines(), (false, true));
+        // The other jumper setting starts as a standard cartridge.
+        assert_eq!(unified(false, true).lines(), (true, false));
+    }
+
+    #[test]
+    fn the_unified_diagnostic_cartridge_needs_its_two_8k_chips_and_keeps_its_mode_in_a_state() {
+        let bad = Cartridge::from_crt(&crt(
+            UNIFIED_DIAG_HARDWARE,
+            true,
+            false,
+            vec![chip(0, 0xA000, 0, BANK)],
+        ));
+        assert!(bad.is_err());
+        let mut cart = unified(true, false);
+        cart.io1_write(0xDE00, 1);
+        let saved = cart.state();
+        let mut other = unified(true, false);
+        other.restore_state(saved);
+        assert_eq!(
+            other.lines(),
+            (true, false),
+            "the switched mode rides in the save state"
+        );
     }
 
     #[test]

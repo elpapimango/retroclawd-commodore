@@ -133,3 +133,55 @@ fn easyflash_boots_in_ultimax_then_the_program_can_switch_to_8k_mode() {
         "ROML read back after the switch"
     );
 }
+
+/// crystalct's Unified Diagnostic Cartridge: the dead test runs in Ultimax mode, copies its switch routine to `$0334` (as the
+/// modified dead test does) and runs it -- `LDA #$37 / STA $01 / LDA #$01 / STA $DE00 / JMP $FCE2` -- and the board's flip-flop turns
+/// the cartridge into an ordinary 8K one, so the KERNAL's own reset finds `CBM80` at `$8004` and starts the standard diagnostic.
+#[test]
+fn the_unified_diagnostic_cartridge_switches_from_ultimax_to_standard_and_restarts() {
+    let Some(mut c64) = c64() else {
+        eprintln!("skipped: roms/c64 not present");
+        return;
+    };
+    let routine: [u8; 12] = [
+        0xA9, 0x37, 0x85, 0x01, 0xA9, 0x01, 0x8D, 0x00, 0xDE, 0x4C, 0xE2, 0xFC,
+    ];
+    let mut romh = vec![0xEA; 0x2000];
+    // The Ultimax half: leave a marker, copy the routine into RAM, run it.
+    romh[0..5].copy_from_slice(&[0xA9, 0xAA, 0x8D, 0x00, 0x06]); // LDA #$AA / STA $0600
+    let mut at = 5;
+    for (i, byte) in routine.iter().enumerate() {
+        let target = 0x0334 + i as u16;
+        romh[at..at + 5].copy_from_slice(&[0xA9, *byte, 0x8D, target as u8, (target >> 8) as u8]);
+        at += 5;
+    }
+    romh[at..at + 3].copy_from_slice(&[0x4C, 0x34, 0x03]); // JMP $0334
+    for vector in [0x1FFA, 0x1FFC, 0x1FFE] {
+        romh[vector] = 0x00;
+        romh[vector + 1] = 0xE0;
+    }
+    // The standard half: a CBM80 cartridge that leaves its own marker.
+    let mut roml = vec![0xEA; 0x2000];
+    roml[0..2].copy_from_slice(&[0x09, 0x80]);
+    roml[2..4].copy_from_slice(&[0x09, 0x80]);
+    roml[4..9].copy_from_slice(&[0xC3, 0xC2, 0xCD, 0x38, 0x30]);
+    roml[9..14].copy_from_slice(&[0xA9, 0xBB, 0x8D, 0x01, 0x06]); // LDA #$BB / STA $0601
+    roml[14..17].copy_from_slice(&[0x4C, 0x0E, 0x80]);
+    // The header lines say Ultimax: EXROM high, GAME low.
+    c64.load_cartridge_crt(&crt(
+        c64::UNIFIED_DIAG_HARDWARE,
+        1,
+        0,
+        &[(0, 0x8000, roml), (0, 0xE000, romh)],
+    ))
+    .unwrap();
+    assert_eq!(c64.pc(), 0xE000, "starts in Ultimax, from ROMH's vectors");
+    run(&mut c64, 3_000_000);
+    assert_eq!(c64.read_memory(0x0600), 0xAA, "the Ultimax half ran first");
+    assert_eq!(
+        c64.read_memory(0x0601),
+        0xBB,
+        "after the switch the KERNAL restarted and found CBM80 in ROML"
+    );
+    assert!((0x8009..=0x8011).contains(&c64.pc()), "pc {:#x}", c64.pc());
+}
