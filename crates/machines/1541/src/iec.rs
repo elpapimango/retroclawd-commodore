@@ -92,7 +92,6 @@ impl IecBus {
 mod tests {
     use super::*;
 
-    #[test]
     fn idle_bus_reads_high_on_every_line() {
         let bus = IecBus::new();
         assert!(bus.atn());
@@ -100,7 +99,6 @@ mod tests {
         assert!(bus.data());
     }
 
-    #[test]
     fn either_participant_alone_pulls_a_line_low() {
         let mut bus = IecBus::new();
         bus.set_computer_outputs(true, false, false);
@@ -113,7 +111,6 @@ mod tests {
         assert!(bus2.data());
     }
 
-    #[test]
     fn a_line_only_releases_once_every_participant_releases_it() {
         let mut bus = IecBus::new();
         bus.set_computer_outputs(false, true, false);
@@ -125,5 +122,12 @@ mod tests {
 
         bus.set_drive_outputs(false, false);
         assert!(bus.clock(), "both released -- back to idle high");
+    }
+    /// Merged (every check kept): `idle_bus_reads_high_on_every_line`, `either_participant_alone_pulls_a_line_low`, `a_line_only_releases_once_every_participant_releases_it`.
+    #[test]
+    fn iec_bus_lines() {
+        idle_bus_reads_high_on_every_line();
+        either_participant_alone_pulls_a_line_low();
+        a_line_only_releases_once_every_participant_releases_it();
     }
 }

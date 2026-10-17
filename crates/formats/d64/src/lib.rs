@@ -675,7 +675,6 @@ mod tests {
         assert_eq!(D64::parse_x64(&[1, 2]).unwrap_err(), Error::BadX64Magic);
     }
 
-    #[test]
     fn sectors_per_track_matches_the_real_speed_zone_table() {
         assert_eq!(sectors_per_track(1), 21);
         assert_eq!(sectors_per_track(17), 21);
@@ -689,7 +688,6 @@ mod tests {
         assert_eq!(sectors_per_track(41), 0);
     }
 
-    #[test]
     fn parse_recognizes_all_four_real_size_variants() {
         assert_eq!(
             D64::parse(&vec![0u8; TRACK35_SIZE]).unwrap().variant(),
@@ -716,13 +714,18 @@ mod tests {
         );
     }
 
-    #[test]
     fn parse_rejects_an_unrecognized_size() {
         let err = D64::parse(&vec![0u8; 12345]).unwrap_err();
         assert_eq!(err, Error::InvalidSize(12345));
     }
-
+    /// Merged (every check kept): `sectors_per_track_matches_the_real_speed_zone_table`, `parse_recognizes_all_four_real_size_variants`, `parse_rejects_an_unrecognized_size`.
     #[test]
+    fn geometry_and_parsing() {
+        sectors_per_track_matches_the_real_speed_zone_table();
+        parse_recognizes_all_four_real_size_variants();
+        parse_rejects_an_unrecognized_size();
+    }
+
     fn read_write_sector_round_trips_and_rejects_out_of_range() {
         let mut disk = D64::parse(&blank_track35()).unwrap();
         let mut data = [0u8; SECTOR_SIZE];
@@ -754,7 +757,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn sector_error_reports_none_without_error_info_and_the_real_byte_with_it() {
         let disk = D64::parse(&blank_track35()).unwrap();
         assert_eq!(disk.sector_error(1, 0).unwrap(), None);
@@ -767,7 +769,6 @@ mod tests {
         assert_eq!(disk.sector_error(1, 1).unwrap(), Some(0));
     }
 
-    #[test]
     fn to_bytes_round_trips_exactly() {
         let mut bytes = blank_track35();
         bytes[0x1234] = 0x42;
@@ -779,13 +780,19 @@ mod tests {
         let disk = D64::parse(&bytes_with_errors).unwrap();
         assert_eq!(disk.to_bytes(), bytes_with_errors);
     }
+    /// Merged (every check kept): `read_write_sector_round_trips_and_rejects_out_of_range`, `sector_error_reports_none_without_error_info_and_the_real_byte_with_it`, `to_bytes_round_trips_exactly`.
+    #[test]
+    fn sector_io() {
+        read_write_sector_round_trips_and_rejects_out_of_range();
+        sector_error_reports_none_without_error_info_and_the_real_byte_with_it();
+        to_bytes_round_trips_exactly();
+    }
 
     /// A hand-built minimal BAM, matching real values a genuine 1541-
     /// formatted disk would have -- confirms `disk_name`/`disk_id`/
     /// `dos_type` read from the exact offsets confirmed against VICE's
     /// own source, not the more "obvious" but wrong offsets an
     /// unverified guess might have used.
-    #[test]
     fn bam_fields_read_from_the_confirmed_real_offsets() {
         let mut bytes = blank_track35();
         let bam_index = {
@@ -817,7 +824,6 @@ mod tests {
         assert_eq!(disk.dos_type(), [b'2', b'A']);
     }
 
-    #[test]
     fn directory_entries_reads_from_slot_relative_offset_two_not_zero() {
         let mut bytes = blank_track35();
         let bam_index = {
@@ -858,7 +864,6 @@ mod tests {
         assert_eq!(&e.name[..7], b"PROGRAM");
     }
 
-    #[test]
     fn directory_chain_stops_on_a_circular_link_instead_of_hanging() {
         let mut bytes = blank_track35();
         let bam_index = {
@@ -881,8 +886,13 @@ mod tests {
         // Must return (empty, all slots are file_type==0) rather than hang.
         assert_eq!(disk.directory_entries().len(), 0);
     }
-
+    /// Merged (every check kept): `directory_entries_reads_from_slot_relative_offset_two_not_zero`, `directory_chain_stops_on_a_circular_link_instead_of_hanging`.
     #[test]
+    fn directory_reading() {
+        directory_entries_reads_from_slot_relative_offset_two_not_zero();
+        directory_chain_stops_on_a_circular_link_instead_of_hanging();
+    }
+
     fn track_bam_group_reads_the_correct_area_for_standard_and_extended_tracks() {
         let mut bytes = blank_track35();
         let bam_index = {
@@ -908,6 +918,12 @@ mod tests {
         );
         assert_eq!(disk.track_bam_group(0), None);
     }
+    /// Merged (every check kept): `bam_fields_read_from_the_confirmed_real_offsets`, `track_bam_group_reads_the_correct_area_for_standard_and_extended_tracks`.
+    #[test]
+    fn bam_reading() {
+        bam_fields_read_from_the_confirmed_real_offsets();
+        track_bam_group_reads_the_correct_area_for_standard_and_extended_tracks();
+    }
 
     fn track_sector_byte_offset(track: u8, sector: u8) -> usize {
         let mut idx = 0usize;
@@ -928,7 +944,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn read_file_returns_exactly_the_valid_bytes_of_a_single_sector_file() {
         let mut bytes = blank_track35();
         let off = track_sector_byte_offset(2, 3);
@@ -948,7 +963,6 @@ mod tests {
         assert_eq!(*data.last().unwrap(), 0x34);
     }
 
-    #[test]
     fn read_file_walks_a_real_multi_sector_chain() {
         let mut bytes = blank_track35();
         let first = track_sector_byte_offset(2, 3);
@@ -973,7 +987,6 @@ mod tests {
         assert_eq!(&data[SECTOR_SIZE - 2..], &[1, 2, 3, 4]);
     }
 
-    #[test]
     fn read_file_stops_on_a_circular_chain_instead_of_hanging() {
         let mut bytes = blank_track35();
         let off = track_sector_byte_offset(2, 3);
@@ -986,8 +999,14 @@ mod tests {
         // Must return without hanging; content is unspecified for a corrupt chain.
         let _ = disk.read_file(&entry).unwrap();
     }
-
+    /// Merged (every check kept): `read_file_returns_exactly_the_valid_bytes_of_a_single_sector_file`, `read_file_walks_a_real_multi_sector_chain`, `read_file_stops_on_a_circular_chain_instead_of_hanging`.
     #[test]
+    fn read_file_cases() {
+        read_file_returns_exactly_the_valid_bytes_of_a_single_sector_file();
+        read_file_walks_a_real_multi_sector_chain();
+        read_file_stops_on_a_circular_chain_instead_of_hanging();
+    }
+
     fn find_program_wildcard_matches_the_first_closed_prg_entry() {
         let entries = vec![
             DirectoryEntry {
@@ -1003,7 +1022,6 @@ mod tests {
         assert_eq!((found.track, found.sector), (2, 3));
     }
 
-    #[test]
     fn find_program_matches_the_real_unpadded_name_exactly() {
         let entries = vec![make_entry(2, 3)];
         assert!(D64::find_program(&entries, b"PROGRAM").is_some());
@@ -1012,6 +1030,12 @@ mod tests {
             "a shorter given name must not match a longer stored one"
         );
         assert!(D64::find_program(&entries, b"OTHER").is_none());
+    }
+    /// Merged (every check kept): `find_program_wildcard_matches_the_first_closed_prg_entry`, `find_program_matches_the_real_unpadded_name_exactly`.
+    #[test]
+    fn find_program_cases() {
+        find_program_wildcard_matches_the_first_closed_prg_entry();
+        find_program_matches_the_real_unpadded_name_exactly();
     }
 
     /// A freshly formatted 35-track disk: every sector free except the BAM
@@ -1071,7 +1095,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn a_one_byte_and_an_empty_payload_each_take_one_sector() {
         let mut disk = formatted();
         disk.save_program(b"ONE", &[7], false).unwrap();
@@ -1080,7 +1103,6 @@ mod tests {
         assert_eq!(read_back(&disk, b"NONE").unwrap(), Vec::<u8>::new());
     }
 
-    #[test]
     fn saving_over_an_existing_name_needs_replace_and_frees_the_old_chain() {
         let mut disk = formatted();
         disk.save_program(b"GAME", &[1; 600], false).unwrap();
@@ -1098,7 +1120,6 @@ mod tests {
         assert_eq!(free_sectors(&disk), used + 3 - 1);
     }
 
-    #[test]
     fn a_full_directory_sector_grows_the_directory_chain() {
         let mut disk = formatted();
         for i in 0..10u8 {
@@ -1110,7 +1131,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn a_full_disk_is_an_error_and_leaves_the_image_unchanged() {
         let mut disk = formatted();
         let free = free_sectors(&disk) as usize;
@@ -1126,8 +1146,13 @@ mod tests {
             .unwrap();
         assert_eq!(free_sectors(&disk), 0);
     }
-
+    /// Merged (every check kept): `a_full_directory_sector_grows_the_directory_chain`, `a_full_disk_is_an_error_and_leaves_the_image_unchanged`.
     #[test]
+    fn save_program_limits() {
+        a_full_directory_sector_grows_the_directory_chain();
+        a_full_disk_is_an_error_and_leaves_the_image_unchanged();
+    }
+
     fn names_must_be_one_to_sixteen_bytes() {
         let mut disk = formatted();
         assert_eq!(
@@ -1139,5 +1164,12 @@ mod tests {
             Err(SaveError::InvalidName)
         );
         disk.save_program(&[b'A'; 16], &[1], false).unwrap();
+    }
+    /// Merged (every check kept): `a_one_byte_and_an_empty_payload_each_take_one_sector`, `saving_over_an_existing_name_needs_replace_and_frees_the_old_chain`, `names_must_be_one_to_sixteen_bytes`.
+    #[test]
+    fn save_program_cases() {
+        a_one_byte_and_an_empty_payload_each_take_one_sector();
+        saving_over_an_existing_name_needs_replace_and_frees_the_old_chain();
+        names_must_be_one_to_sixteen_bytes();
     }
 }

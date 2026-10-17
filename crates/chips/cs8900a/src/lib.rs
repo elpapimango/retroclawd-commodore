@@ -649,7 +649,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn product_id_and_default_registers_read_back() {
         let mut c = Cs8900a::new();
         assert_eq!(pp_read(&mut c, 0), 0x630E);
@@ -659,7 +658,6 @@ mod tests {
         assert_eq!(pp_read(&mut c, 0x300), 0x0300, "reserved range");
     }
 
-    #[test]
     fn mac_address_and_auto_increment_pointer() {
         let mut c = ready();
         assert_eq!(c.mac(), MAC);
@@ -670,7 +668,6 @@ mod tests {
         assert_eq!(c.pp_ptr & PTR_ADDR_MASK, 0x15C);
     }
 
-    #[test]
     fn a_transmitted_frame_is_queued_for_the_host() {
         let mut c = ready();
         let f = frame(MAC, 60);
@@ -679,7 +676,6 @@ mod tests {
         assert_eq!(c.take_tx_frame(), None);
     }
 
-    #[test]
     fn too_short_or_too_long_lengths_are_refused() {
         let mut c = ready();
         write16(&mut c, 0x04, 0x00C9);
@@ -693,8 +689,13 @@ mod tests {
         write16(&mut c, 0x06, 1600);
         assert_eq!(pp_read(&mut c, 0x138) & 0x180, 0x080, "TxBidErr");
     }
-
+    /// Merged (every check kept): `a_transmitted_frame_is_queued_for_the_host`, `too_short_or_too_long_lengths_are_refused`.
     #[test]
+    fn transmit_cases() {
+        a_transmitted_frame_is_queued_for_the_host();
+        too_short_or_too_long_lengths_are_refused();
+    }
+
     fn a_received_frame_shows_in_rxevent_and_reads_out_status_length_data() {
         let mut c = ready();
         let f = frame(MAC, 64);
@@ -723,7 +724,6 @@ mod tests {
         assert_eq!(pp_read(&mut c, 0x124) & 0x0100, 0, "no further frame");
     }
 
-    #[test]
     fn the_receive_filter_drops_foreign_unicast_and_accepts_broadcast() {
         let mut c = ready();
         c.push_rx_frame(frame([2, 9, 9, 9, 9, 9], 64));
@@ -734,7 +734,6 @@ mod tests {
         assert_ne!(e & 0x0100, 0);
     }
 
-    #[test]
     fn promiscuous_mode_takes_everything_and_a_disabled_receiver_nothing() {
         let mut c = ready();
         pp_write(&mut c, 0x104, 0x0085);
@@ -744,12 +743,25 @@ mod tests {
         c.push_rx_frame(frame(MAC, 64));
         assert_eq!(c.rx_queue.len(), 0);
     }
-
+    /// Merged (every check kept): `a_received_frame_shows_in_rxevent_and_reads_out_status_length_data`, `the_receive_filter_drops_foreign_unicast_and_accepts_broadcast`, `promiscuous_mode_takes_everything_and_a_disabled_receiver_nothing`.
     #[test]
+    fn receive_cases() {
+        a_received_frame_shows_in_rxevent_and_reads_out_status_length_data();
+        the_receive_filter_drops_foreign_unicast_and_accepts_broadcast();
+        promiscuous_mode_takes_everything_and_a_disabled_receiver_nothing();
+    }
+
     fn the_self_control_reset_bit_resets_but_keeps_the_mac() {
         let mut c = ready();
         pp_write(&mut c, 0x114, 0x0055);
         assert_eq!(c.mac(), MAC);
         assert_eq!(pp_read(&mut c, 0x112) & 0xC0, 0, "line control back to off");
+    }
+    /// Merged (every check kept): `product_id_and_default_registers_read_back`, `mac_address_and_auto_increment_pointer`, `the_self_control_reset_bit_resets_but_keeps_the_mac`.
+    #[test]
+    fn registers_and_reset() {
+        product_id_and_default_registers_read_back();
+        mac_address_and_auto_increment_pointer();
+        the_self_control_reset_bit_resets_but_keeps_the_mac();
     }
 }

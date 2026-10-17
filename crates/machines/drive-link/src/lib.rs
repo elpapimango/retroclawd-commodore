@@ -446,7 +446,6 @@ mod tests {
         assert!(link.pending_disk.is_none() && !link.drive.has_disk());
     }
 
-    #[test]
     fn drive_state_packs_and_unpacks_round_trip() {
         let packed = pack_drive_state(&[1, 2, 3], &[9, 9]);
         let (a, b) = unpack_drive_state(&packed).unwrap().unwrap();
@@ -455,7 +454,6 @@ mod tests {
         assert!(unpack_drive_state(b"TDRV\xFF\xFF\xFF\xFF").is_err());
     }
 
-    #[test]
     fn drive_kinds_parse_and_know_their_rom_sizes() {
         for (text, size) in [
             ("1541", 0x4000),
@@ -468,6 +466,12 @@ mod tests {
             assert_eq!(kind.rom_size(), size);
         }
         assert!(DriveKind::parse("1551").is_none());
+    }
+    /// Merged (every check kept): `drive_state_packs_and_unpacks_round_trip`, `drive_kinds_parse_and_know_their_rom_sizes`.
+    #[test]
+    fn drive_state_and_kinds() {
+        drive_state_packs_and_unpacks_round_trip();
+        drive_kinds_parse_and_know_their_rom_sizes();
     }
 
     #[test]

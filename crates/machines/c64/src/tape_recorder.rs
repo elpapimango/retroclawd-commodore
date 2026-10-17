@@ -102,7 +102,6 @@ impl TapeRecorder {
 mod tests {
     use super::*;
 
-    #[test]
     fn two_toggles_make_one_pulse_the_time_to_the_next_waves_first_toggle() {
         let mut r = TapeRecorder::new();
         r.note(100, true, false); // wave 1 starts
@@ -113,7 +112,6 @@ mod tests {
         assert_eq!(r.pulses(), vec![360, 500]);
     }
 
-    #[test]
     fn the_motor_stopping_ends_the_run_and_the_gap_is_not_a_pulse() {
         let mut r = TapeRecorder::new();
         r.note(0, true, false);
@@ -124,5 +122,11 @@ mod tests {
         r.note(9180, true, false);
         r.note(9360, true, true);
         assert_eq!(r.pulses(), vec![360, 360]);
+    }
+    /// Merged (every check kept): `two_toggles_make_one_pulse_the_time_to_the_next_waves_first_toggle`, `the_motor_stopping_ends_the_run_and_the_gap_is_not_a_pulse`.
+    #[test]
+    fn recorder_cases() {
+        two_toggles_make_one_pulse_the_time_to_the_next_waves_first_toggle();
+        the_motor_stopping_ends_the_run_and_the_gap_is_not_a_pulse();
     }
 }

@@ -52,7 +52,6 @@ fn run(m: &mut C128, cycles: u64) -> u64 {
     spent
 }
 
-#[test]
 fn every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles() {
     let mut m = cycle_machine();
     // DEN on (the latch needs it during line $30), YSCROLL 3.
@@ -61,7 +60,6 @@ fn every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles() {
     assert_eq!(m.ba_stalled_cycles(), 25 * 43);
 }
 
-#[test]
 fn with_the_display_off_the_cpu_never_waits() {
     let mut m = cycle_machine();
     spin_program(&mut m, &[0xA9, 0x0B, 0x8D, 0x11, 0xD0]); // DEN clear
@@ -69,7 +67,6 @@ fn with_the_display_off_the_cpu_never_waits() {
     assert_eq!(m.ba_stalled_cycles(), 0);
 }
 
-#[test]
 fn a_lone_sprite_costs_five_cycles_a_line_for_21_lines() {
     let mut m = cycle_machine();
     spin_program(
@@ -78,6 +75,13 @@ fn a_lone_sprite_costs_five_cycles_a_line_for_21_lines() {
     );
     run(&mut m, FRAME_CYCLES);
     assert_eq!(m.ba_stalled_cycles(), 21 * 5);
+}
+/// Merged (every check kept): `every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles`, `with_the_display_off_the_cpu_never_waits`, `a_lone_sprite_costs_five_cycles_a_line_for_21_lines`.
+#[test]
+fn ba_stalls() {
+    every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles();
+    with_the_display_off_the_cpu_never_waits();
+    a_lone_sprite_costs_five_cycles_a_line_for_21_lines();
 }
 
 #[test]
@@ -92,7 +96,6 @@ fn the_raster_stays_in_lockstep_with_the_cycles_step_reports() {
     assert_eq!(raster_line(&m), line);
 }
 
-#[test]
 fn the_z80_is_not_stalled_but_the_raster_keeps_running() {
     let mut m = C128::new(roms()).unwrap();
     m.set_vic_accuracy(VicAccuracy::Cycle).unwrap();
@@ -106,7 +109,6 @@ fn the_z80_is_not_stalled_but_the_raster_keeps_running() {
     assert_eq!(raster_line(&m), line);
 }
 
-#[test]
 fn the_2_mhz_mode_is_not_stalled_either() {
     let mut m = cycle_machine();
     // $D030 bit 0: 2 MHz, then spin with the display on.
@@ -117,6 +119,12 @@ fn the_2_mhz_mode_is_not_stalled_either() {
     run(&mut m, FRAME_CYCLES);
     assert!(m.bus.fast);
     assert_eq!(m.ba_stalled_cycles(), 0);
+}
+/// Merged (every check kept): `the_z80_is_not_stalled_but_the_raster_keeps_running`, `the_2_mhz_mode_is_not_stalled_either`.
+#[test]
+fn unstalled_cpus() {
+    the_z80_is_not_stalled_but_the_raster_keeps_running();
+    the_2_mhz_mode_is_not_stalled_either();
 }
 
 #[test]
@@ -129,7 +137,6 @@ fn cycle_mode_draws_its_own_picture_border_included() {
     assert_eq!(rgb.len(), 384 * 264 * 3);
 }
 
-#[test]
 fn cycle_mode_is_refused_on_ntsc_and_line_mode_comes_back() {
     let mut m = C128::new(roms()).unwrap();
     m.set_region(machine::Region::Ntsc);
@@ -142,7 +149,6 @@ fn cycle_mode_is_refused_on_ntsc_and_line_mode_comes_back() {
     assert_eq!(p.vic_accuracy(), VicAccuracy::Line);
 }
 
-#[test]
 fn a_restored_cycle_mode_state_continues_identically() {
     let mut a = cycle_machine();
     spin_program(&mut a, &[0xA9, 0x1B, 0x8D, 0x11, 0xD0]);
@@ -168,4 +174,10 @@ fn a_restored_cycle_mode_state_continues_identically() {
     // A state made in one accuracy mode does not load into the other.
     let mut line = C128::new(roms()).unwrap();
     assert!(line.load_state(&saved).is_err());
+}
+/// Merged (every check kept): `cycle_mode_is_refused_on_ntsc_and_line_mode_comes_back`, `a_restored_cycle_mode_state_continues_identically`.
+#[test]
+fn mode_checks() {
+    cycle_mode_is_refused_on_ntsc_and_line_mode_comes_back();
+    a_restored_cycle_mode_state_continues_identically();
 }

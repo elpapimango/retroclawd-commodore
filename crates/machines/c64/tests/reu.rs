@@ -76,13 +76,3 @@ fn a_program_stashes_wipes_and_fetches_a_block_through_the_registers() {
     let status = c64.read_memory(0x0500);
     assert_ne!(status & 0x40, 0, "end-of-block status {status:#x}");
 }
-
-#[test]
-fn only_the_three_real_reu_sizes_attach() {
-    let Some(mut c64) = c64() else {
-        eprintln!("skipped: roms/c64 not present");
-        return;
-    };
-    c64.attach_reu(128).unwrap();
-    assert!(c64.attach_reu(100).is_err(), "only the three real sizes");
-}

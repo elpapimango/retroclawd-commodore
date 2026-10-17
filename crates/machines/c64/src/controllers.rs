@@ -253,7 +253,6 @@ mod tests {
         assert_eq!(c.pot(0, 0), 0xFF);
     }
 
-    #[test]
     fn the_1351_counts_motion_into_the_low_seven_bits_plus_0x40() {
         let mut c = Controllers::default();
         c.set_mode(MouseMode::Mouse1351(1));
@@ -269,7 +268,6 @@ mod tests {
         assert_eq!(c.pot(2, 0), 0xFF);
     }
 
-    #[test]
     fn the_1351_buttons_are_fire_and_up() {
         let mut c = Controllers::default();
         c.set_mode(MouseMode::Mouse1351(2));
@@ -278,6 +276,12 @@ mod tests {
         assert_eq!(c.lines(1), 0);
         c.mouse_button(true, true);
         assert_eq!(c.lines(2), FIRE | UP);
+    }
+    /// Merged (every check kept): `the_1351_counts_motion_into_the_low_seven_bits_plus_0x40`, `the_1351_buttons_are_fire_and_up`.
+    #[test]
+    fn mouse_1351() {
+        the_1351_counts_motion_into_the_low_seven_bits_plus_0x40();
+        the_1351_buttons_are_fire_and_up();
     }
 
     #[test]

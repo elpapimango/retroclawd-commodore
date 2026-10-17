@@ -373,7 +373,6 @@ impl SectorSource for d64::D64 {
 mod tests {
     use super::*;
 
-    #[test]
     fn decode_nibble_reverses_every_real_encode_table_entry() {
         for nibble in 0..16u8 {
             let code = GCR_ENCODE[nibble as usize];
@@ -385,7 +384,6 @@ mod tests {
         assert_eq!(decode_nibble(0x1F), None);
     }
 
-    #[test]
     fn four_byte_groups_round_trip_through_5_byte_gcr_for_every_byte_value() {
         for b in 0..=255u8 {
             let src = [b, b.wrapping_add(1), b.wrapping_add(2), b.wrapping_add(3)];
@@ -394,7 +392,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn no_adjacent_pair_of_valid_codes_ever_produces_a_real_sync_run_or_more_than_2_zeros() {
         // The two real hardware facts this whole codec exists to
         // guarantee, both checked directly across every possible 4-byte
@@ -447,8 +444,14 @@ mod tests {
             }
         }
     }
-
+    /// Merged (every check kept): `decode_nibble_reverses_every_real_encode_table_entry`, `four_byte_groups_round_trip_through_5_byte_gcr_for_every_byte_value`, `no_adjacent_pair_of_valid_codes_ever_produces_a_real_sync_run_or_more_than_2_zeros`.
     #[test]
+    fn gcr_tables() {
+        decode_nibble_reverses_every_real_encode_table_entry();
+        four_byte_groups_round_trip_through_5_byte_gcr_for_every_byte_value();
+        no_adjacent_pair_of_valid_codes_ever_produces_a_real_sync_run_or_more_than_2_zeros();
+    }
+
     fn encode_sector_round_trips_through_decode_sector() {
         let mut data = [0u8; 256];
         for (i, b) in data.iter_mut().enumerate() {
@@ -463,7 +466,6 @@ mod tests {
         assert_eq!(decoded, data);
     }
 
-    #[test]
     fn encode_sector_detects_a_corrupted_data_checksum() {
         let data = [0xAAu8; 256];
         let mut gcr = encode_sector(1, 0, b'1', b'A', &data);
@@ -473,8 +475,13 @@ mod tests {
         gcr[corrupt_index] ^= 0xFF;
         assert_eq!(decode_sector(&gcr), None);
     }
-
+    /// Merged (every check kept): `encode_sector_round_trips_through_decode_sector`, `encode_sector_detects_a_corrupted_data_checksum`.
     #[test]
+    fn sector_encoding() {
+        encode_sector_round_trips_through_decode_sector();
+        encode_sector_detects_a_corrupted_data_checksum();
+    }
+
     fn build_track_gcr_encodes_every_real_sector_on_the_track_in_order() {
         let mut bytes = vec![0u8; 683 * d64::SECTOR_SIZE];
         // Minimal real BAM at track 18 sector 0 so `disk_id` reads real
@@ -511,7 +518,6 @@ mod tests {
         assert_eq!(pos, track_gcr.len());
     }
 
-    #[test]
     fn decode_track_reads_back_every_encoded_sector() {
         let disk_track: Vec<u8> = (0..3u8)
             .flat_map(|sector| {
@@ -528,7 +534,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn decode_track_accepts_a_data_block_whose_last_gcr_byte_was_clipped() {
         // DOS switches the write head off right after the last byte loads,
         // so the final GCR byte (part of the two "off" bytes) is garbage.
@@ -542,7 +547,6 @@ mod tests {
         assert_eq!(found[0].data, data);
     }
 
-    #[test]
     fn decode_track_rejects_a_corrupt_checksum() {
         let data = [0x11u8; 256];
         let mut track = encode_sector(9, 2, b'6', b'4', &data);
@@ -550,5 +554,13 @@ mod tests {
         let mid = track.len() - 9 - 160;
         track[mid] ^= 0x04;
         assert!(decode_track(&track).is_empty());
+    }
+    /// Merged (every check kept): `build_track_gcr_encodes_every_real_sector_on_the_track_in_order`, `decode_track_reads_back_every_encoded_sector`, `decode_track_accepts_a_data_block_whose_last_gcr_byte_was_clipped`, `decode_track_rejects_a_corrupt_checksum`.
+    #[test]
+    fn track_encoding() {
+        build_track_gcr_encodes_every_real_sector_on_the_track_in_order();
+        decode_track_reads_back_every_encoded_sector();
+        decode_track_accepts_a_data_block_whose_last_gcr_byte_was_clipped();
+        decode_track_rejects_a_corrupt_checksum();
     }
 }

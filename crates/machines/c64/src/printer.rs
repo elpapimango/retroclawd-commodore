@@ -84,7 +84,6 @@ impl Printer {
 mod tests {
     use super::*;
 
-    #[test]
     fn upper_case_mode_keeps_letters_and_return_becomes_a_newline() {
         let mut p = Printer::default();
         for b in b"HELLO\r1+1\r" {
@@ -93,7 +92,6 @@ mod tests {
         assert_eq!(p.text(), "HELLO\n1+1\n");
     }
 
-    #[test]
     fn lower_case_mode_swaps_the_letter_ranges() {
         let mut p = Printer::default();
         p.set_secondary(7);
@@ -103,12 +101,18 @@ mod tests {
         assert_eq!(p.text(), "hiHI");
     }
 
-    #[test]
     fn mode_bytes_and_unknown_codes() {
         let mut p = Printer::default();
         for b in [0x0E, 0x41, 0x8E, 0x41, 0xA0] {
             p.push(b);
         }
         assert_eq!(p.text(), "aA?");
+    }
+    /// Merged (every check kept): `upper_case_mode_keeps_letters_and_return_becomes_a_newline`, `lower_case_mode_swaps_the_letter_ranges`, `mode_bytes_and_unknown_codes`.
+    #[test]
+    fn printer_modes() {
+        upper_case_mode_keeps_letters_and_return_becomes_a_newline();
+        lower_case_mode_swaps_the_letter_ranges();
+        mode_bytes_and_unknown_codes();
     }
 }

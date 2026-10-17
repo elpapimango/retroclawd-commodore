@@ -103,7 +103,6 @@ impl GeoRam {
 mod tests {
     use super::*;
 
-    #[test]
     fn the_window_follows_block_and_page_registers() {
         let mut g = GeoRam::new(512).unwrap();
         g.write_register(0xDFFF, 3);
@@ -117,13 +116,18 @@ mod tests {
         assert_eq!(g.read_window(0xDE10), 0xAB);
     }
 
-    #[test]
     fn out_of_range_values_wrap() {
         let mut g = GeoRam::new(512).unwrap(); // 32 blocks
         g.write_register(0xDFFF, 33);
         g.write_register(0xDFFE, 65);
         assert_eq!(g.read_register(0xDFFF), 1);
         assert_eq!(g.read_register(0xDFFE), 1);
+    }
+    /// Merged (every check kept): `the_window_follows_block_and_page_registers`, `out_of_range_values_wrap`.
+    #[test]
+    fn georam_window() {
+        the_window_follows_block_and_page_registers();
+        out_of_range_values_wrap();
     }
 
     #[test]

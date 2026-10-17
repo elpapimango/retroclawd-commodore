@@ -381,7 +381,6 @@ mod tests {
         v.read(1)
     }
 
-    #[test]
     fn register_protocol_and_unused_bits() {
         let mut v = Vdc::new(true);
         set(&mut v, 1, 80);
@@ -392,13 +391,17 @@ mod tests {
         assert_eq!(v.index, 0x3F, "the top two bits of the index are ignored");
     }
 
-    #[test]
     fn the_status_port_reports_ready_and_the_revision() {
         let mut v = Vdc::new(true);
         assert_eq!(v.read(0) & 0x9F, 0x80 | REVISION);
     }
-
+    /// Merged (every check kept): `register_protocol_and_unused_bits`, `the_status_port_reports_ready_and_the_revision`.
     #[test]
+    fn register_and_status() {
+        register_protocol_and_unused_bits();
+        the_status_port_reports_ready_and_the_revision();
+    }
+
     fn register_31_writes_and_reads_video_ram_with_auto_increment() {
         let mut v = Vdc::new(true);
         set(&mut v, 28, 0x10);
@@ -417,7 +420,6 @@ mod tests {
         assert_eq!(v.read(1), 0xBB);
     }
 
-    #[test]
     fn writing_register_30_fills_or_copies_a_block() {
         let mut v = Vdc::new(true);
         set(&mut v, 28, 0x10);
@@ -438,7 +440,6 @@ mod tests {
         assert_eq!((v.reg(32), v.reg(33)), (0x20, 0x04));
     }
 
-    #[test]
     fn a_zero_count_means_256_bytes() {
         let mut v = Vdc::new(true);
         set(&mut v, 28, 0x10);
@@ -450,7 +451,6 @@ mod tests {
         assert_eq!(v.ram()[256], 0, "only 256 bytes");
     }
 
-    #[test]
     fn sixteen_k_chips_fold_the_address_lines() {
         let mut v = Vdc::new(false);
         assert_eq!(v.ram().len(), 0x4000);
@@ -463,6 +463,14 @@ mod tests {
         // Addresses that differ only in A15 land on the same cell (the
         // mapping drops it).
         assert_eq!(v.ram_index(0x8000), v.ram_index(0x0000));
+    }
+    /// Merged (every check kept): `register_31_writes_and_reads_video_ram_with_auto_increment`, `writing_register_30_fills_or_copies_a_block`, `a_zero_count_means_256_bytes`, `sixteen_k_chips_fold_the_address_lines`.
+    #[test]
+    fn video_ram_access() {
+        register_31_writes_and_reads_video_ram_with_auto_increment();
+        writing_register_30_fills_or_copies_a_block();
+        a_zero_count_means_256_bytes();
+        sixteen_k_chips_fold_the_address_lines();
     }
 
     fn text_vdc() -> Vdc {
@@ -481,7 +489,6 @@ mod tests {
         v
     }
 
-    #[test]
     fn text_mode_draws_the_glyph_bits_in_the_attribute_colour() {
         let mut v = text_vdc();
         // Glyph 1: top row 10000001, rest blank, at $2000 + 16.
@@ -495,7 +502,6 @@ mod tests {
         assert_eq!(&rgb[7 * 3..7 * 3 + 3], &PALETTE[2], "rightmost lit pixel");
     }
 
-    #[test]
     fn reverse_underline_and_the_alternate_set_attributes_apply() {
         let mut v = text_vdc();
         v.ram[0x2000 + 16] = 0xFF;
@@ -522,7 +528,6 @@ mod tests {
         assert_eq!(&rgb[0..3], &PALETTE[15]);
     }
 
-    #[test]
     fn the_cursor_inverts_its_scan_lines_at_its_position() {
         let mut v = text_vdc();
         set(&mut v, 10, 0x00); // solid cursor from line 0
@@ -535,7 +540,6 @@ mod tests {
         assert_eq!(&rgb[0..3], &PALETTE[0], "other cells untouched");
     }
 
-    #[test]
     fn blinking_attribute_follows_the_frame_counter() {
         let mut v = text_vdc();
         v.ram[0x2000 + 16] = 0xFF;
@@ -554,6 +558,14 @@ mod tests {
             }
         }
         assert!(seen_lit && seen_dark);
+    }
+    /// Merged (every check kept): `text_mode_draws_the_glyph_bits_in_the_attribute_colour`, `reverse_underline_and_the_alternate_set_attributes_apply`, `the_cursor_inverts_its_scan_lines_at_its_position`, `blinking_attribute_follows_the_frame_counter`.
+    #[test]
+    fn text_rendering() {
+        text_mode_draws_the_glyph_bits_in_the_attribute_colour();
+        reverse_underline_and_the_alternate_set_attributes_apply();
+        the_cursor_inverts_its_scan_lines_at_its_position();
+        blinking_attribute_follows_the_frame_counter();
     }
 
     #[test]

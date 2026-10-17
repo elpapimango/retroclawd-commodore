@@ -361,7 +361,6 @@ mod tests {
         a
     }
 
-    #[test]
     fn reset_state_is_transmit_empty_with_the_line_down() {
         let mut a = Acia::new(Mode::SwiftLink, CLOCK);
         assert_eq!(a.read(1), SR_TRANSMIT_EMPTY | SR_DCD | SR_DSR);
@@ -369,7 +368,6 @@ mod tests {
         assert_eq!(a.read(1), SR_TRANSMIT_EMPTY);
     }
 
-    #[test]
     fn a_written_byte_leaves_after_one_character_time() {
         let mut a = started(Mode::Normal, 0x1E); // 9600 bps, 8N1
         a.write(0, 0x41);
@@ -380,7 +378,6 @@ mod tests {
         assert_ne!(a.peek(1) & SR_TRANSMIT_EMPTY, 0);
     }
 
-    #[test]
     fn nothing_is_sent_while_dtr_is_off() {
         let mut a = Acia::new(Mode::Normal, CLOCK);
         a.write(0, 0x41);
@@ -405,7 +402,6 @@ mod tests {
         assert_eq!(t.bps(), 19200);
     }
 
-    #[test]
     fn receiving_sets_the_flag_clears_on_data_read_and_interrupts_when_enabled() {
         let mut a = Acia::new(Mode::SwiftLink, CLOCK);
         a.write(3, 0x1F);
@@ -422,7 +418,6 @@ mod tests {
         assert_eq!(a.peek(1) & SR_IRQ, 0, "status read acknowledges");
     }
 
-    #[test]
     fn an_unread_byte_followed_by_another_overruns() {
         let mut a = started(Mode::Normal, 0x1F);
         a.push_rx(1);
@@ -432,15 +427,20 @@ mod tests {
         assert_eq!(a.read(0), 1, "the first byte is kept");
     }
 
-    #[test]
     fn word_length_masks_the_data() {
         let mut a = started(Mode::Normal, 0x3E); // 7 data bits
         a.write(0, 0xFF);
         run(&mut a, 3_000);
         assert_eq!(a.take_tx(), [0x7F]);
     }
-
+    /// Merged (every check kept): `receiving_sets_the_flag_clears_on_data_read_and_interrupts_when_enabled`, `an_unread_byte_followed_by_another_overruns`, `word_length_masks_the_data`.
     #[test]
+    fn receive_cases() {
+        receiving_sets_the_flag_clears_on_data_read_and_interrupts_when_enabled();
+        an_unread_byte_followed_by_another_overruns();
+        word_length_masks_the_data();
+    }
+
     fn transmit_interrupt_mode_raises_an_edge_per_character() {
         let mut a = Acia::new(Mode::SwiftLink, CLOCK);
         a.write(3, 0x1F);
@@ -449,8 +449,14 @@ mod tests {
         assert!(run(&mut a, 3_000));
         assert_ne!(a.read(1) & SR_IRQ, 0);
     }
-
+    /// Merged (every check kept): `a_written_byte_leaves_after_one_character_time`, `nothing_is_sent_while_dtr_is_off`, `transmit_interrupt_mode_raises_an_edge_per_character`.
     #[test]
+    fn transmit_cases() {
+        a_written_byte_leaves_after_one_character_time();
+        nothing_is_sent_while_dtr_is_off();
+        transmit_interrupt_mode_raises_an_edge_per_character();
+    }
+
     fn a_status_write_is_a_programmed_reset() {
         let mut a = started(Mode::Normal, 0x1E);
         a.write(2, 0xE1);
@@ -459,5 +465,11 @@ mod tests {
         assert_eq!(a.read(2), 0xE0, "only the parity bits survive");
         run(&mut a, 5_000);
         assert!(a.take_tx().is_empty(), "the pending character was dropped");
+    }
+    /// Merged (every check kept): `reset_state_is_transmit_empty_with_the_line_down`, `a_status_write_is_a_programmed_reset`.
+    #[test]
+    fn reset_cases() {
+        reset_state_is_transmit_empty_with_the_line_down();
+        a_status_write_is_a_programmed_reset();
     }
 }

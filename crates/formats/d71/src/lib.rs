@@ -573,7 +573,6 @@ mod tests {
         vec![0u8; IMAGE_SIZE]
     }
 
-    #[test]
     fn sectors_per_track_repeats_the_same_zone_table_on_both_sides() {
         assert_eq!(sectors_per_track(1), 21);
         assert_eq!(sectors_per_track(17), 21);
@@ -588,7 +587,6 @@ mod tests {
         assert_eq!(sectors_per_track(71), 0);
     }
 
-    #[test]
     fn total_sectors_matches_the_real_confirmed_1366_block_count() {
         let mut total = 0usize;
         for t in 1..=70u8 {
@@ -596,8 +594,13 @@ mod tests {
         }
         assert_eq!(total, TOTAL_SECTORS);
     }
-
+    /// Merged (every check kept): `sectors_per_track_repeats_the_same_zone_table_on_both_sides`, `total_sectors_matches_the_real_confirmed_1366_block_count`.
     #[test]
+    fn geometry() {
+        sectors_per_track_repeats_the_same_zone_table_on_both_sides();
+        total_sectors_matches_the_real_confirmed_1366_block_count();
+    }
+
     fn parse_recognizes_both_real_size_variants() {
         assert!(!D71::parse(&blank_image()).unwrap().has_error_info());
         let mut with_errors = blank_image();
@@ -605,13 +608,17 @@ mod tests {
         assert!(D71::parse(&with_errors).unwrap().has_error_info());
     }
 
-    #[test]
     fn parse_rejects_an_unrecognized_size() {
         let err = D71::parse(&vec![0u8; 12345]).unwrap_err();
         assert_eq!(err, Error::InvalidSize(12345));
     }
-
+    /// Merged (every check kept): `parse_recognizes_both_real_size_variants`, `parse_rejects_an_unrecognized_size`.
     #[test]
+    fn parsing() {
+        parse_recognizes_both_real_size_variants();
+        parse_rejects_an_unrecognized_size();
+    }
+
     fn read_write_sector_round_trips_and_reaches_the_second_side() {
         let mut disk = D71::parse(&blank_image()).unwrap();
         let mut data = [0u8; SECTOR_SIZE];
@@ -634,12 +641,17 @@ mod tests {
         );
     }
 
-    #[test]
     fn to_bytes_round_trips_exactly() {
         let mut bytes = blank_image();
         bytes[0x1234] = 0x42;
         let disk = D71::parse(&bytes).unwrap();
         assert_eq!(disk.to_bytes(), bytes);
+    }
+    /// Merged (every check kept): `read_write_sector_round_trips_and_reaches_the_second_side`, `to_bytes_round_trips_exactly`.
+    #[test]
+    fn sector_io() {
+        read_write_sector_round_trips_and_reaches_the_second_side();
+        to_bytes_round_trips_exactly();
     }
 
     fn track_sector_byte_offset(track: u8, sector: u8) -> usize {
@@ -651,7 +663,6 @@ mod tests {
         idx * SECTOR_SIZE
     }
 
-    #[test]
     fn bam_fields_read_from_the_confirmed_real_offsets() {
         let mut bytes = blank_image();
         let bam_off = track_sector_byte_offset(BAM_TRACK, BAM_SECTOR);
@@ -686,7 +697,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn directory_entries_reads_a_real_slot_from_the_second_side_capable_layout() {
         let mut bytes = blank_image();
         let bam_off = track_sector_byte_offset(BAM_TRACK, BAM_SECTOR);
@@ -711,8 +721,13 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].track, 40);
     }
-
+    /// Merged (every check kept): `bam_fields_read_from_the_confirmed_real_offsets`, `directory_entries_reads_a_real_slot_from_the_second_side_capable_layout`.
     #[test]
+    fn bam_and_directory() {
+        bam_fields_read_from_the_confirmed_real_offsets();
+        directory_entries_reads_a_real_slot_from_the_second_side_capable_layout();
+    }
+
     fn read_file_reads_real_payload_bytes_from_a_side_2_track() {
         let mut bytes = blank_image();
         let off = track_sector_byte_offset(40, 0);
@@ -729,12 +744,17 @@ mod tests {
         assert_eq!(data, vec![0xAA, 0xBB, 0xCC, 0xDD]);
     }
 
-    #[test]
     fn find_program_wildcard_and_exact_name_both_work() {
         let entries = vec![make_entry(40, 0)];
         assert!(D71::find_program(&entries, b"*").is_some());
         assert!(D71::find_program(&entries, b"PROGRAM").is_some());
         assert!(D71::find_program(&entries, b"OTHER").is_none());
+    }
+    /// Merged (every check kept): `read_file_reads_real_payload_bytes_from_a_side_2_track`, `find_program_wildcard_and_exact_name_both_work`.
+    #[test]
+    fn files() {
+        read_file_reads_real_payload_bytes_from_a_side_2_track();
+        find_program_wildcard_and_exact_name_both_work();
     }
 
     /// A freshly formatted double-sided disk: everything free except the
@@ -804,7 +824,6 @@ mod tests {
         counts_match_bitmaps(&disk);
     }
 
-    #[test]
     fn a_big_file_spills_onto_side_two_and_reads_back() {
         let mut disk = formatted();
         // More than side 1 can hold (~664 blocks of 254 bytes).
@@ -833,7 +852,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn replacing_a_file_frees_its_old_blocks_and_a_full_disk_changes_nothing() {
         let mut disk = formatted();
         disk.save_program(b"A", &[1; 2000], false).unwrap();
@@ -852,5 +870,11 @@ mod tests {
         );
         assert_eq!(disk.to_bytes(), before);
         counts_match_bitmaps(&disk);
+    }
+    /// Merged (every check kept): `a_big_file_spills_onto_side_two_and_reads_back`, `replacing_a_file_frees_its_old_blocks_and_a_full_disk_changes_nothing`.
+    #[test]
+    fn big_and_replace() {
+        a_big_file_spills_onto_side_two_and_reads_back();
+        replacing_a_file_frees_its_old_blocks_and_a_full_disk_changes_nothing();
     }
 }

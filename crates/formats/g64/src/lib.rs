@@ -401,7 +401,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn a_missing_or_damaged_sector_is_counted_and_left_zero() {
         let mut t1 = encode_track(1, 21, |_, _| 0x55);
         // Damage the middle of the track: corrupt many bytes.
@@ -416,7 +415,6 @@ mod tests {
         assert_eq!(decoded.disk.read_sector(2, 3).unwrap()[0], 0x11);
     }
 
-    #[test]
     fn header_checks_reject_a_non_g64_and_a_truncated_table() {
         assert_eq!(parse(&[0; 4]).unwrap_err(), Error::TooShort(4));
         assert_eq!(parse(&[0; 20]).unwrap_err(), Error::BadMagic);
@@ -426,6 +424,12 @@ mod tests {
         let mut v = g64(&[]);
         v[8] = 1;
         assert_eq!(parse(&v).unwrap_err(), Error::UnsupportedVersion(1));
+    }
+    /// Merged (every check kept): `header_checks_reject_a_non_g64_and_a_truncated_table`, `a_missing_or_damaged_sector_is_counted_and_left_zero`.
+    #[test]
+    fn damaged_files() {
+        header_checks_reject_a_non_g64_and_a_truncated_table();
+        a_missing_or_damaged_sector_is_counted_and_left_zero();
     }
 
     #[test]

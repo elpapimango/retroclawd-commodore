@@ -277,7 +277,6 @@ mod tests {
         Tape::from_pulses(pulses)
     }
 
-    #[test]
     fn a_saved_program_decodes_back_to_the_same_name_address_and_bytes() {
         let data: Vec<u8> = (0..300u32).map(|i| (i * 7) as u8).collect();
         let t = tape(encode_program(1, b"HELLO", 0x0801, &data));
@@ -289,13 +288,18 @@ mod tests {
         assert_eq!(f.data, data);
     }
 
-    #[test]
     fn several_programs_on_one_tape_come_back_in_order() {
         let mut pulses = encode_program(3, b"ONE", 0xC000, &[1, 2, 3]);
         pulses.extend(encode_program(1, b"TWO", 0x0801, &[9; 40]));
         let files = decode_files(&tape(pulses));
         let names: Vec<&[u8]> = files.iter().map(|f| f.trimmed_name()).collect();
         assert_eq!(names, vec![&b"ONE"[..], &b"TWO"[..]]);
+    }
+    /// Merged (every check kept): `a_saved_program_decodes_back_to_the_same_name_address_and_bytes`, `several_programs_on_one_tape_come_back_in_order`.
+    #[test]
+    fn program_round_trips() {
+        a_saved_program_decodes_back_to_the_same_name_address_and_bytes();
+        several_programs_on_one_tape_come_back_in_order();
     }
 
     #[test]
@@ -314,7 +318,6 @@ mod tests {
         assert_eq!(files[0].data, data);
     }
 
-    #[test]
     fn recorded_style_pulse_widths_classify_like_the_standard_ones() {
         for (cycles, sym) in [
             (362, Sym::S),
@@ -328,9 +331,14 @@ mod tests {
         }
     }
 
-    #[test]
     fn noise_and_non_standard_tapes_decode_to_nothing() {
         assert!(decode_files(&tape(vec![300; 1000])).is_empty());
         assert!(decode_files(&tape(vec![])).is_empty());
+    }
+    /// Merged (every check kept): `recorded_style_pulse_widths_classify_like_the_standard_ones`, `noise_and_non_standard_tapes_decode_to_nothing`.
+    #[test]
+    fn pulse_classification() {
+        recorded_style_pulse_widths_classify_like_the_standard_ones();
+        noise_and_non_standard_tapes_decode_to_nothing();
     }
 }

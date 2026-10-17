@@ -578,7 +578,6 @@ mod tests {
         d64::D64::parse(&bytes).unwrap()
     }
 
-    #[test]
     fn stepper_moves_one_half_track_per_real_adjacent_phase_transition() {
         let mut disk = DiskMechanism::default();
         assert_eq!(disk.track_number(), 1);
@@ -593,7 +592,6 @@ mod tests {
         assert_eq!(disk.track_number(), 3);
     }
 
-    #[test]
     fn stepper_moves_backward_on_the_reverse_adjacent_transition() {
         let mut disk = DiskMechanism::default();
         disk.update_stepper(0b01);
@@ -606,14 +604,12 @@ mod tests {
         assert_eq!(disk.track_number(), 2);
     }
 
-    #[test]
     fn stepper_ignores_a_same_tick_two_position_jump() {
         let mut disk = DiskMechanism::default();
         disk.update_stepper(0b10); // phase +2: a real hardware no-op
         assert_eq!(disk.track_number(), 1, "must not have moved");
     }
 
-    #[test]
     fn stepper_never_seeks_below_track_1_or_past_the_real_mechanical_limit() {
         let mut disk = DiskMechanism::default();
         disk.update_stepper(0b11); // one backward step from track 1's own half_track 0
@@ -634,8 +630,15 @@ mod tests {
             "clamped at the real mechanical limit"
         );
     }
-
+    /// Merged (every check kept): `stepper_moves_one_half_track_per_real_adjacent_phase_transition`, `stepper_moves_backward_on_the_reverse_adjacent_transition`, `stepper_ignores_a_same_tick_two_position_jump`, `stepper_never_seeks_below_track_1_or_past_the_real_mechanical_limit`.
     #[test]
+    fn stepper_cases() {
+        stepper_moves_one_half_track_per_real_adjacent_phase_transition();
+        stepper_moves_backward_on_the_reverse_adjacent_transition();
+        stepper_ignores_a_same_tick_two_position_jump();
+        stepper_never_seeks_below_track_1_or_past_the_real_mechanical_limit();
+    }
+
     fn motor_off_produces_no_bits_even_with_a_disk_attached() {
         let mut disk = DiskMechanism::default();
         disk.attach(Medium::D64(blank_disk_with_id(b'6', b'4')));
@@ -646,11 +649,16 @@ mod tests {
         );
     }
 
-    #[test]
     fn no_disk_attached_produces_no_bits() {
         let mut disk = DiskMechanism::default();
         disk.set_motor_on(true);
         assert!(!disk.tick(1_000_000));
+    }
+    /// Merged (every check kept): `motor_off_produces_no_bits_even_with_a_disk_attached`, `no_disk_attached_produces_no_bits`.
+    #[test]
+    fn no_bits_cases() {
+        motor_off_produces_no_bits_even_with_a_disk_attached();
+        no_disk_attached_produces_no_bits();
     }
 
     #[test]
@@ -716,7 +724,6 @@ mod tests {
         assert_eq!(disk.track_gcr_cached_for, None, "must invalidate on seek");
     }
 
-    #[test]
     fn the_write_head_lays_down_bytes_that_commit_into_the_disk_image() {
         let mut disk = DiskMechanism::default();
         disk.attach(Medium::D64(blank_disk_with_id(b'6', b'4')));
@@ -745,7 +752,6 @@ mod tests {
         assert!(!disk.disk_modified());
     }
 
-    #[test]
     fn the_write_head_does_nothing_without_a_disk() {
         let mut disk = DiskMechanism::default();
         disk.set_motor_on(true);
@@ -755,5 +761,11 @@ mod tests {
         }
         disk.set_write(false, 0);
         assert!(!disk.disk_modified());
+    }
+    /// Merged (every check kept): `the_write_head_lays_down_bytes_that_commit_into_the_disk_image`, `the_write_head_does_nothing_without_a_disk`.
+    #[test]
+    fn write_head_cases() {
+        the_write_head_lays_down_bytes_that_commit_into_the_disk_image();
+        the_write_head_does_nothing_without_a_disk();
     }
 }

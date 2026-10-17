@@ -39,7 +39,6 @@ fn run_frame(c64: &mut C64) -> u64 {
     spent
 }
 
-#[test]
 fn every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles() {
     let mut c64 = cycle_machine();
     // DEN on (the latch needs it during line $30), YSCROLL 3.
@@ -49,7 +48,6 @@ fn every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles() {
     assert_eq!(c64.ba_stalled_cycles(), 25 * 43);
 }
 
-#[test]
 fn with_the_display_off_the_cpu_never_waits() {
     let mut c64 = cycle_machine();
     spin_program(&mut c64, &[0xA9, 0x0B, 0x8D, 0x11, 0xD0]); // DEN clear
@@ -57,7 +55,6 @@ fn with_the_display_off_the_cpu_never_waits() {
     assert_eq!(c64.ba_stalled_cycles(), 0);
 }
 
-#[test]
 fn a_lone_sprite_costs_five_cycles_a_line_for_21_lines() {
     let mut c64 = cycle_machine();
     // Sprite 0 enabled at Y = 100; DEN off so only the sprite steals.
@@ -70,7 +67,6 @@ fn a_lone_sprite_costs_five_cycles_a_line_for_21_lines() {
     assert_eq!(c64.ba_stalled_cycles(), 21 * 5);
 }
 
-#[test]
 fn three_adjacent_sprites_cost_nine_cycles_a_line() {
     let mut c64 = cycle_machine();
     // Sprites 0-2 at Y = 100: 3 warning cycles + 3 x 2.
@@ -83,6 +79,14 @@ fn three_adjacent_sprites_cost_nine_cycles_a_line() {
     );
     run_frame(&mut c64);
     assert_eq!(c64.ba_stalled_cycles(), 21 * 9);
+}
+/// Merged (every check kept): `every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles`, `with_the_display_off_the_cpu_never_waits`, `a_lone_sprite_costs_five_cycles_a_line_for_21_lines`, `three_adjacent_sprites_cost_nine_cycles_a_line`.
+#[test]
+fn ba_stall_counts() {
+    every_bad_line_stalls_a_read_only_program_for_exactly_43_cycles();
+    with_the_display_off_the_cpu_never_waits();
+    a_lone_sprite_costs_five_cycles_a_line_for_21_lines();
+    three_adjacent_sprites_cost_nine_cycles_a_line();
 }
 
 /// Steps NOPs (and one 3-cycle `LDA zp` when the parity needs it) until the
@@ -119,7 +123,6 @@ fn align(c64: &mut C64, line: u32, start: u32) {
     }
 }
 
-#[test]
 fn writes_proceed_while_ba_is_low_but_the_next_read_waits() {
     // BRK pushes three bytes in a row. Started in cycle 10 of a bad line
     // its writes land in 12, 13 and 14 -- BA is already low, yet they run;
@@ -158,7 +161,6 @@ fn writes_proceed_while_ba_is_low_but_the_next_read_waits() {
     );
 }
 
-#[test]
 fn a_read_started_inside_the_window_waits_from_its_first_cycle() {
     // NOP starting in cycle 11: its opcode read (11) runs, the padding read
     // in cycle 12 meets BA and waits until 55 -- 43 stalled cycles.
@@ -172,8 +174,13 @@ fn a_read_started_inside_the_window_waits_from_its_first_cycle() {
     assert_eq!(c64.ba_stalled_cycles() - before, 43);
     assert_eq!(cycles, 2 + 43);
 }
-
+/// Merged (every check kept): `writes_proceed_while_ba_is_low_but_the_next_read_waits`, `a_read_started_inside_the_window_waits_from_its_first_cycle`.
 #[test]
+fn ba_read_write_rules() {
+    writes_proceed_while_ba_is_low_but_the_next_read_waits();
+    a_read_started_inside_the_window_waits_from_its_first_cycle();
+}
+
 fn the_raster_and_the_cycles_step_reports_stay_in_lockstep() {
     let mut c64 = cycle_machine();
     spin_program(&mut c64, &[0xA9, 0x1B, 0x8D, 0x11, 0xD0]);
@@ -189,7 +196,6 @@ fn the_raster_and_the_cycles_step_reports_stay_in_lockstep() {
     }
 }
 
-#[test]
 fn a_program_computes_the_same_result_in_both_modes() {
     // Sums 1..=100 into $0400/$0401 with indexed and read-modify-write
     // accesses, through a bad-line-heavy display.
@@ -230,8 +236,13 @@ fn a_program_computes_the_same_result_in_both_modes() {
     assert_eq!(line, cycle);
     assert_eq!(line, (0xBA, 100), "5050 & 0xFF, and 100 passes");
 }
-
+/// Merged (every check kept): `the_raster_and_the_cycles_step_reports_stay_in_lockstep`, `a_program_computes_the_same_result_in_both_modes`.
 #[test]
+fn lockstep_and_equivalence() {
+    the_raster_and_the_cycles_step_reports_stay_in_lockstep();
+    a_program_computes_the_same_result_in_both_modes();
+}
+
 fn the_mode_is_checked_when_a_save_state_is_loaded() {
     let cycle = cycle_machine();
     let saved = cycle.save_state();
@@ -247,7 +258,6 @@ fn the_mode_is_checked_when_a_save_state_is_loaded() {
     other.load_state(&saved).unwrap();
 }
 
-#[test]
 fn cycle_mode_is_refused_on_ntsc() {
     let mut c64 = C64::new(
         vec![0; KERNAL_ROM_SIZE],
@@ -258,6 +268,12 @@ fn cycle_mode_is_refused_on_ntsc() {
     c64.set_region(machine::Region::Ntsc);
     assert!(c64.set_vic_accuracy(VicAccuracy::Cycle).is_err());
     assert_eq!(c64.vic_accuracy(), VicAccuracy::Line);
+}
+/// Merged (every check kept): `the_mode_is_checked_when_a_save_state_is_loaded`, `cycle_mode_is_refused_on_ntsc`.
+#[test]
+fn mode_checks() {
+    the_mode_is_checked_when_a_save_state_is_loaded();
+    cycle_mode_is_refused_on_ntsc();
 }
 
 /// Sets up a red border / blue background text screen and loops forever; with

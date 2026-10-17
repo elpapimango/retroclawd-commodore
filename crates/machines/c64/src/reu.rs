@@ -366,14 +366,12 @@ mod tests {
         }
     }
 
-    #[test]
     fn only_the_three_commodore_sizes_exist() {
         assert!(Reu::new(128).is_ok() && Reu::new(256).is_ok() && Reu::new(512).is_ok());
         assert!(Reu::new(64).unwrap_err().contains("1750"));
         assert!(Reu::new(2048).is_err());
     }
 
-    #[test]
     fn power_on_registers_match_the_documented_values() {
         let mut reu = Reu::new(512).unwrap();
         assert_eq!(reu.peek(0x00), 0x10, "256K+ chips bit");
@@ -385,8 +383,13 @@ mod tests {
         assert_eq!(reu.peek(0x0A), 0x3F);
         assert_eq!(reu.read(0x1F), 0xFF, "unused registers");
     }
-
+    /// Merged (every check kept): `only_the_three_commodore_sizes_exist`, `power_on_registers_match_the_documented_values`.
     #[test]
+    fn reu_basics() {
+        only_the_three_commodore_sizes_exist();
+        power_on_registers_match_the_documented_values();
+    }
+
     fn stash_then_fetch_round_trips_a_block_and_takes_a_cycle_per_byte() {
         let mut reu = Reu::new(512).unwrap();
         let mut bus = ram();
@@ -406,7 +409,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn registers_advance_unless_autoload_restores_them() {
         let mut reu = Reu::new(256).unwrap();
         let mut bus = ram();
@@ -427,7 +429,6 @@ mod tests {
         assert_eq!((reu.peek(0x07), reu.peek(0x08)), (0x10, 0));
     }
 
-    #[test]
     fn length_zero_means_64k_and_fixed_addresses_do_not_move() {
         let mut reu = Reu::new(512).unwrap();
         let mut bus = ram();
@@ -440,8 +441,14 @@ mod tests {
         assert!((0..16).all(|i| reu.s.ram[0x100 + i] == 0xAB));
         assert_eq!(reu.peek(0x02), 0x00, "fixed: C64 base unchanged");
     }
-
+    /// Merged (every check kept): `stash_then_fetch_round_trips_a_block_and_takes_a_cycle_per_byte`, `registers_advance_unless_autoload_restores_them`, `length_zero_means_64k_and_fixed_addresses_do_not_move`.
     #[test]
+    fn reu_stash_and_fetch() {
+        stash_then_fetch_round_trips_a_block_and_takes_a_cycle_per_byte();
+        registers_advance_unless_autoload_restores_them();
+        length_zero_means_64k_and_fixed_addresses_do_not_move();
+    }
+
     fn swap_exchanges_both_sides_and_costs_two_cycles_a_byte() {
         let mut reu = Reu::new(512).unwrap();
         let mut bus = ram();
@@ -453,7 +460,6 @@ mod tests {
         assert_eq!(&reu.s.ram[0x200..0x204], &[9, 8, 7, 6]);
     }
 
-    #[test]
     fn verify_flags_a_mismatch_and_stops_there() {
         let mut reu = Reu::new(512).unwrap();
         let mut bus = ram();
@@ -475,8 +481,13 @@ mod tests {
             "a mismatch on the last byte sets both"
         );
     }
-
+    /// Merged (every check kept): `swap_exchanges_both_sides_and_costs_two_cycles_a_byte`, `verify_flags_a_mismatch_and_stops_there`.
     #[test]
+    fn reu_swap_and_verify() {
+        swap_exchanges_both_sides_and_costs_two_cycles_a_byte();
+        verify_flags_a_mismatch_and_stops_there();
+    }
+
     fn reu_addresses_wrap_at_512k_and_unbacked_memory_reads_as_open_bus() {
         let mut reu = Reu::new(128).unwrap();
         let mut bus = ram();
@@ -492,7 +503,6 @@ mod tests {
         assert_eq!((reu.s.ram[0x7_FFFF], reu.s.ram[0]), (0x11, 0x22));
     }
 
-    #[test]
     fn end_of_block_interrupt_needs_both_mask_bits_and_fires_once() {
         let mut reu = Reu::new(512).unwrap();
         let mut bus = ram();
@@ -505,8 +515,13 @@ mod tests {
         assert_eq!(reu.read(0x00) & 0xC0, 0xC0, "status shows pending + EOB");
         assert_eq!(reu.peek(0x00) & 0x80, 0, "and reading cleared it");
     }
-
+    /// Merged (every check kept): `reu_addresses_wrap_at_512k_and_unbacked_memory_reads_as_open_bus`, `end_of_block_interrupt_needs_both_mask_bits_and_fires_once`.
     #[test]
+    fn reu_wrap_and_interrupt() {
+        reu_addresses_wrap_at_512k_and_unbacked_memory_reads_as_open_bus();
+        end_of_block_interrupt_needs_both_mask_bits_and_fires_once();
+    }
+
     fn a_command_with_ff00_enabled_waits_for_the_trigger() {
         let mut reu = Reu::new(512).unwrap();
         // Bit 4 clear: armed, not started.
@@ -518,7 +533,6 @@ mod tests {
         assert_eq!(reu.peek(0x01) & CMD_EXECUTE, 0, "execute bit clears");
     }
 
-    #[test]
     fn state_carries_the_dram_and_registers() {
         let mut reu = Reu::new(128).unwrap();
         let mut bus = ram();
@@ -532,5 +546,11 @@ mod tests {
         let mut big = Reu::new(512).unwrap();
         big.restore_state(reu.state());
         assert_eq!(big.kilobytes(), 512);
+    }
+    /// Merged (every check kept): `a_command_with_ff00_enabled_waits_for_the_trigger`, `state_carries_the_dram_and_registers`.
+    #[test]
+    fn reu_trigger_and_state() {
+        a_command_with_ff00_enabled_waits_for_the_trigger();
+        state_carries_the_dram_and_registers();
     }
 }

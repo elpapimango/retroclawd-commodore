@@ -1114,7 +1114,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn a_normal_8k_cartridge_uses_the_header_lines_and_only_roml() {
         let cart =
             Cartridge::from_crt(&crt(0, false, true, vec![chip(0, 0x8000, 0x11, 0x2000)])).unwrap();
@@ -1122,7 +1121,6 @@ mod tests {
         assert_eq!(cart.peek_roml(0x8000), 0x11);
     }
 
-    #[test]
     fn a_normal_16k_chip_splits_into_roml_and_romh() {
         let mut data = vec![0x22; 0x2000];
         data.extend(vec![0x33; 0x2000]);
@@ -1134,7 +1132,6 @@ mod tests {
         assert_eq!(cart.read_romh(0xA000), 0x33);
     }
 
-    #[test]
     fn an_ultimax_cartridge_reports_exrom_inactive_game_active() {
         let cart = Cartridge::from_crt(&crt(
             0,
@@ -1147,12 +1144,19 @@ mod tests {
         assert_eq!(cart.read_romh(0xFFFC), 2);
     }
 
-    #[test]
     fn a_4k_chip_is_mirrored_into_its_8k_window() {
         let cart =
             Cartridge::from_crt(&crt(0, false, true, vec![chip(0, 0x8000, 7, 0x1000)])).unwrap();
         assert_eq!(cart.peek_roml(0x8FFF), 7);
         assert_eq!(cart.peek_roml(0x9FFF), 7);
+    }
+    /// Merged (every check kept): `a_normal_8k_cartridge_uses_the_header_lines_and_only_roml`, `a_normal_16k_chip_splits_into_roml_and_romh`, `an_ultimax_cartridge_reports_exrom_inactive_game_active`, `a_4k_chip_is_mirrored_into_its_8k_window`.
+    #[test]
+    fn normal_cartridge_layouts() {
+        a_normal_8k_cartridge_uses_the_header_lines_and_only_roml();
+        a_normal_16k_chip_splits_into_roml_and_romh();
+        an_ultimax_cartridge_reports_exrom_inactive_game_active();
+        a_4k_chip_is_mirrored_into_its_8k_window();
     }
 
     #[test]
@@ -1163,7 +1167,6 @@ mod tests {
         assert!(err.contains("type 99") && err.contains("Ocean"), "{err}");
     }
 
-    #[test]
     fn ocean_selects_banks_at_de00_and_maps_one_bank_into_both_windows() {
         let chips = (0..16u16)
             .map(|b| chip(b, 0x8000, b as u8, 0x2000))
@@ -1178,13 +1181,18 @@ mod tests {
         assert_eq!(cart.peek_roml(0x8000), 5);
     }
 
-    #[test]
     fn a_512k_ocean_is_an_8k_cartridge() {
         let chips = (0..64u16)
             .map(|b| chip(b, 0x8000, b as u8, 0x2000))
             .collect();
         let cart = Cartridge::from_crt(&crt(5, false, true, chips)).unwrap();
         assert_eq!(cart.lines(), (true, false));
+    }
+    /// Merged (every check kept): `ocean_selects_banks_at_de00_and_maps_one_bank_into_both_windows`, `a_512k_ocean_is_an_8k_cartridge`.
+    #[test]
+    fn ocean_cases() {
+        ocean_selects_banks_at_de00_and_maps_one_bank_into_both_windows();
+        a_512k_ocean_is_an_8k_cartridge();
     }
 
     #[test]
@@ -1348,7 +1356,6 @@ mod tests {
         Cartridge::from_crt(&crt(32, true, false, chips)).unwrap()
     }
 
-    #[test]
     fn easyflash_boots_in_ultimax_and_switches_modes_through_de02() {
         let mut cart = easyflash();
         assert_eq!(cart.lines(), (false, true), "reset: Ultimax");
@@ -1362,7 +1369,6 @@ mod tests {
         assert_eq!(cart.lines(), (true, false));
     }
 
-    #[test]
     fn easyflash_banks_roml_and_romh_together_and_has_256_bytes_of_ram() {
         let mut cart = easyflash();
         assert_eq!(cart.peek_roml(0x8000), 0x10);
@@ -1374,6 +1380,12 @@ mod tests {
         assert_eq!(cart.io2_read(0xDF80), Some(0x99));
         cart.reset();
         assert_eq!(cart.io2_read(0xDF80), Some(0x99), "RAM survives a reset");
+    }
+    /// Merged (every check kept): `easyflash_boots_in_ultimax_and_switches_modes_through_de02`, `easyflash_banks_roml_and_romh_together_and_has_256_bytes_of_ram`.
+    #[test]
+    fn easyflash_registers() {
+        easyflash_boots_in_ultimax_and_switches_modes_through_de02();
+        easyflash_banks_roml_and_romh_together_and_has_256_bytes_of_ram();
     }
 
     fn unified(exrom: bool, game: bool) -> Cartridge {
@@ -1615,7 +1627,6 @@ mod tests {
         assert!(cart.write_hook(addr, value, true, true));
     }
 
-    #[test]
     fn easyflash_programs_and_erases_through_the_ultimax_window() {
         let mut cart = easyflash();
         assert_eq!(cart.peek_roml(0x8000), 0x10);
@@ -1657,10 +1668,15 @@ mod tests {
         assert_eq!(other.peek_roml(0x8010), 0x5A);
     }
 
-    #[test]
     fn easyflash_writes_outside_ultimax_do_not_reach_the_flash() {
         let mut cart = easyflash();
         assert!(!cart.write_hook(0x8555, 0xAA, true, false));
         assert!(!cart.is_modified());
+    }
+    /// Merged (every check kept): `easyflash_programs_and_erases_through_the_ultimax_window`, `easyflash_writes_outside_ultimax_do_not_reach_the_flash`.
+    #[test]
+    fn easyflash_flash_writes() {
+        easyflash_programs_and_erases_through_the_ultimax_window();
+        easyflash_writes_outside_ultimax_do_not_reach_the_flash();
     }
 }

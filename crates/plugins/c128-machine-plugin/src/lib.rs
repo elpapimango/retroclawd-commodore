@@ -1475,7 +1475,6 @@ mod tests {
         assert!(unsafe { plugin_destroy_instance_v1(instance) }.is_ok());
     }
 
-    #[test]
     fn descriptor_is_machine_plugin_v1() {
         // SAFETY: entry function returns pointer to static descriptor.
         let descriptor = unsafe { &*entry_v1() };
@@ -1484,7 +1483,6 @@ mod tests {
         assert_eq!(descriptor.kind, PluginKind::Machine);
     }
 
-    #[test]
     fn the_profile_declares_the_five_roms_and_the_drive_options() {
         let profile = machine_profile();
         assert_eq!(profile.machine_id, "c128");
@@ -1504,6 +1502,12 @@ mod tests {
             assert!(keys.contains(&expected), "{expected} missing from {keys:?}");
         }
     }
+    /// Merged (every check kept): `descriptor_is_machine_plugin_v1`, `the_profile_declares_the_five_roms_and_the_drive_options`.
+    #[test]
+    fn descriptor_and_profile() {
+        descriptor_is_machine_plugin_v1();
+        the_profile_declares_the_five_roms_and_the_drive_options();
+    }
 
     fn accuracy_request(region: &str, accuracy: &str) -> MachineCreateRequest {
         let mut req = request();
@@ -1521,7 +1525,6 @@ mod tests {
         unsafe { plugin_create_instance_v1(RcSlice::from_bytes(&bytes)) }
     }
 
-    #[test]
     fn vic_accuracy_cycle_creates_a_machine_that_steps_with_bus_cycles() {
         let create: MachineCreateResponse =
             plugin_api::decode_message(&payload(create_with(&accuracy_request("pal", "cycle"))))
@@ -1532,7 +1535,6 @@ mod tests {
         assert!(unsafe { plugin_destroy_instance_v1(create.instance) }.is_ok());
     }
 
-    #[test]
     fn vic_accuracy_cycle_on_ntsc_and_unknown_values_are_refused() {
         for (region, value, expect) in [("ntsc", "cycle", "PAL"), ("pal", "exact", "line or cycle")]
         {
@@ -1544,8 +1546,13 @@ mod tests {
             assert!(message.contains(expect), "{message}");
         }
     }
-
+    /// Merged (every check kept): `vic_accuracy_cycle_creates_a_machine_that_steps_with_bus_cycles`, `vic_accuracy_cycle_on_ntsc_and_unknown_values_are_refused`.
     #[test]
+    fn vic_accuracy_option() {
+        vic_accuracy_cycle_creates_a_machine_that_steps_with_bus_cycles();
+        vic_accuracy_cycle_on_ntsc_and_unknown_values_are_refused();
+    }
+
     fn a_missing_or_wrong_sized_rom_is_a_clear_error() {
         let mut req = request();
         req.roms.retain(|b| b.key != "c64_kernal");
@@ -1555,7 +1562,6 @@ mod tests {
         assert!(create_machine(req).unwrap_err().contains("kernal image"));
     }
 
-    #[test]
     fn a_disk_without_a_true_drive_says_how_to_get_one() {
         let instance = create();
         let result = call(
@@ -1571,6 +1577,12 @@ mod tests {
         assert_ne!(result.status.code, StatusCode::Ok as u32);
         // SAFETY: instance handle came from create above.
         assert!(unsafe { plugin_destroy_instance_v1(instance) }.is_ok());
+    }
+    /// Merged (every check kept): `a_missing_or_wrong_sized_rom_is_a_clear_error`, `a_disk_without_a_true_drive_says_how_to_get_one`.
+    #[test]
+    fn clear_errors() {
+        a_missing_or_wrong_sized_rom_is_a_clear_error();
+        a_disk_without_a_true_drive_says_how_to_get_one();
     }
 
     #[test]
@@ -1632,7 +1644,6 @@ mod tests {
 
     /// BASIC's cold start wipes the head of program memory, so a program at
     /// BASIC's start waits for the prompt; anything else is poked at once.
-    #[test]
     fn a_basic_program_is_held_back_but_machine_code_is_poked_at_once() {
         let instance = create();
         attach_program(instance, 0x3000, vec![0xAA]);
@@ -1647,7 +1658,6 @@ mod tests {
         assert!(unsafe { plugin_destroy_instance_v1(instance) }.is_ok());
     }
 
-    #[test]
     fn the_basic_relink_fixes_links_and_reports_the_program_end() {
         let rom = |len| vec![0xEA; len];
         let mut machine = C128::new(c128::Roms {
@@ -1670,6 +1680,12 @@ mod tests {
         // The end pointer at $1210 is not read back here: before the boot the
         // Z80's map has colour RAM at $1000-$13FF (the real-ROM test in the
         // `c128` crate covers it from the 8502).
+    }
+    /// Merged (every check kept): `a_basic_program_is_held_back_but_machine_code_is_poked_at_once`, `the_basic_relink_fixes_links_and_reports_the_program_end`.
+    #[test]
+    fn basic_program_loading() {
+        a_basic_program_is_held_back_but_machine_code_is_poked_at_once();
+        the_basic_relink_fixes_links_and_reports_the_program_end();
     }
 
     #[test]

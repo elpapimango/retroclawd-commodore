@@ -161,7 +161,6 @@ mod tests {
     use crate::bus::{BASIC_ROM_SIZE, CHAR_ROM_SIZE, KERNAL_ROM_SIZE};
     use machine::{Bus, Machine};
 
-    #[test]
     fn save_state_round_trips_cpu_and_memory() {
         let mut c64 = C64::new(
             vec![0; KERNAL_ROM_SIZE],
@@ -186,7 +185,6 @@ mod tests {
         assert_eq!(restored.read_memory(0x0400), 0x42);
     }
 
-    #[test]
     fn save_state_round_trips_the_tapes_own_playback_position() {
         let mut bytes = vec![0u8; 20];
         bytes[0..12].copy_from_slice(b"C64-TAPE-RAW");
@@ -227,5 +225,11 @@ mod tests {
             c64.bus.tape.as_ref().unwrap().playback_state().position,
             "the restored tape must resume from the exact same pulse position"
         );
+    }
+    /// Merged (every check kept): `save_state_round_trips_cpu_and_memory`, `save_state_round_trips_the_tapes_own_playback_position`.
+    #[test]
+    fn save_state_cases() {
+        save_state_round_trips_cpu_and_memory();
+        save_state_round_trips_the_tapes_own_playback_position();
     }
 }

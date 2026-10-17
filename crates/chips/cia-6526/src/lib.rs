@@ -479,7 +479,6 @@ impl Cia {
 mod tests {
     use super::*;
 
-    #[test]
     fn timer_a_underflows_reloads_and_reports_irq_when_enabled() {
         let mut cia = Cia::new();
         cia.write(0x04, 0x02); // latch low = 2
@@ -495,7 +494,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn timer_a_irq_only_reported_when_enabled_in_icr_mask() {
         let mut cia = Cia::new();
         cia.write(0x04, 0x01);
@@ -508,7 +506,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn one_shot_mode_stops_after_first_underflow() {
         let mut cia = Cia::new();
         cia.write(0x04, 0x01);
@@ -517,6 +514,13 @@ mod tests {
         cia.tick(1); // -> 0
         cia.tick(1); // underflow, one-shot stops
         assert!(!cia.tick(1), "timer should have stopped itself");
+    }
+    /// Merged (every check kept): `timer_a_underflows_reloads_and_reports_irq_when_enabled`, `timer_a_irq_only_reported_when_enabled_in_icr_mask`, `one_shot_mode_stops_after_first_underflow`.
+    #[test]
+    fn timer_a_cases() {
+        timer_a_underflows_reloads_and_reports_irq_when_enabled();
+        timer_a_irq_only_reported_when_enabled_in_icr_mask();
+        one_shot_mode_stops_after_first_underflow();
     }
 
     #[test]
@@ -552,7 +556,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn timer_b_counts_phi2_cycles_independently_of_timer_a() {
         let mut cia = Cia::new();
         cia.write(0x06, 0x02);
@@ -565,7 +568,6 @@ mod tests {
         assert!(cia.tick(1), "Timer B should underflow and report its IRQ");
     }
 
-    #[test]
     fn timer_b_linked_mode_counts_timer_a_underflows_not_cycles() {
         let mut cia = Cia::new();
         cia.write(0x04, 0x01);
@@ -598,7 +600,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn timer_b_cnt_gated_modes_never_advance_without_a_real_cnt_pin() {
         let mut cia = Cia::new();
         cia.write(0x06, 0x01);
@@ -618,8 +619,14 @@ mod tests {
             "counter should still read its untouched latch value"
         );
     }
-
+    /// Merged (every check kept): `timer_b_counts_phi2_cycles_independently_of_timer_a`, `timer_b_linked_mode_counts_timer_a_underflows_not_cycles`, `timer_b_cnt_gated_modes_never_advance_without_a_real_cnt_pin`.
     #[test]
+    fn timer_b_cases() {
+        timer_b_counts_phi2_cycles_independently_of_timer_a();
+        timer_b_linked_mode_counts_timer_a_underflows_not_cycles();
+        timer_b_cnt_gated_modes_never_advance_without_a_real_cnt_pin();
+    }
+
     fn tod_tenths_advance_in_real_time_and_roll_into_seconds() {
         let mut cia = Cia::new();
         cia.write(0x08, 0x09); // clock tenths = 9 (also un-halts TOD)
@@ -632,7 +639,6 @@ mod tests {
         assert_eq!(cia.peek(0x09), 0x01, "carried into seconds (BCD 01)");
     }
 
-    #[test]
     fn writing_the_hour_register_halts_tod_until_tenths_is_written() {
         let mut cia = Cia::new();
         cia.write(0x0B, 0x12); // write clock hours -> halts TOD
@@ -651,7 +657,6 @@ mod tests {
         assert_eq!(cia.peek(0x08), 1, "TOD resumes advancing once released");
     }
 
-    #[test]
     fn reading_the_hour_register_latches_all_four_tod_registers() {
         let mut cia = Cia::new();
         cia.write(0x08, 0x00); // un-halt, start from 00:00:00.0
@@ -681,7 +686,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn tod_alarm_match_sets_the_icr_bit_when_enabled() {
         let mut cia = Cia::new();
         cia.write(0x0D, 0x84); // enable TOD alarm interrupt
@@ -697,8 +701,14 @@ mod tests {
             "clock tenths just reached 1, matching the alarm -> IRQ"
         );
     }
-
+    /// Merged (every check kept): `writing_the_hour_register_halts_tod_until_tenths_is_written`, `reading_the_hour_register_latches_all_four_tod_registers`, `tod_alarm_match_sets_the_icr_bit_when_enabled`.
     #[test]
+    fn tod_registers() {
+        writing_the_hour_register_halts_tod_until_tenths_is_written();
+        reading_the_hour_register_latches_all_four_tod_registers();
+        tod_alarm_match_sets_the_icr_bit_when_enabled();
+    }
+
     fn hour_rollover_toggles_am_pm_at_the_eleven_to_twelve_transition() {
         let mut cia = Cia::new();
         cia.write(0x0B, 0x11); // clock hour = 11 AM
@@ -711,6 +721,12 @@ mod tests {
             0x80 | 0x01,
             "12 PM -> 1 PM, PM bit unchanged"
         );
+    }
+    /// Merged (every check kept): `tod_tenths_advance_in_real_time_and_roll_into_seconds`, `hour_rollover_toggles_am_pm_at_the_eleven_to_twelve_transition`.
+    #[test]
+    fn tod_counting() {
+        tod_tenths_advance_in_real_time_and_roll_into_seconds();
+        hour_rollover_toggles_am_pm_at_the_eleven_to_twelve_transition();
     }
 
     #[test]

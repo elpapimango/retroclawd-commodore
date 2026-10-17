@@ -207,7 +207,6 @@ impl KeyMatrix {
 mod tests {
     use super::*;
 
-    #[test]
     fn pressing_a_key_pulls_its_row_low_only_when_its_column_is_selected() {
         let mut matrix = KeyMatrix::new();
         matrix.press(C64Key::Q); // column 7, row 6
@@ -222,7 +221,6 @@ mod tests {
         assert_eq!(matrix.read(0xFF), 0xFF);
     }
 
-    #[test]
     fn release_clears_the_key() {
         let mut matrix = KeyMatrix::new();
         matrix.press(C64Key::A);
@@ -231,7 +229,6 @@ mod tests {
         assert_eq!(matrix.read(!(1 << col)), 0xFF);
     }
 
-    #[test]
     fn two_keys_in_different_columns_both_show_up_when_both_columns_selected() {
         let mut matrix = KeyMatrix::new();
         matrix.press(C64Key::Return); // column 0, row 1
@@ -240,5 +237,12 @@ mod tests {
         let pb = matrix.read(0b0111_1110); // columns 0 and 7 both selected
         assert_eq!(pb & (1 << 1), 0, "Return's row");
         assert_eq!(pb & (1 << 4), 0, "Space's row");
+    }
+    /// Merged (every check kept): `pressing_a_key_pulls_its_row_low_only_when_its_column_is_selected`, `release_clears_the_key`, `two_keys_in_different_columns_both_show_up_when_both_columns_selected`.
+    #[test]
+    fn keyboard_matrix_keys() {
+        pressing_a_key_pulls_its_row_low_only_when_its_column_is_selected();
+        release_clears_the_key();
+        two_keys_in_different_columns_both_show_up_when_both_columns_selected();
     }
 }

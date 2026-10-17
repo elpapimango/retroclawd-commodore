@@ -109,7 +109,6 @@ mod tests {
     use super::*;
     use machine::Machine;
 
-    #[test]
     fn save_state_round_trips_cpu_ram_and_via_state() {
         let mut drive = C1541::new(vec![0xEA; crate::ROM_SIZE], 8).unwrap();
         drive.load(0x0400, &[0x42]);
@@ -141,7 +140,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn save_state_round_trips_the_disk_mechanisms_head_position_and_motor_state() {
         let disk = d64::D64::parse(&vec![0u8; 683 * d64::SECTOR_SIZE]).unwrap();
         let mut drive = C1541::new(vec![0xEA; crate::ROM_SIZE], 8).unwrap();
@@ -165,5 +163,11 @@ mod tests {
             2,
             "the real single-step head move must survive the round trip"
         );
+    }
+    /// Merged (every check kept): `save_state_round_trips_cpu_ram_and_via_state`, `save_state_round_trips_the_disk_mechanisms_head_position_and_motor_state`.
+    #[test]
+    fn save_state_cases() {
+        save_state_round_trips_cpu_ram_and_via_state();
+        save_state_round_trips_the_disk_mechanisms_head_position_and_motor_state();
     }
 }

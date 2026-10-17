@@ -1928,7 +1928,6 @@ mod tests {
         .unwrap()
     }
 
-    #[test]
     fn finish_basic_program_load_synthesizes_real_pointers_for_a_basic_program_at_0801() {
         let mut c64 = test_c64();
         // One BASIC line (line number 10, arbitrary 3-byte token content),
@@ -1954,7 +1953,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn finish_basic_program_load_is_a_no_op_for_a_non_0801_load() {
         let mut c64 = test_c64();
         finish_basic_program_load(&mut c64, 0xC000).unwrap();
@@ -1965,7 +1963,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn relink_basic_program_errors_instead_of_hanging_on_data_with_no_real_terminator() {
         let mut c64 = test_c64();
         // Fills the entire always-plain-RAM range below the BASIC ROM
@@ -1976,6 +1973,13 @@ mod tests {
         c64.load(0x0801, &bytes);
         let err = finish_basic_program_load(&mut c64, 0x0801).unwrap_err();
         assert!(err.contains("too long"), "got: {err}");
+    }
+    /// Merged (every check kept): `finish_basic_program_load_synthesizes_real_pointers_for_a_basic_program_at_0801`, `finish_basic_program_load_is_a_no_op_for_a_non_0801_load`, `relink_basic_program_errors_instead_of_hanging_on_data_with_no_real_terminator`.
+    #[test]
+    fn basic_program_loading() {
+        finish_basic_program_load_synthesizes_real_pointers_for_a_basic_program_at_0801();
+        finish_basic_program_load_is_a_no_op_for_a_non_0801_load();
+        relink_basic_program_errors_instead_of_hanging_on_data_with_no_real_terminator();
     }
 
     fn c64_request() -> MachineCreateRequest {
@@ -2014,7 +2018,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn descriptor_is_machine_plugin_v1() {
         let ptr = unsafe { entry_v1() };
         assert!(!ptr.is_null());
@@ -2025,7 +2028,6 @@ mod tests {
         assert_eq!(descriptor.kind, PluginKind::Machine);
     }
 
-    #[test]
     fn list_profiles_returns_c64_profile() {
         let req = plugin_api::ListProfilesRequest {
             include_experimental: false,
@@ -2039,6 +2041,12 @@ mod tests {
 
         assert_eq!(response.profiles.len(), 1);
         assert_eq!(response.profiles[0].machine_id, "c64");
+    }
+    /// Merged (every check kept): `descriptor_is_machine_plugin_v1`, `list_profiles_returns_c64_profile`.
+    #[test]
+    fn descriptor_and_profile() {
+        descriptor_is_machine_plugin_v1();
+        list_profiles_returns_c64_profile();
     }
 
     /// The debugger's disassembly view asks the machine plugin for 6502 text, not raw bytes.
@@ -2087,7 +2095,6 @@ mod tests {
         assert!(unsafe { plugin_destroy_instance_v1(create.instance) }.is_ok());
     }
 
-    #[test]
     fn create_instance_and_get_pc_round_trip() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2115,7 +2122,6 @@ mod tests {
         assert!(status.is_ok());
     }
 
-    #[test]
     fn attach_program_and_read_memory_round_trip() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2168,6 +2174,12 @@ mod tests {
         let status = unsafe { plugin_destroy_instance_v1(create.instance) };
         assert!(status.is_ok());
     }
+    /// Merged (every check kept): `create_instance_and_get_pc_round_trip`, `attach_program_and_read_memory_round_trip`.
+    #[test]
+    fn instance_round_trips() {
+        create_instance_and_get_pc_round_trip();
+        attach_program_and_read_memory_round_trip();
+    }
 
     fn accuracy_request(region: &str, accuracy: &str) -> MachineCreateRequest {
         let mut req = c64_request();
@@ -2179,7 +2191,6 @@ mod tests {
         req
     }
 
-    #[test]
     fn vic_accuracy_cycle_creates_a_machine_that_steps_with_bus_cycles() {
         let create_req =
             plugin_api::encode_message(&accuracy_request("pal", "cycle")).expect("encode");
@@ -2195,7 +2206,6 @@ mod tests {
         assert!(unsafe { plugin_destroy_instance_v1(create.instance) }.is_ok());
     }
 
-    #[test]
     fn vic_accuracy_cycle_on_ntsc_is_refused_with_a_clear_message() {
         let create_req =
             plugin_api::encode_message(&accuracy_request("ntsc", "cycle")).expect("encode");
@@ -2207,7 +2217,6 @@ mod tests {
         assert!(message.contains("PAL"), "{message}");
     }
 
-    #[test]
     fn an_unknown_vic_accuracy_value_is_rejected() {
         let create_req =
             plugin_api::encode_message(&accuracy_request("pal", "exact")).expect("encode");
@@ -2216,6 +2225,13 @@ mod tests {
         assert_ne!(result.status.code, StatusCode::Ok as u32);
         // SAFETY: tests consume payload exactly once.
         drop(unsafe { result.payload.into_vec() });
+    }
+    /// Merged (every check kept): `vic_accuracy_cycle_creates_a_machine_that_steps_with_bus_cycles`, `vic_accuracy_cycle_on_ntsc_is_refused_with_a_clear_message`, `an_unknown_vic_accuracy_value_is_rejected`.
+    #[test]
+    fn vic_accuracy_option() {
+        vic_accuracy_cycle_creates_a_machine_that_steps_with_bus_cycles();
+        vic_accuracy_cycle_on_ntsc_is_refused_with_a_clear_message();
+        an_unknown_vic_accuracy_value_is_rejected();
     }
 
     fn attach_media(
@@ -2239,7 +2255,6 @@ mod tests {
         unsafe { plugin_instance_call_v1(instance, RcSlice::from_bytes(&attach_bytes)) }
     }
 
-    #[test]
     fn attach_tap_media_installs_a_real_tape_and_acks() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2270,7 +2285,6 @@ mod tests {
         assert!(status.is_ok());
     }
 
-    #[test]
     fn attach_t64_media_pokes_its_first_program_directly_into_memory() {
         // A `.t64` container has no real cassette signal (see `c64-tape`'s own
         // doc comment) -- attaching one must poke the first NORMAL entry's
@@ -2330,8 +2344,13 @@ mod tests {
         let status = unsafe { plugin_destroy_instance_v1(create.instance) };
         assert!(status.is_ok());
     }
-
+    /// Merged (every check kept): `attach_tap_media_installs_a_real_tape_and_acks`, `attach_t64_media_pokes_its_first_program_directly_into_memory`.
     #[test]
+    fn attach_tape_media() {
+        attach_tap_media_installs_a_real_tape_and_acks();
+        attach_t64_media_pokes_its_first_program_directly_into_memory();
+    }
+
     fn attach_tape_media_without_a_filename_is_a_clear_error() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2353,7 +2372,6 @@ mod tests {
         assert!(status.is_ok());
     }
 
-    #[test]
     fn attach_disk_media_installs_a_real_d64_and_acks() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2387,7 +2405,6 @@ mod tests {
         assert!(status.is_ok());
     }
 
-    #[test]
     fn attach_disk_media_installs_a_real_d71_and_acks() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2419,7 +2436,6 @@ mod tests {
         assert!(status.is_ok());
     }
 
-    #[test]
     fn attach_disk_media_installs_a_real_d81_and_acks() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2450,8 +2466,14 @@ mod tests {
         let status = unsafe { plugin_destroy_instance_v1(create.instance) };
         assert!(status.is_ok());
     }
-
+    /// Merged (every check kept): `attach_disk_media_installs_a_real_d64_and_acks`, `attach_disk_media_installs_a_real_d71_and_acks`, `attach_disk_media_installs_a_real_d81_and_acks`.
     #[test]
+    fn attach_disk_media() {
+        attach_disk_media_installs_a_real_d64_and_acks();
+        attach_disk_media_installs_a_real_d71_and_acks();
+        attach_disk_media_installs_a_real_d81_and_acks();
+    }
+
     fn attach_disk_media_rejects_an_unknown_disk_extension() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2473,7 +2495,6 @@ mod tests {
         assert!(status.is_ok());
     }
 
-    #[test]
     fn attach_disk_media_with_a_bad_size_is_a_clear_error() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2500,6 +2521,12 @@ mod tests {
         let status = unsafe { plugin_destroy_instance_v1(create.instance) };
         assert!(status.is_ok());
     }
+    /// Merged (every check kept): `attach_disk_media_rejects_an_unknown_disk_extension`, `attach_disk_media_with_a_bad_size_is_a_clear_error`.
+    #[test]
+    fn attach_disk_errors() {
+        attach_disk_media_rejects_an_unknown_disk_extension();
+        attach_disk_media_with_a_bad_size_is_a_clear_error();
+    }
 
     /// A banked/paged poke (`WriteMemory` with a `space` set -- the
     /// debugger's own `PokeBank` command) must be a clear error, not a
@@ -2508,7 +2535,6 @@ mod tests {
     /// silently ignoring `space` (as an earlier version of this handler
     /// did, matching `WriteMemory { address, bytes, .. }`) would poke the
     /// wrong place without telling the caller.
-    #[test]
     fn write_memory_with_a_space_is_a_clear_error() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2596,7 +2622,6 @@ mod tests {
 
     /// The C64 has no I/O-port space, so a debugger `write-port` must be a
     /// clear error rather than being silently dropped or mapped onto memory.
-    #[test]
     fn write_io_is_a_clear_error_because_the_c64_has_no_port_space() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2620,8 +2645,13 @@ mod tests {
         let status = unsafe { plugin_destroy_instance_v1(create.instance) };
         assert!(status.is_ok());
     }
-
+    /// Merged (every check kept): `write_memory_with_a_space_is_a_clear_error`, `write_io_is_a_clear_error_because_the_c64_has_no_port_space`.
     #[test]
+    fn address_space_errors() {
+        write_memory_with_a_space_is_a_clear_error();
+        write_io_is_a_clear_error_because_the_c64_has_no_port_space();
+    }
+
     fn attach_tape_media_with_an_unknown_extension_is_a_clear_error() {
         let create_req = plugin_api::encode_message(&c64_request()).expect("encode create req");
         // SAFETY: ABI function consumes request bytes only during call.
@@ -2641,6 +2671,12 @@ mod tests {
         // SAFETY: instance handle came from create response above.
         let status = unsafe { plugin_destroy_instance_v1(create.instance) };
         assert!(status.is_ok());
+    }
+    /// Merged (every check kept): `attach_tape_media_without_a_filename_is_a_clear_error`, `attach_tape_media_with_an_unknown_extension_is_a_clear_error`.
+    #[test]
+    fn attach_tape_errors() {
+        attach_tape_media_without_a_filename_is_a_clear_error();
+        attach_tape_media_with_an_unknown_extension_is_a_clear_error();
     }
 
     #[test]

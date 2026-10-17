@@ -719,7 +719,6 @@ mod tests {
         sid.write((voice * 7) as u8 + offset, value);
     }
 
-    #[test]
     fn frequency_registers_round_trip_across_lo_hi_writes() {
         let mut sid = Sid::new();
         write_voice(&mut sid, 0, 0, 0xCD);
@@ -727,12 +726,17 @@ mod tests {
         assert_eq!(sid.voices[0].freq, 0xABCD);
     }
 
-    #[test]
     fn pulse_width_is_12_bit_split_across_two_registers() {
         let mut sid = Sid::new();
         write_voice(&mut sid, 1, 2, 0x34);
         write_voice(&mut sid, 1, 3, 0xF6); // high nibble ignored
         assert_eq!(sid.voices[1].pulse_width, 0x634);
+    }
+    /// Merged (every check kept): `frequency_registers_round_trip_across_lo_hi_writes`, `pulse_width_is_12_bit_split_across_two_registers`.
+    #[test]
+    fn register_pairs() {
+        frequency_registers_round_trip_across_lo_hi_writes();
+        pulse_width_is_12_bit_split_across_two_registers();
     }
 
     #[test]
@@ -819,7 +823,6 @@ mod tests {
         assert!(sid.voices[0].accumulator < 0x00FF_FFFF);
     }
 
-    #[test]
     fn envelope_attack_ramps_from_current_level_to_full_then_decays() {
         let mut sid = Sid::new();
         write_voice(&mut sid, 0, 5, 0x00); // attack=0 (fastest), decay=0
@@ -833,7 +836,6 @@ mod tests {
         assert_eq!(sid.voices[0].envelope.phase, EnvelopePhase::Decay);
     }
 
-    #[test]
     fn envelope_decays_toward_sustain_level_and_holds() {
         let mut sid = Sid::new();
         write_voice(&mut sid, 0, 5, 0x00); // attack=0, decay=0 (fastest)
@@ -854,7 +856,6 @@ mod tests {
         assert_eq!(sid.voices[0].envelope.level, target);
     }
 
-    #[test]
     fn releasing_the_gate_ramps_the_envelope_back_to_zero() {
         let mut sid = Sid::new();
         write_voice(&mut sid, 0, 5, 0x00); // attack=0
@@ -868,6 +869,13 @@ mod tests {
         sid.tick(9 * 30 * 300);
         assert_eq!(sid.voices[0].envelope.level, 0);
     }
+    /// Merged (every check kept): `envelope_attack_ramps_from_current_level_to_full_then_decays`, `envelope_decays_toward_sustain_level_and_holds`, `releasing_the_gate_ramps_the_envelope_back_to_zero`.
+    #[test]
+    fn envelope_stages() {
+        envelope_attack_ramps_from_current_level_to_full_then_decays();
+        envelope_decays_toward_sustain_level_and_holds();
+        releasing_the_gate_ramps_the_envelope_back_to_zero();
+    }
 
     #[test]
     fn silent_envelope_produces_silent_output_regardless_of_waveform() {
@@ -880,7 +888,6 @@ mod tests {
         assert_eq!(sid.output(), 0.0);
     }
 
-    #[test]
     fn master_volume_register_scales_the_mixed_output() {
         let mut sid = Sid::new();
         write_voice(&mut sid, 0, 0, 0xFF);
@@ -938,7 +945,6 @@ mod tests {
         max - min
     }
 
-    #[test]
     fn low_pass_filter_attenuates_a_fast_pulse_wave_more_at_a_lower_cutoff() {
         let low_cutoff_swing = filtered_pulse_peak_to_peak(1, 0x10); // LP select
         let high_cutoff_swing = filtered_pulse_peak_to_peak(2047, 0x10); // LP select
@@ -949,7 +955,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn high_pass_lets_more_of_a_fast_pulse_wave_through_than_low_pass_at_the_same_low_cutoff() {
         let lp_swing = filtered_pulse_peak_to_peak(1, 0x10); // LP select
         let hp_swing = filtered_pulse_peak_to_peak(1, 0x40); // HP select
@@ -959,8 +964,13 @@ mod tests {
              pulse wave's energy through than LP ({lp_swing})"
         );
     }
-
+    /// Merged (every check kept): `low_pass_filter_attenuates_a_fast_pulse_wave_more_at_a_lower_cutoff`, `high_pass_lets_more_of_a_fast_pulse_wave_through_than_low_pass_at_the_same_low_cutoff`.
     #[test]
+    fn filter_responses() {
+        low_pass_filter_attenuates_a_fast_pulse_wave_more_at_a_lower_cutoff();
+        high_pass_lets_more_of_a_fast_pulse_wave_through_than_low_pass_at_the_same_low_cutoff();
+    }
+
     fn voices_not_routed_through_the_filter_bypass_it_entirely() {
         let make = |cutoff: u16| {
             let mut sid = Sid::new();
@@ -986,7 +996,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn voice_3_off_silences_voice_3_regardless_of_filter_routing() {
         // Two independent instances (rather than flipping the bit mid-run
         // on one) so the filter's own persistent integrator state can't
@@ -1021,7 +1030,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn an_unselected_filter_output_reaches_the_mixer_as_silence() {
         let mut sid = Sid::new();
         write_voice(&mut sid, 0, 0, 0xFF);
@@ -1039,6 +1047,13 @@ mod tests {
             "a voice routed to the filter with no output tap selected must be inaudible"
         );
     }
+    /// Merged (every check kept): `voices_not_routed_through_the_filter_bypass_it_entirely`, `voice_3_off_silences_voice_3_regardless_of_filter_routing`, `an_unselected_filter_output_reaches_the_mixer_as_silence`.
+    #[test]
+    fn filter_routing() {
+        voices_not_routed_through_the_filter_bypass_it_entirely();
+        voice_3_off_silences_voice_3_regardless_of_filter_routing();
+        an_unselected_filter_output_reaches_the_mixer_as_silence();
+    }
 
     #[test]
     fn osc3_and_env3_read_voice_three_state() {
@@ -1050,7 +1065,6 @@ mod tests {
         assert_eq!(sid.read(0x1C), 255); // ENV3
     }
 
-    #[test]
     fn the_master_volume_alone_is_audible_on_a_6581_and_nearly_not_on_an_8580() {
         // Writing $D418 with every voice silent moves the output: the basis
         // of 4-bit sample playback, strong on the 6581, faint on the 8580.
@@ -1072,6 +1086,12 @@ mod tests {
             (sid.output() - 0.10 * 8.0 / 15.0).abs() < 1e-6,
             "scales with volume"
         );
+    }
+    /// Merged (every check kept): `master_volume_register_scales_the_mixed_output`, `the_master_volume_alone_is_audible_on_a_6581_and_nearly_not_on_an_8580`.
+    #[test]
+    fn master_volume() {
+        master_volume_register_scales_the_mixed_output();
+        the_master_volume_alone_is_audible_on_a_6581_and_nearly_not_on_an_8580();
     }
 
     #[test]

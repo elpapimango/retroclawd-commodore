@@ -264,7 +264,6 @@ mod tests {
         assert_eq!(parse(&write(&crt)).unwrap(), crt);
     }
 
-    #[test]
     fn rejects_a_bad_signature_a_short_file_and_a_missing_chip() {
         assert_eq!(parse(&[0; 10]), Err(Error::TooShort));
         let mut file = header(0, 0, 1, "X");
@@ -274,20 +273,25 @@ mod tests {
         assert_eq!(parse(&header(0, 0, 1, "X")), Err(Error::NoChips));
     }
 
-    #[test]
     fn rejects_garbage_where_a_chip_packet_should_be() {
         let mut file = header(0, 0, 1, "X");
         file.extend_from_slice(&[0xAA; 20]);
         assert!(matches!(parse(&file), Err(Error::BadChipSignature { .. })));
     }
 
-    #[test]
     fn rejects_a_chip_that_runs_past_the_end() {
         let mut file = header(0, 0, 1, "X");
         let mut c = chip(0, 0, 0x8000, &[0; 16]);
         c.truncate(c.len() - 4);
         file.extend(c);
         assert!(matches!(parse(&file), Err(Error::TruncatedChip { .. })));
+    }
+    /// Merged (every check kept): `rejects_a_bad_signature_a_short_file_and_a_missing_chip`, `rejects_garbage_where_a_chip_packet_should_be`, `rejects_a_chip_that_runs_past_the_end`.
+    #[test]
+    fn rejections() {
+        rejects_a_bad_signature_a_short_file_and_a_missing_chip();
+        rejects_garbage_where_a_chip_packet_should_be();
+        rejects_a_chip_that_runs_past_the_end();
     }
 
     #[test]

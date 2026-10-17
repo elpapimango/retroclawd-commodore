@@ -39,7 +39,6 @@ fn propagate(bus: &mut c1541::IecBus, c64: &mut c64::C64, drive: &mut c1541::C15
     drive.set_iec_input(bus.atn(), bus.clock(), bus.data());
 }
 
-#[test]
 fn idle_bus_reads_released_high_on_both_sides() {
     let mut c64 = synth_c64();
     let mut drive = synth_1541();
@@ -52,7 +51,6 @@ fn idle_bus_reads_released_high_on_both_sides() {
     assert_eq!(drive.read_memory(0x1800) & 0x85, 0);
 }
 
-#[test]
 fn c64_asserting_atn_reaches_the_drive_as_a_real_edge_and_a_port_b_level() {
     let mut c64 = synth_c64();
     let mut drive = synth_1541();
@@ -86,8 +84,13 @@ fn c64_asserting_atn_reaches_the_drive_as_a_real_edge_and_a_port_b_level() {
         "releasing ATN should let the line float back high"
     );
 }
-
+/// Merged (every check kept): `idle_bus_reads_released_high_on_both_sides`, `c64_asserting_atn_reaches_the_drive_as_a_real_edge_and_a_port_b_level`.
 #[test]
+fn iec_idle_and_atn() {
+    idle_bus_reads_released_high_on_both_sides();
+    c64_asserting_atn_reaches_the_drive_as_a_real_edge_and_a_port_b_level();
+}
+
 fn drive_asserting_data_out_is_seen_by_the_c64_as_data_in_wired_and() {
     let mut c64 = synth_c64();
     let mut drive = synth_1541();
@@ -116,7 +119,6 @@ fn drive_asserting_data_out_is_seen_by_the_c64_as_data_in_wired_and() {
     );
 }
 
-#[test]
 fn both_sides_pulling_the_same_line_wire_and_correctly() {
     let mut c64 = synth_c64();
     let mut drive = synth_1541();
@@ -146,4 +148,10 @@ fn both_sides_pulling_the_same_line_wire_and_correctly() {
         bus.clock(),
         "released by both sides -- line floats back high"
     );
+}
+/// Merged (every check kept): `drive_asserting_data_out_is_seen_by_the_c64_as_data_in_wired_and`, `both_sides_pulling_the_same_line_wire_and_correctly`.
+#[test]
+fn iec_wired_and() {
+    drive_asserting_data_out_is_seen_by_the_c64_as_data_in_wired_and();
+    both_sides_pulling_the_same_line_wire_and_correctly();
 }

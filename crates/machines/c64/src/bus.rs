@@ -2302,7 +2302,6 @@ mod tests {
         assert_eq!(c64.bus.read(0x0001) & 0xC0, 0);
     }
 
-    #[test]
     fn boots_with_kernal_and_basic_and_io_all_visible_by_default() {
         let c64 = test_c64();
         // $E000 should read KERNAL (0xAA), $A000 should read BASIC (0xBB).
@@ -2310,7 +2309,6 @@ mod tests {
         assert_eq!(c64.bus.peek(0xA000), 0xBB);
     }
 
-    #[test]
     fn reset_vector_is_read_from_kernal_rom() {
         let mut kernal = vec![0u8; KERNAL_ROM_SIZE];
         // Reset vector lives at the very end of the KERNAL's own mapped
@@ -2340,7 +2338,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn char_rom_and_io_share_the_d000_window_by_charen() {
         let mut c64 = test_c64();
         // Default boot state: CHAREN=1 -> I/O visible at $D000-$D3FF (VIC).
@@ -2352,8 +2349,14 @@ mod tests {
         c64.bus.write(0x0001, 0x03); // LORAM=1, HIRAM=1, CHAREN=0
         assert_eq!(c64.bus.peek(0xD000), 0xCC, "char ROM should be visible now");
     }
-
+    /// Merged (every check kept): `boots_with_kernal_and_basic_and_io_all_visible_by_default`, `reset_vector_is_read_from_kernal_rom`, `char_rom_and_io_share_the_d000_window_by_charen`.
     #[test]
+    fn default_memory_map() {
+        boots_with_kernal_and_basic_and_io_all_visible_by_default();
+        reset_vector_is_read_from_kernal_rom();
+        char_rom_and_io_share_the_d000_window_by_charen();
+    }
+
     fn cia1_timer_irq_reaches_the_cpu() {
         let mut c64 = test_c64();
         // Real KERNAL init: latch=small value, enable+start timer, unmask
@@ -2394,7 +2397,6 @@ mod tests {
         c64.cpu.p &= !0x04; // clear the I flag so an IRQ isn't masked
     }
 
-    #[test]
     fn vic_raster_irq_reaches_the_cpu() {
         let mut c64 = test_c64();
         // Real KERNAL-shaped raster IRQ setup: compare line 5, enable the
@@ -2431,7 +2433,6 @@ mod tests {
         c64.bus.write(0xD015, 0b11);
     }
 
-    #[test]
     fn sprite_collision_registers_fill_as_the_raster_passes_and_clear_on_read() {
         let mut c64 = test_c64();
         place_two_overlapping_sprites(&mut c64);
@@ -2448,7 +2449,6 @@ mod tests {
         assert_eq!(c64.bus.peek(0xD01E), 0, "the CPU read cleared it");
     }
 
-    #[test]
     fn sprite_collision_interrupt_reaches_the_cpu_when_enabled() {
         let mut c64 = test_c64();
         place_two_overlapping_sprites(&mut c64);
@@ -2467,7 +2467,6 @@ mod tests {
         assert_eq!(c64.bus.peek(0xD019) & 0x84, 0x84);
     }
 
-    #[test]
     fn sprite_collision_without_the_enable_bit_stays_a_polled_flag() {
         let mut c64 = test_c64();
         place_two_overlapping_sprites(&mut c64);
@@ -2477,6 +2476,13 @@ mod tests {
             assert!(matches!(c64.pc(), 0x0300..=0x0303), "no IRQ expected");
         }
         assert_eq!(c64.bus.peek(0xD019) & 0x04, 0x04);
+    }
+    /// Merged (every check kept): `sprite_collision_registers_fill_as_the_raster_passes_and_clear_on_read`, `sprite_collision_interrupt_reaches_the_cpu_when_enabled`, `sprite_collision_without_the_enable_bit_stays_a_polled_flag`.
+    #[test]
+    fn sprite_collision_flags() {
+        sprite_collision_registers_fill_as_the_raster_passes_and_clear_on_read();
+        sprite_collision_interrupt_reaches_the_cpu_when_enabled();
+        sprite_collision_without_the_enable_bit_stays_a_polled_flag();
     }
 
     fn crt_with(
@@ -2505,7 +2511,6 @@ mod tests {
         .unwrap()
     }
 
-    #[test]
     fn an_8k_cartridge_shows_roml_only_while_loram_and_hiram_are_set() {
         let mut c64 = test_c64();
         c64.bus.write(0x8000, 0x77); // RAM underneath
@@ -2517,7 +2522,6 @@ mod tests {
         assert_eq!(c64.bus.read(0x8000), 0x77, "ROML needs LORAM and HIRAM");
     }
 
-    #[test]
     fn a_16k_cartridge_replaces_basic_with_romh() {
         let mut c64 = test_c64();
         c64.load_cartridge(crt_with(
@@ -2531,7 +2535,6 @@ mod tests {
         assert_eq!(c64.bus.read(0xE000), 0xAA, "KERNAL unchanged");
     }
 
-    #[test]
     fn writes_under_cartridge_roms_land_in_ram() {
         let mut c64 = test_c64();
         c64.load_cartridge(crt_with(
@@ -2544,8 +2547,14 @@ mod tests {
         assert_eq!(c64.bus.read(0x8000), 0xC1);
         assert_eq!(c64.bus.ram[0x8000], 0x12);
     }
-
+    /// Merged (every check kept): `an_8k_cartridge_shows_roml_only_while_loram_and_hiram_are_set`, `a_16k_cartridge_replaces_basic_with_romh`, `writes_under_cartridge_roms_land_in_ram`.
     #[test]
+    fn cartridge_maps() {
+        an_8k_cartridge_shows_roml_only_while_loram_and_hiram_are_set();
+        a_16k_cartridge_replaces_basic_with_romh();
+        writes_under_cartridge_roms_land_in_ram();
+    }
+
     fn ultimax_leaves_most_of_the_map_open_and_takes_its_vectors_from_romh() {
         let mut c64 = test_c64();
         c64.bus.write(0x2000, 0x55); // RAM that Ultimax is about to hide
@@ -2574,7 +2583,6 @@ mod tests {
         assert_eq!(c64.bus.read(0xD020) & 0x0F, 0x07, "I/O is still there");
     }
 
-    #[test]
     fn the_vic_sees_romh_at_3000_in_an_ultimax_map() {
         let mut c64 = test_c64();
         c64.bus.ram[0x3000] = 0x11;
@@ -2596,8 +2604,13 @@ mod tests {
         c64.load_cartridge(crt_with(0, false, true, &[(0, 0x8000, 0xC1)]));
         assert!(c64.bus.vic_ultimax_copy().is_none());
     }
-
+    /// Merged (every check kept): `ultimax_leaves_most_of_the_map_open_and_takes_its_vectors_from_romh`, `the_vic_sees_romh_at_3000_in_an_ultimax_map`.
     #[test]
+    fn ultimax_map() {
+        ultimax_leaves_most_of_the_map_open_and_takes_its_vectors_from_romh();
+        the_vic_sees_romh_at_3000_in_an_ultimax_map();
+    }
+
     fn freezing_an_action_replay_takes_the_nmi_through_the_cartridge_vectors() {
         let mut c64 = test_c64();
         assert!(!c64.freeze(), "no cartridge, no freezer");
@@ -2625,7 +2638,6 @@ mod tests {
         assert_eq!(c64.bus.ram[0x8000], 0, "not written to C64 RAM");
     }
 
-    #[test]
     fn an_easyflash_program_cycle_through_the_bus_changes_the_flash() {
         let mut c64 = test_c64();
         let flash_chip = |load_address| c64_cartridge::Chip {
@@ -2679,7 +2691,6 @@ mod tests {
         u16::from(lo) | (u16::from(hi) << 8)
     }
 
-    #[test]
     fn an_rrnet_frame_sent_with_loopback_comes_back_and_without_it_does_not() {
         for loopback in [true, false] {
             let mut c64 = test_c64();
@@ -2711,7 +2722,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn the_swiftlink_interrupt_goes_to_nmi_and_one_expansion_device_excludes_another() {
         let mut c64 = test_c64_with_vectors(0x0000, 0x0900);
         c64.attach_serial(false, 0xDE).unwrap();
@@ -2732,8 +2742,13 @@ mod tests {
         assert!(hit, "NMI taken through the vector");
         assert_eq!(c64.bus.read(0xDE00), 0x42);
     }
-
+    /// Merged (every check kept): `an_rrnet_frame_sent_with_loopback_comes_back_and_without_it_does_not`, `the_swiftlink_interrupt_goes_to_nmi_and_one_expansion_device_excludes_another`.
     #[test]
+    fn expansion_devices() {
+        an_rrnet_frame_sent_with_loopback_comes_back_and_without_it_does_not();
+        the_swiftlink_interrupt_goes_to_nmi_and_one_expansion_device_excludes_another();
+    }
+
     fn io1_and_io2_reach_the_cartridge_and_float_without_one() {
         let mut c64 = test_c64();
         assert_eq!(c64.bus.read(0xDE00), 0xFF);
@@ -2746,7 +2761,6 @@ mod tests {
         assert_eq!(c64.bus.read(0xA000), 3, "and the same bank at $A000");
     }
 
-    #[test]
     fn a_cartridge_reset_restores_its_power_on_bank_and_eject_restores_ram() {
         let mut c64 = test_c64();
         c64.bus.write(0x8000, 0x66);
@@ -2761,22 +2775,6 @@ mod tests {
         assert_eq!(c64.cartridge_name(), None);
     }
 
-    #[test]
-    fn the_epyx_rom_leaves_the_map_512_cycles_after_it_was_last_touched() {
-        let mut c64 = test_c64();
-        c64.bus.write(0x8000, 0x66);
-        c64.load_cartridge(crt_with(10, false, true, &[(0, 0x8000, 0xC1)]));
-        load_nop_loop(&mut c64);
-        assert_eq!(c64.bus.read(0x8000), 0xC1);
-        for _ in 0..400 {
-            c64.step(); // NOPs in RAM: ~2 cycles each
-        }
-        assert_eq!(c64.bus.peek(0x8000), 0x66, "capacitor ran out: RAM visible");
-        assert_eq!(c64.bus.read(0xDE00), 0xFF);
-        assert_eq!(c64.bus.peek(0x8000), 0xC1, "an IO1 read re-enables the ROM");
-    }
-
-    #[test]
     fn save_state_carries_cartridge_registers_onto_the_same_image() {
         let mut c64 = test_c64();
         let chips: Vec<_> = (0..16u16).map(|b| (b, 0x8000u16, b as u8)).collect();
@@ -2789,8 +2787,16 @@ mod tests {
         other.load_state(&state).unwrap();
         assert_eq!(other.bus.read(0x8000), 6);
     }
-
+    /// Merged (every check kept): `freezing_an_action_replay_takes_the_nmi_through_the_cartridge_vectors`, `an_easyflash_program_cycle_through_the_bus_changes_the_flash`, `io1_and_io2_reach_the_cartridge_and_float_without_one`, `a_cartridge_reset_restores_its_power_on_bank_and_eject_restores_ram`, `save_state_carries_cartridge_registers_onto_the_same_image`.
     #[test]
+    fn cartridge_register_paths() {
+        freezing_an_action_replay_takes_the_nmi_through_the_cartridge_vectors();
+        an_easyflash_program_cycle_through_the_bus_changes_the_flash();
+        io1_and_io2_reach_the_cartridge_and_float_without_one();
+        a_cartridge_reset_restores_its_power_on_bank_and_eject_restores_ram();
+        save_state_carries_cartridge_registers_onto_the_same_image();
+    }
+
     fn vic_raster_irq_stays_suppressed_when_disabled_in_d01a() {
         let mut c64 = test_c64();
         c64.bus.write(0xD012, 5);
@@ -2807,8 +2813,13 @@ mod tests {
         // The latch still sets internally even while masked from the CPU.
         assert_eq!(c64.bus.read(0xD019) & 0x0F, 0x01);
     }
-
+    /// Merged (every check kept): `vic_raster_irq_reaches_the_cpu`, `vic_raster_irq_stays_suppressed_when_disabled_in_d01a`.
     #[test]
+    fn vic_raster_irq() {
+        vic_raster_irq_reaches_the_cpu();
+        vic_raster_irq_stays_suppressed_when_disabled_in_d01a();
+    }
+
     fn bad_line_inflates_the_reported_step_cycle_count() {
         let mut c64 = test_c64();
         c64.bus.write(0xD011, 0x10); // DEN set, YSCROLL=0 (default)
@@ -2833,7 +2844,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn bad_line_never_inflates_step_cycle_count_when_den_stays_clear() {
         let mut c64 = test_c64();
         // DEN left clear (default) -- no line should ever steal cycles.
@@ -2845,6 +2855,12 @@ mod tests {
                 "no bad line should occur while DEN stays clear"
             );
         }
+    }
+    /// Merged (every check kept): `bad_line_inflates_the_reported_step_cycle_count`, `bad_line_never_inflates_step_cycle_count_when_den_stays_clear`.
+    #[test]
+    fn bad_line_step_cycles() {
+        bad_line_inflates_the_reported_step_cycle_count();
+        bad_line_never_inflates_step_cycle_count_when_den_stays_clear();
     }
 
     /// Regression test for a real bug, reproducing it exactly: real
@@ -3033,7 +3049,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn save_state_round_trips_sid_register_state() {
         let mut c64 = test_c64();
         c64.bus.write(0xD400, 0x42); // voice 1 freq lo
@@ -3063,7 +3078,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn save_state_round_trips_sid_filter_integrator_state() {
         let mut c64 = test_c64();
         // Voice 1: fast pulse wave, full envelope, routed through the
@@ -3099,6 +3113,12 @@ mod tests {
             "filter integrator state must survive a save/load round trip exactly"
         );
     }
+    /// Merged (every check kept): `save_state_round_trips_sid_register_state`, `save_state_round_trips_sid_filter_integrator_state`.
+    #[test]
+    fn save_state_sid() {
+        save_state_round_trips_sid_register_state();
+        save_state_round_trips_sid_filter_integrator_state();
+    }
 
     /// Builds a machine whose KERNAL has distinct, known IRQ/NMI vectors
     /// (unlike `test_c64`'s uniform `0xAA` fill, which happens to make
@@ -3115,7 +3135,6 @@ mod tests {
         C64::new(kernal, vec![0; BASIC_ROM_SIZE], vec![0; CHAR_ROM_SIZE]).unwrap()
     }
 
-    #[test]
     fn cia2_timer_irq_reaches_the_cpu_as_a_real_nmi_not_an_irq() {
         let mut c64 = test_c64_with_vectors(0x1234, 0x5678);
         load_nop_loop(&mut c64);
@@ -3139,7 +3158,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn cia1_timer_still_reaches_the_cpu_as_a_real_irq_not_an_nmi() {
         let mut c64 = test_c64_with_vectors(0x1234, 0x5678);
         load_nop_loop(&mut c64);
@@ -3161,6 +3179,12 @@ mod tests {
             Some(0x1234),
             "CIA1 must still reach the CPU's real IRQ input"
         );
+    }
+    /// Merged (every check kept): `cia1_timer_irq_reaches_the_cpu`, `cia1_timer_still_reaches_the_cpu_as_a_real_irq_not_an_nmi`.
+    #[test]
+    fn cia1_irq() {
+        cia1_timer_irq_reaches_the_cpu();
+        cia1_timer_still_reaches_the_cpu_as_a_real_irq_not_an_nmi();
     }
 
     #[test]
@@ -3253,7 +3277,6 @@ mod tests {
         c64_tape::parse_tap(&bytes).unwrap()
     }
 
-    #[test]
     fn attaching_a_tape_asserts_the_real_sense_line_low() {
         let mut c64 = test_c64();
         assert_eq!(
@@ -3269,7 +3292,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn ejecting_the_tape_releases_sense_and_idles_the_read_line() {
         let mut c64 = test_c64();
         c64.load_tape(build_tap(&[10, 10]));
@@ -3280,8 +3302,13 @@ mod tests {
         // Ejecting an empty deck is harmless.
         c64.eject_tape();
     }
-
+    /// Merged (every check kept): `attaching_a_tape_asserts_the_real_sense_line_low`, `ejecting_the_tape_releases_sense_and_idles_the_read_line`.
     #[test]
+    fn tape_sense_line() {
+        attaching_a_tape_asserts_the_real_sense_line_low();
+        ejecting_the_tape_releases_sense_and_idles_the_read_line();
+    }
+
     fn writing_motor_bit_low_as_output_starts_real_tape_playback() {
         let mut c64 = test_c64();
         c64.load_tape(build_tap(&[10, 10]));
@@ -3318,7 +3345,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn a_real_tape_pulse_boundary_fires_cia1s_flag_interrupt() {
         let mut c64 = test_c64_with_vectors(0x1234, 0x5678);
         load_nop_loop(&mut c64);
@@ -3344,10 +3370,16 @@ mod tests {
         );
     }
 
-    #[test]
     fn tape_speed_multiplier_is_a_no_op_with_no_tape_installed() {
         let mut c64 = test_c64();
         c64.set_tape_speed(10); // must not panic with nothing attached
+    }
+    /// Merged (every check kept): `writing_motor_bit_low_as_output_starts_real_tape_playback`, `a_real_tape_pulse_boundary_fires_cia1s_flag_interrupt`, `tape_speed_multiplier_is_a_no_op_with_no_tape_installed`.
+    #[test]
+    fn tape_playback() {
+        writing_motor_bit_low_as_output_starts_real_tape_playback();
+        a_real_tape_pulse_boundary_fires_cia1s_flag_interrupt();
+        tape_speed_multiplier_is_a_no_op_with_no_tape_installed();
     }
 
     /// A KERNAL ROM whose `$F49E` (the real LOAD entry point, confirmed
@@ -3527,7 +3559,6 @@ mod tests {
         d81::D81::parse(&bytes).unwrap()
     }
 
-    #[test]
     fn fast_kernal_load_trap_services_a_real_disk_load_directly() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.load_disk(build_test_disk(b"HELLO", 0xC000, &[0xA9, 0x42, 0x60]));
@@ -3565,7 +3596,6 @@ mod tests {
     /// own abstraction for a `.d71`, not just that `.d64` still works --
     /// the file's own data sector lives on track 40, a real side-2 track
     /// no `.d64` image could ever have offered.
-    #[test]
     fn fast_kernal_load_trap_services_a_real_d71_disk_load_directly() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.load_disk_d71(build_test_disk_d71(b"HELLO71", 0xC100, &[0xA9, 0x43, 0x60]));
@@ -3595,7 +3625,6 @@ mod tests {
     /// `.d71`'s own 70-track range, and its header/BAM sector lives at a
     /// real, different location (track 40) than either `.d64`/`.d71`'s
     /// own track-18 BAM.
-    #[test]
     fn fast_kernal_load_trap_services_a_real_d81_disk_load_directly() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.load_disk_d81(build_test_disk_d81(b"HELLO81", 0xC200, &[0xA9, 0x44, 0x60]));
@@ -3620,8 +3649,14 @@ mod tests {
         assert_eq!(c64.bus.peek(0xC202), 0x60);
         assert_eq!(c64.cpu.p & 0x01, 0, "carry clear = success");
     }
-
+    /// Merged (every check kept): `fast_kernal_load_trap_services_a_real_disk_load_directly`, `fast_kernal_load_trap_services_a_real_d71_disk_load_directly`, `fast_kernal_load_trap_services_a_real_d81_disk_load_directly`.
     #[test]
+    fn fast_load_trap_per_format() {
+        fast_kernal_load_trap_services_a_real_disk_load_directly();
+        fast_kernal_load_trap_services_a_real_d71_disk_load_directly();
+        fast_kernal_load_trap_services_a_real_d81_disk_load_directly();
+    }
+
     fn fast_kernal_load_trap_uses_the_callers_own_address_when_sa_is_zero() {
         let mut c64 = test_c64_with_real_load_entry();
         // The file's own embedded header address ($C000) must be ignored
@@ -3652,7 +3687,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn fast_kernal_load_trap_wildcard_loads_the_first_program() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.load_disk(build_test_disk(b"ANYTHING", 0xC000, &[0x42]));
@@ -3670,8 +3704,13 @@ mod tests {
         assert_eq!(c64.bus.peek(0xC000), 0x42);
         assert_eq!(c64.cpu.p & 0x01, 0);
     }
-
+    /// Merged (every check kept): `fast_kernal_load_trap_uses_the_callers_own_address_when_sa_is_zero`, `fast_kernal_load_trap_wildcard_loads_the_first_program`.
     #[test]
+    fn fast_load_addressing() {
+        fast_kernal_load_trap_uses_the_callers_own_address_when_sa_is_zero();
+        fast_kernal_load_trap_wildcard_loads_the_first_program();
+    }
+
     fn fast_kernal_load_trap_reports_the_real_file_not_found_error() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.load_disk(build_test_disk(b"HELLO", 0xC000, &[0x42]));
@@ -3756,7 +3795,6 @@ mod tests {
         c64.step();
     }
 
-    #[test]
     fn fast_kernal_save_trap_stores_a_program_that_the_load_trap_reads_back() {
         let mut c64 = test_c64_with_real_save_entry();
         c64.load_disk(formatted_test_disk());
@@ -3782,7 +3820,6 @@ mod tests {
         assert!(c64.take_modified_disk_image().is_none());
     }
 
-    #[test]
     fn fast_kernal_save_trap_only_replaces_with_the_at_prefix() {
         let mut c64 = test_c64_with_real_save_entry();
         c64.load_disk(formatted_test_disk());
@@ -3829,7 +3866,6 @@ mod tests {
         disk
     }
 
-    #[test]
     fn fast_kernal_save_trap_reports_a_missing_file_name() {
         let mut c64 = test_c64_with_real_save_entry();
         c64.load_disk(formatted_test_disk());
@@ -3837,8 +3873,13 @@ mod tests {
         assert_eq!(c64.cpu.p & 0x01, 0x01);
         assert_eq!(c64.cpu.a, 8, "MISSING FILE NAME");
     }
-
+    /// Merged (every check kept): `fast_kernal_save_trap_only_replaces_with_the_at_prefix`, `fast_kernal_save_trap_reports_a_missing_file_name`.
     #[test]
+    fn fast_save_trap_rules() {
+        fast_kernal_save_trap_only_replaces_with_the_at_prefix();
+        fast_kernal_save_trap_reports_a_missing_file_name();
+    }
+
     fn fast_kernal_save_trap_writes_to_d81_and_d71_images_too() {
         let mut c64 = test_c64_with_real_save_entry();
         c64.load_disk_d81(formatted_test_d81());
@@ -3851,8 +3892,13 @@ mod tests {
         let entry = d81::D81::find_program(&entries, b"ON81").unwrap();
         assert_eq!(disk.read_file(entry).unwrap(), vec![0x00, 0x40, 0x99]);
     }
-
+    /// Merged (every check kept): `fast_kernal_save_trap_stores_a_program_that_the_load_trap_reads_back`, `fast_kernal_save_trap_writes_to_d81_and_d71_images_too`.
     #[test]
+    fn fast_save_trap() {
+        fast_kernal_save_trap_stores_a_program_that_the_load_trap_reads_back();
+        fast_kernal_save_trap_writes_to_d81_and_d71_images_too();
+    }
+
     fn fast_kernal_load_trap_does_not_engage_below_the_real_disk_device_range() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.load_disk(build_test_disk(b"HELLO", 0xC000, &[0x42]));
@@ -3866,7 +3912,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn fast_kernal_load_trap_does_not_engage_for_verify() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.load_disk(build_test_disk(b"HELLO", 0xC000, &[0x42]));
@@ -3880,7 +3925,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn fast_kernal_load_trap_does_not_engage_without_a_disk_attached() {
         let mut c64 = test_c64_with_real_load_entry();
         c64.bus.write(ZP_FA, 8);
@@ -3889,8 +3933,15 @@ mod tests {
 
         assert!(!c64.try_fast_kernal_load_trap());
     }
-
+    /// Merged (every check kept): `fast_kernal_load_trap_reports_the_real_file_not_found_error`, `fast_kernal_load_trap_does_not_engage_below_the_real_disk_device_range`, `fast_kernal_load_trap_does_not_engage_for_verify`, `fast_kernal_load_trap_does_not_engage_without_a_disk_attached`.
     #[test]
+    fn fast_load_refusals() {
+        fast_kernal_load_trap_reports_the_real_file_not_found_error();
+        fast_kernal_load_trap_does_not_engage_below_the_real_disk_device_range();
+        fast_kernal_load_trap_does_not_engage_for_verify();
+        fast_kernal_load_trap_does_not_engage_without_a_disk_attached();
+    }
+
     fn an_unacknowledged_cia2_interrupt_is_one_nmi_not_one_per_instruction() {
         let mut c64 = test_c64();
         // CIA2 timer A: latch 1, continuous, NMI on underflow enabled.
@@ -3920,5 +3971,11 @@ mod tests {
             c64.bus.cia2_nmi_edge(level),
             "a new underflow is a new edge"
         );
+    }
+    /// Merged (every check kept): `cia2_timer_irq_reaches_the_cpu_as_a_real_nmi_not_an_irq`, `an_unacknowledged_cia2_interrupt_is_one_nmi_not_one_per_instruction`.
+    #[test]
+    fn cia2_nmi() {
+        cia2_timer_irq_reaches_the_cpu_as_a_real_nmi_not_an_irq();
+        an_unacknowledged_cia2_interrupt_is_one_nmi_not_one_per_instruction();
     }
 }

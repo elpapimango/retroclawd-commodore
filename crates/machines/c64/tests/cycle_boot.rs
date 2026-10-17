@@ -61,7 +61,6 @@ fn the_real_kernal_boots_to_ready_with_the_cycle_accurate_vic() {
     );
 }
 
-#[test]
 fn line_and_cycle_mode_boot_to_the_same_screen() {
     let (Some(mut line), Some(mut cycle)) =
         (machine(VicAccuracy::Line), machine(VicAccuracy::Cycle))
@@ -80,7 +79,6 @@ fn line_and_cycle_mode_boot_to_the_same_screen() {
     assert_eq!(text(&line), text(&cycle), "same boot screen in both modes");
 }
 
-#[test]
 fn the_cycle_picture_of_the_boot_screen_matches_the_decoded_one() {
     let (Some(mut line), Some(mut cycle)) =
         (machine(VicAccuracy::Line), machine(VicAccuracy::Cycle))
@@ -99,4 +97,10 @@ fn the_cycle_picture_of_the_boot_screen_matches_the_decoded_one() {
     assert!(differing <= 64, "{differing} pixels differ");
     // And the picture is really the blue-on-light-blue C64 boot screen.
     assert_ne!(a, vec![0; a.len()]);
+}
+/// Merged (every check kept): `line_and_cycle_mode_boot_to_the_same_screen`, `the_cycle_picture_of_the_boot_screen_matches_the_decoded_one`.
+#[test]
+fn cycle_boot_screens() {
+    line_and_cycle_mode_boot_to_the_same_screen();
+    the_cycle_picture_of_the_boot_screen_matches_the_decoded_one();
 }

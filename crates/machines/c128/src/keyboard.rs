@@ -264,7 +264,6 @@ impl KeyMatrix {
 mod tests {
     use super::*;
 
-    #[test]
     fn c64_keys_scan_exactly_as_on_the_c64() {
         let mut matrix = KeyMatrix::new();
         matrix.press(C128Key::Q);
@@ -272,7 +271,6 @@ mod tests {
         assert_eq!(matrix.read(0xFF, 0xFF), 0xFF);
     }
 
-    #[test]
     fn the_extra_columns_are_selected_by_the_low_bits_of_d02f() {
         let mut matrix = KeyMatrix::new();
         matrix.press(C128Key::Escape); // K1 row 0
@@ -285,7 +283,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn caps_lock_and_the_40_80_key_are_not_in_the_matrix() {
         let mut matrix = KeyMatrix::new();
         matrix.press(C128Key::CapsLock);
@@ -294,5 +291,12 @@ mod tests {
         assert_eq!(matrix.read(0x00, 0x00), 0xFF);
         matrix.release(C128Key::CapsLock);
         assert!(!matrix.caps_lock);
+    }
+    /// Merged (every check kept): `c64_keys_scan_exactly_as_on_the_c64`, `the_extra_columns_are_selected_by_the_low_bits_of_d02f`, `caps_lock_and_the_40_80_key_are_not_in_the_matrix`.
+    #[test]
+    fn keyboard_matrix() {
+        c64_keys_scan_exactly_as_on_the_c64();
+        the_extra_columns_are_selected_by_the_low_bits_of_d02f();
+        caps_lock_and_the_40_80_key_are_not_in_the_matrix();
     }
 }

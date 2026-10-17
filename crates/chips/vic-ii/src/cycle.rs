@@ -872,7 +872,6 @@ mod tests {
         assert!(!vic.cycle(&mem).raster_irq);
     }
 
-    #[test]
     fn without_den_no_line_is_a_bad_line_and_ba_stays_high() {
         let mem = Mem::new();
         let mut vic = started();
@@ -881,7 +880,6 @@ mod tests {
         assert!(ba_profile(&mut vic, &mem).is_empty());
     }
 
-    #[test]
     fn a_bad_line_holds_ba_low_for_cycles_12_to_54_and_fetches_the_matrix() {
         let mut mem = Mem::new();
         // Video matrix at $0400 (default $D018 = 0 -> base 0; set it).
@@ -944,7 +942,6 @@ mod tests {
         assert_eq!(vc, 40, "VC restarts at VCBASE");
     }
 
-    #[test]
     fn changing_yscroll_before_cycle_12_cancels_a_bad_line() {
         let mem = Mem::new();
         let mut vic = started();
@@ -963,7 +960,6 @@ mod tests {
         assert!(!vic.video_counters().4, "the video logic stays idle");
     }
 
-    #[test]
     fn making_the_next_line_bad_again_is_fld_the_row_does_not_advance() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -990,7 +986,6 @@ mod tests {
         assert_eq!((vc, vcbase, rc, display), (40, 0, 1, true));
     }
 
-    #[test]
     fn a_bad_line_seen_late_starts_the_c_accesses_three_cycles_after_ba_low() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -1011,6 +1006,13 @@ mod tests {
         }
         assert_eq!(low, (29..=54).collect::<Vec<u32>>());
     }
+    /// Merged (every check kept): `without_den_no_line_is_a_bad_line_and_ba_stays_high`, `a_bad_line_holds_ba_low_for_cycles_12_to_54_and_fetches_the_matrix`, `a_bad_line_seen_late_starts_the_c_accesses_three_cycles_after_ba_low`.
+    #[test]
+    fn bad_line_ba_windows() {
+        without_den_no_line_is_a_bad_line_and_ba_stays_high();
+        a_bad_line_holds_ba_low_for_cycles_12_to_54_and_fetches_the_matrix();
+        a_bad_line_seen_late_starts_the_c_accesses_three_cycles_after_ba_low();
+    }
 
     // ---- sprites ----
 
@@ -1024,7 +1026,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn a_lone_sprite_holds_ba_low_for_five_cycles_and_fetches_its_row() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -1048,7 +1049,6 @@ mod tests {
         assert_eq!(vic.sprite_counters(0).1, 3);
     }
 
-    #[test]
     fn consecutive_sprites_share_one_continuous_ba_window() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -1067,7 +1067,6 @@ mod tests {
         assert_eq!(low, (55..=63).collect::<Vec<u32>>());
     }
 
-    #[test]
     fn sprite_three_spans_the_end_and_the_start_of_the_line() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -1084,8 +1083,14 @@ mod tests {
         assert_eq!(low, vec![(60, 61), (60, 62), (60, 63), (61, 1), (61, 2)]);
         assert_eq!(vic.sprite_bytes(3)[0], 3 << 5);
     }
-
+    /// Merged (every check kept): `a_lone_sprite_holds_ba_low_for_five_cycles_and_fetches_its_row`, `consecutive_sprites_share_one_continuous_ba_window`, `sprite_three_spans_the_end_and_the_start_of_the_line`.
     #[test]
+    fn sprite_ba_windows() {
+        a_lone_sprite_holds_ba_low_for_five_cycles_and_fetches_its_row();
+        consecutive_sprites_share_one_continuous_ba_window();
+        sprite_three_spans_the_end_and_the_start_of_the_line();
+    }
+
     fn a_sprite_advances_three_bytes_per_line_and_stops_after_21_rows() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -1111,7 +1116,6 @@ mod tests {
         assert_eq!(vic.sprite_display_mask(), 0);
     }
 
-    #[test]
     fn y_expansion_repeats_each_sprite_row_for_two_lines() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -1129,8 +1133,13 @@ mod tests {
         assert_eq!(rows[2], rows[3], "doubled again");
         assert_eq!(rows[2], [3, 4, 5]);
     }
-
+    /// Merged (every check kept): `a_sprite_advances_three_bytes_per_line_and_stops_after_21_rows`, `y_expansion_repeats_each_sprite_row_for_two_lines`.
     #[test]
+    fn sprite_rows() {
+        a_sprite_advances_three_bytes_per_line_and_stops_after_21_rows();
+        y_expansion_repeats_each_sprite_row_for_two_lines();
+    }
+
     fn clearing_mxye_before_the_mcbase_update_crunches_the_sprite() {
         // Without the write: rows repeat, as in the test above.
         let mut mem = Mem::new();
@@ -1159,7 +1168,6 @@ mod tests {
         assert_eq!(vic.sprite_bytes(0), [3, 4, 5]);
     }
 
-    #[test]
     fn mcbase_is_a_six_bit_counter_so_a_misaligned_sprite_does_not_stop_at_63() {
         let mut mem = Mem::new();
         let mut vic = started();
@@ -1180,6 +1188,12 @@ mod tests {
             1,
             "still fetching long after line 61"
         );
+    }
+    /// Merged (every check kept): `clearing_mxye_before_the_mcbase_update_crunches_the_sprite`, `mcbase_is_a_six_bit_counter_so_a_misaligned_sprite_does_not_stop_at_63`.
+    #[test]
+    fn sprite_crunch() {
+        clearing_mxye_before_the_mcbase_update_crunches_the_sprite();
+        mcbase_is_a_six_bit_counter_so_a_misaligned_sprite_does_not_stop_at_63();
     }
 
     #[test]
@@ -1350,7 +1364,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn the_border_surrounds_the_window_in_the_border_colour() {
         let (mut vic, mem) = random_screen(0x1B, 0x08, 0x1A);
         run_frames(&mut vic, &mem, 2, &mut no_hook);
@@ -1413,7 +1426,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn opening_the_side_border_shows_the_idle_pattern_on_that_line_only() {
         let (mut vic, mem) = random_screen(0x1B, 0x08, 0x1A);
         // Idle accesses read $3FFF; 0 shows the background colour (6).
@@ -1435,7 +1447,6 @@ mod tests {
         assert_eq!(pixel(&vic, 100, 360), PALETTE[6]);
     }
 
-    #[test]
     fn switching_to_24_rows_after_line_247_opens_the_bottom_border() {
         let (mut vic, mem) = random_screen(0x1B, 0x08, 0x1A);
         let mut hook = |v: &mut Vic, line: u32, cyc: u32| {
@@ -1458,7 +1469,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn without_the_trick_the_lower_border_is_closed() {
         let (mut vic, mem) = random_screen(0x1B, 0x08, 0x1A);
         run_frames(&mut vic, &mem, 2, &mut no_hook);
@@ -1466,8 +1476,15 @@ mod tests {
             assert_eq!(pixel(&vic, line, 200), PALETTE[14], "line {line}");
         }
     }
-
+    /// Merged (every check kept): `the_border_surrounds_the_window_in_the_border_colour`, `opening_the_side_border_shows_the_idle_pattern_on_that_line_only`, `switching_to_24_rows_after_line_247_opens_the_bottom_border`, `without_the_trick_the_lower_border_is_closed`.
     #[test]
+    fn border_cases() {
+        the_border_surrounds_the_window_in_the_border_colour();
+        opening_the_side_border_shows_the_idle_pattern_on_that_line_only();
+        switching_to_24_rows_after_line_247_opens_the_bottom_border();
+        without_the_trick_the_lower_border_is_closed();
+    }
+
     fn fld_repeats_the_first_scanline_of_the_character_row() {
         // Eight distinct glyph scanlines for character 1; every cell shows it.
         let mut mem = Mem::new();
@@ -1510,5 +1527,12 @@ mod tests {
         }
         assert_eq!(scanline(0x37), 6);
         assert_eq!(scanline(0x38), 5);
+    }
+    /// Merged (every check kept): `changing_yscroll_before_cycle_12_cancels_a_bad_line`, `making_the_next_line_bad_again_is_fld_the_row_does_not_advance`, `fld_repeats_the_first_scanline_of_the_character_row`.
+    #[test]
+    fn fld_and_yscroll() {
+        changing_yscroll_before_cycle_12_cancels_a_bad_line();
+        making_the_next_line_bad_again_is_fld_the_row_does_not_advance();
+        fld_repeats_the_first_scanline_of_the_character_row();
     }
 }

@@ -457,7 +457,6 @@ mod tests {
         panic!("mark {mark:02X} not found");
     }
 
-    #[test]
     fn the_first_id_field_is_cylinder_head_sector_1_with_a_good_crc() {
         let mut f = spinning();
         f.set_head(1); // CIA Port A bit 0 = 0: the image's first half
@@ -471,7 +470,6 @@ mod tests {
         assert_eq!(crc, 0);
     }
 
-    #[test]
     fn a_data_field_carries_the_512_bytes_of_two_dos_sectors() {
         let mut f = spinning();
         f.set_head(1);
@@ -482,7 +480,6 @@ mod tests {
         assert!(data[256..].iter().all(|&b| b == 8));
     }
 
-    #[test]
     fn the_other_head_serves_the_second_half_of_the_cylinder() {
         let mut f = spinning();
         f.set_head(0);
@@ -490,6 +487,13 @@ mod tests {
         let data: Vec<u8> = (0..512).map(|_| f.read() as u8).collect();
         // Linear sector 20 -> DOS track 1 sector 20.
         assert!(data[..256].iter().all(|&b| b == 7 + 20));
+    }
+    /// Merged (every check kept): `the_first_id_field_is_cylinder_head_sector_1_with_a_good_crc`, `a_data_field_carries_the_512_bytes_of_two_dos_sectors`, `the_other_head_serves_the_second_half_of_the_cylinder`.
+    #[test]
+    fn id_and_data_fields() {
+        the_first_id_field_is_cylinder_head_sector_1_with_a_good_crc();
+        a_data_field_carries_the_512_bytes_of_two_dos_sectors();
+        the_other_head_serves_the_second_half_of_the_cylinder();
     }
 
     #[test]
@@ -514,7 +518,6 @@ mod tests {
         assert!(f.modified());
     }
 
-    #[test]
     fn the_disk_change_line_clears_on_the_first_step_and_returns_on_eject() {
         let mut f = Floppy81::default();
         assert!(f.disk_change());
@@ -527,13 +530,18 @@ mod tests {
         assert!(f.disk_change());
     }
 
-    #[test]
     fn a_stopped_motor_reads_nothing_and_does_not_turn() {
         let mut f = Floppy81::default();
         f.attach(disk());
         f.rotate(100);
         assert_eq!(f.pos, 0);
         assert_eq!(f.read(), 0);
+    }
+    /// Merged (every check kept): `the_disk_change_line_clears_on_the_first_step_and_returns_on_eject`, `a_stopped_motor_reads_nothing_and_does_not_turn`.
+    #[test]
+    fn disk_change_and_motor() {
+        the_disk_change_line_clears_on_the_first_step_and_returns_on_eject();
+        a_stopped_motor_reads_nothing_and_does_not_turn();
     }
 }
 
@@ -573,7 +581,6 @@ mod controller_tests {
         bytes
     }
 
-    #[test]
     fn restore_finds_track_zero_and_the_status_reports_it() {
         let mut wd = controller();
         wd.floppy.seek_pulse(true);
@@ -585,7 +592,6 @@ mod controller_tests {
         assert_ne!(wd.peek(0) & 0x04, 0, "TR00 in the status");
     }
 
-    #[test]
     fn read_address_returns_the_next_id_field() {
         let mut wd = controller();
         wd.write(0, 0xC8);
@@ -595,7 +601,6 @@ mod controller_tests {
         assert_eq!(wd.peek(0) & 0x18, 0, "no RNF, no CRC error");
     }
 
-    #[test]
     fn read_sector_streams_512_bytes() {
         let mut wd = controller();
         wd.write(1, 0); // track register
@@ -608,7 +613,6 @@ mod controller_tests {
         assert_eq!(wd.peek(0) & 0x1C, 0, "status clean: {:02x}", wd.peek(0));
     }
 
-    #[test]
     fn a_missing_sector_gives_record_not_found() {
         let mut wd = controller();
         wd.write(2, 99);
@@ -616,8 +620,14 @@ mod controller_tests {
         run(&mut wd, 30_000_000);
         assert_ne!(wd.peek(0) & 0x10, 0, "RNF");
     }
-
+    /// Merged (every check kept): `read_address_returns_the_next_id_field`, `read_sector_streams_512_bytes`, `a_missing_sector_gives_record_not_found`.
     #[test]
+    fn read_commands() {
+        read_address_returns_the_next_id_field();
+        read_sector_streams_512_bytes();
+        a_missing_sector_gives_record_not_found();
+    }
+
     fn seek_moves_the_head_and_verifies_the_track() {
         let mut wd = controller();
         wd.write(1, 0);
@@ -627,6 +637,12 @@ mod controller_tests {
         assert_eq!(wd.floppy.cylinder(), 5);
         assert_eq!(wd.peek(1), 5);
         assert_eq!(wd.peek(0) & 0x18, 0);
+    }
+    /// Merged (every check kept): `restore_finds_track_zero_and_the_status_reports_it`, `seek_moves_the_head_and_verifies_the_track`.
+    #[test]
+    fn restore_and_seek() {
+        restore_finds_track_zero_and_the_status_reports_it();
+        seek_moves_the_head_and_verifies_the_track();
     }
 
     #[test]

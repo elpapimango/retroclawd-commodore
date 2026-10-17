@@ -539,13 +539,11 @@ mod tests {
         vec![0u8; IMAGE_SIZE]
     }
 
-    #[test]
     fn image_size_matches_the_real_well_known_800k_d81_size() {
         assert_eq!(IMAGE_SIZE, 819_200);
         assert_eq!(IMAGE_SIZE_WITH_ERRORS, 822_400);
     }
 
-    #[test]
     fn parse_recognizes_both_real_size_variants() {
         assert!(!D81::parse(&blank_image()).unwrap().has_error_info());
         let mut with_errors = blank_image();
@@ -553,13 +551,18 @@ mod tests {
         assert!(D81::parse(&with_errors).unwrap().has_error_info());
     }
 
-    #[test]
     fn parse_rejects_an_unrecognized_size() {
         let err = D81::parse(&vec![0u8; 12345]).unwrap_err();
         assert_eq!(err, Error::InvalidSize(12345));
     }
-
+    /// Merged (every check kept): `image_size_matches_the_real_well_known_800k_d81_size`, `parse_recognizes_both_real_size_variants`, `parse_rejects_an_unrecognized_size`.
     #[test]
+    fn geometry_and_parsing() {
+        image_size_matches_the_real_well_known_800k_d81_size();
+        parse_recognizes_both_real_size_variants();
+        parse_rejects_an_unrecognized_size();
+    }
+
     fn read_write_sector_round_trips_with_uniform_sector_count() {
         let mut disk = D81::parse(&blank_image()).unwrap();
         let mut data = [0u8; SECTOR_SIZE];
@@ -582,19 +585,23 @@ mod tests {
         );
     }
 
-    #[test]
     fn to_bytes_round_trips_exactly() {
         let mut bytes = blank_image();
         bytes[0x1234] = 0x42;
         let disk = D81::parse(&bytes).unwrap();
         assert_eq!(disk.to_bytes(), bytes);
     }
+    /// Merged (every check kept): `read_write_sector_round_trips_with_uniform_sector_count`, `to_bytes_round_trips_exactly`.
+    #[test]
+    fn sector_io() {
+        read_write_sector_round_trips_with_uniform_sector_count();
+        to_bytes_round_trips_exactly();
+    }
 
     fn track_sector_byte_offset(track: u8, sector: u8) -> usize {
         ((track as usize - 1) * SECTORS_PER_TRACK as usize + sector as usize) * SECTOR_SIZE
     }
 
-    #[test]
     fn header_fields_read_from_the_confirmed_real_offsets() {
         let mut bytes = blank_image();
         let header_off = track_sector_byte_offset(HEADER_TRACK, HEADER_SECTOR);
@@ -631,7 +638,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn directory_entries_reads_a_real_slot() {
         let mut bytes = blank_image();
         let header_off = track_sector_byte_offset(HEADER_TRACK, HEADER_SECTOR);
@@ -654,8 +660,13 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].track, 41);
     }
-
+    /// Merged (every check kept): `header_fields_read_from_the_confirmed_real_offsets`, `directory_entries_reads_a_real_slot`.
     #[test]
+    fn header_and_directory() {
+        header_fields_read_from_the_confirmed_real_offsets();
+        directory_entries_reads_a_real_slot();
+    }
+
     fn read_file_reads_real_payload_bytes() {
         let mut bytes = blank_image();
         let off = track_sector_byte_offset(41, 0);
@@ -671,12 +682,17 @@ mod tests {
         assert_eq!(data, vec![0x11, 0x22, 0x33]);
     }
 
-    #[test]
     fn find_program_wildcard_and_exact_name_both_work() {
         let entries = vec![make_entry(41, 0)];
         assert!(D81::find_program(&entries, b"*").is_some());
         assert!(D81::find_program(&entries, b"PROGRAM").is_some());
         assert!(D81::find_program(&entries, b"OTHER").is_none());
+    }
+    /// Merged (every check kept): `read_file_reads_real_payload_bytes`, `find_program_wildcard_and_exact_name_both_work`.
+    #[test]
+    fn files() {
+        read_file_reads_real_payload_bytes();
+        find_program_wildcard_and_exact_name_both_work();
     }
 
     /// A freshly formatted disk: everything free except the header, both BAM
@@ -731,7 +747,6 @@ mod tests {
         counts_match_bitmaps(&disk);
     }
 
-    #[test]
     fn a_big_file_reaches_the_second_bam_sector_and_directories_grow() {
         let mut disk = formatted();
         // Tracks 39..1 hold 39 * 40 = 1560 blocks; this needs more.
@@ -753,7 +768,6 @@ mod tests {
         assert_eq!(disk.directory_entries().len(), 11);
     }
 
-    #[test]
     fn replace_and_disk_full_behave_like_the_other_formats() {
         let mut disk = formatted();
         disk.save_program(b"A", &[1; 3000], false).unwrap();
@@ -770,5 +784,11 @@ mod tests {
         );
         assert_eq!(disk.to_bytes(), before);
         counts_match_bitmaps(&disk);
+    }
+    /// Merged (every check kept): `a_big_file_reaches_the_second_bam_sector_and_directories_grow`, `replace_and_disk_full_behave_like_the_other_formats`.
+    #[test]
+    fn big_and_replace() {
+        a_big_file_reaches_the_second_bam_sector_and_directories_grow();
+        replace_and_disk_full_behave_like_the_other_formats();
     }
 }

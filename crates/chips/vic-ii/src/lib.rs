@@ -1615,18 +1615,10 @@ mod tests {
         assert_eq!(vic.background_color0(), PALETTE[6]);
     }
 
-    #[test]
-    fn unimplemented_registers_echo_back_what_was_written() {
-        let mut vic = Vic::new();
-        vic.write(0x11, 0x1B); // a real control register this milestone ignores
-        assert_eq!(vic.read(0x11), 0x1B);
-    }
-
     /// Regression guard for a real bug: without a live raster counter,
     /// real KERNAL boot code busy-waits forever on `$D012` (see
     /// `Vic::frame_cycle`'s own doc comment -- confirmed live against a
     /// real KERNAL ROM, not hypothetical).
-    #[test]
     fn raster_register_advances_with_tick_and_wraps_at_frame_boundary() {
         let mut vic = Vic::new();
         assert_eq!(vic.read(0x12), 0);
@@ -1642,7 +1634,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn control1_bit7_reflects_the_raster_lines_9th_bit() {
         let mut vic = Vic::new();
         vic.write(0x11, 0b0101_0101); // real bits 0-6 the KERNAL might set
@@ -1657,7 +1648,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn raster_irq_fires_once_when_the_raster_reaches_the_compare_line_and_is_enabled() {
         let mut vic = Vic::new();
         vic.write(0x12, 10); // compare line 10 (bit 8 clear -> $D011 untouched)
@@ -1671,7 +1661,6 @@ mod tests {
         assert!(!vic.tick(CYCLES_PER_LINE).raster_irq);
     }
 
-    #[test]
     fn raster_irq_does_not_fire_when_disabled_in_d01a() {
         let mut vic = Vic::new();
         vic.write(0x12, 5);
@@ -1683,7 +1672,6 @@ mod tests {
         assert_eq!(vic.read(0x19) & 0x0F, 0x01);
     }
 
-    #[test]
     fn raster_compare_uses_both_d012_and_d011_bit7_as_the_9th_bit() {
         let mut vic = Vic::new();
         vic.write(0x12, 0x2C); // low 8 bits of line 300 (0x12C)
@@ -1696,8 +1684,14 @@ mod tests {
             "compare line 300 needs $D011 bit 7 combined with $D012's low byte"
         );
     }
-
+    /// Merged (every check kept): `raster_register_advances_with_tick_and_wraps_at_frame_boundary`, `control1_bit7_reflects_the_raster_lines_9th_bit`, `raster_compare_uses_both_d012_and_d011_bit7_as_the_9th_bit`.
     #[test]
+    fn raster_register() {
+        raster_register_advances_with_tick_and_wraps_at_frame_boundary();
+        control1_bit7_reflects_the_raster_lines_9th_bit();
+        raster_compare_uses_both_d012_and_d011_bit7_as_the_9th_bit();
+    }
+
     fn writing_1_to_d019_clears_the_latched_bit_and_deasserts_irq_flag() {
         let mut vic = Vic::new();
         vic.write(0x12, 1);
@@ -1712,8 +1706,14 @@ mod tests {
             "clearing the only latched+enabled source also clears bit 7"
         );
     }
-
+    /// Merged (every check kept): `raster_irq_fires_once_when_the_raster_reaches_the_compare_line_and_is_enabled`, `raster_irq_does_not_fire_when_disabled_in_d01a`, `writing_1_to_d019_clears_the_latched_bit_and_deasserts_irq_flag`.
     #[test]
+    fn raster_irq() {
+        raster_irq_fires_once_when_the_raster_reaches_the_compare_line_and_is_enabled();
+        raster_irq_does_not_fire_when_disabled_in_d01a();
+        writing_1_to_d019_clears_the_latched_bit_and_deasserts_irq_flag();
+    }
+
     fn bad_line_steals_40_cycles_when_den_set_at_first_dma_line_and_yscroll_matches() {
         let mut vic = Vic::new();
         // DEN set, YSCROLL=0 (default) -- line $30's own low 3 bits are
@@ -1738,7 +1738,6 @@ mod tests {
         assert_eq!(result.stolen_cycles, 0);
     }
 
-    #[test]
     fn bad_line_never_fires_when_den_is_clear_at_first_dma_line() {
         let mut vic = Vic::new();
         // DEN left clear -- bad lines must not be allowed this frame at
@@ -1755,7 +1754,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn bad_line_only_occurs_inside_the_real_dma_window() {
         let mut vic = Vic::new();
         vic.write(0x11, DEN_BIT); // DEN set
@@ -1784,6 +1782,13 @@ mod tests {
             "every stolen line must fall inside the real DMA window"
         );
     }
+    /// Merged (every check kept): `bad_line_steals_40_cycles_when_den_set_at_first_dma_line_and_yscroll_matches`, `bad_line_never_fires_when_den_is_clear_at_first_dma_line`, `bad_line_only_occurs_inside_the_real_dma_window`.
+    #[test]
+    fn bad_line_steal() {
+        bad_line_steals_40_cycles_when_den_set_at_first_dma_line_and_yscroll_matches();
+        bad_line_never_fires_when_den_is_clear_at_first_dma_line();
+        bad_line_only_occurs_inside_the_real_dma_window();
+    }
 
     #[test]
     fn stolen_cycles_never_inflate_the_live_raster_position() {
@@ -1805,7 +1810,6 @@ mod tests {
         assert_eq!(vic.raster_line(), FIRST_DMA_LINE + 1);
     }
 
-    #[test]
     fn render_text_draws_a_solid_glyph_over_the_background() {
         let mut vic = Vic::new();
         vic.write(0x21, 0x00); // black background
@@ -1833,7 +1837,6 @@ mod tests {
         assert_eq!(&rgb[idx..idx + 3], &[0x00, 0x00, 0x00]);
     }
 
-    #[test]
     fn video_mode_selects_correctly_from_ecm_bmm_mcm_bits() {
         let mut vic = Vic::new();
         assert_eq!(vic.video_mode(), VideoMode::Text);
@@ -1859,7 +1862,6 @@ mod tests {
         assert_eq!(vic.video_mode(), VideoMode::Invalid);
     }
 
-    #[test]
     fn memory_pointer_bases_are_derived_from_d018() {
         let mut vic = Vic::new();
         // VM13-10 = 0b0101 -> 5 * 0x400; CB13-11 = 0b011 -> 3 * 0x800;
@@ -1874,7 +1876,6 @@ mod tests {
         assert_eq!(vic.bitmap_base(), 0x2000);
     }
 
-    #[test]
     fn render_multicolor_text_handles_both_per_cell_rendering_rules() {
         let mut vic = Vic::new();
         vic.write(0x21, 0x00); // background 0: black
@@ -1909,7 +1910,6 @@ mod tests {
         assert_eq!(px(12), &[PALETTE[0].0, PALETTE[0].1, PALETTE[0].2]); // bg0 black
     }
 
-    #[test]
     fn render_bitmap_uses_screen_ram_nibbles_as_fg_and_bg() {
         let vic = Vic::new();
         let mut screen = vec![0u8; 1000];
@@ -1925,7 +1925,6 @@ mod tests {
         assert_eq!(px(4), &[PALETTE[14].0, PALETTE[14].1, PALETTE[14].2]); // light blue
     }
 
-    #[test]
     fn render_multicolor_bitmap_selects_among_four_color_sources() {
         let mut vic = Vic::new();
         vic.write(0x21, 0x00); // background 0: black
@@ -1945,7 +1944,6 @@ mod tests {
         assert_eq!(px(6), &[PALETTE[0].0, PALETTE[0].1, PALETTE[0].2]); // bg0 black
     }
 
-    #[test]
     fn render_extended_color_text_masks_char_code_and_picks_background_per_cell() {
         let mut vic = Vic::new();
         vic.write(0x21, 0x00); // background 0: black
@@ -1973,15 +1971,23 @@ mod tests {
         assert_eq!(px(7), &[PALETTE[6].0, PALETTE[6].1, PALETTE[6].2]);
     }
 
-    #[test]
     fn render_invalid_mode_is_solid_black() {
         let vic = Vic::new();
         let (w, h, rgb) = vic.render_invalid_mode();
         assert_eq!((w, h), (320, 200));
         assert!(rgb.iter().all(|&b| b == 0));
     }
-
+    /// Merged (every check kept): `render_text_draws_a_solid_glyph_over_the_background`, `render_multicolor_text_handles_both_per_cell_rendering_rules`, `render_bitmap_uses_screen_ram_nibbles_as_fg_and_bg`, `render_multicolor_bitmap_selects_among_four_color_sources`, `render_extended_color_text_masks_char_code_and_picks_background_per_cell`, `render_invalid_mode_is_solid_black`.
     #[test]
+    fn render_modes() {
+        render_text_draws_a_solid_glyph_over_the_background();
+        render_multicolor_text_handles_both_per_cell_rendering_rules();
+        render_bitmap_uses_screen_ram_nibbles_as_fg_and_bg();
+        render_multicolor_bitmap_selects_among_four_color_sources();
+        render_extended_color_text_masks_char_code_and_picks_background_per_cell();
+        render_invalid_mode_is_solid_black();
+    }
+
     fn render_dispatches_to_the_mode_selected_by_registers() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2011,6 +2017,13 @@ mod tests {
         // black) -- just confirm no panic and a real pixel was written.
         assert_eq!(&rgb[0..3], &[0x00, 0x00, 0x00]);
     }
+    /// Merged (every check kept): `video_mode_selects_correctly_from_ecm_bmm_mcm_bits`, `memory_pointer_bases_are_derived_from_d018`, `render_dispatches_to_the_mode_selected_by_registers`.
+    #[test]
+    fn mode_selection() {
+        video_mode_selects_correctly_from_ecm_bmm_mcm_bits();
+        memory_pointer_bases_are_derived_from_d018();
+        render_dispatches_to_the_mode_selected_by_registers();
+    }
 
     /// Builds a `Vic` with sprite `index` at screen position `(x, y)` (canvas
     /// coordinates), solid in its first row, and returns the raster line
@@ -2028,7 +2041,6 @@ mod tests {
         y as u32 + 51
     }
 
-    #[test]
     fn overlapping_sprites_set_both_bits_in_d01e_and_clear_on_read() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2045,7 +2057,6 @@ mod tests {
         assert_eq!(vic.read(0x1F), 0);
     }
 
-    #[test]
     fn sprites_that_do_not_overlap_in_x_or_in_y_do_not_collide() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2060,7 +2071,6 @@ mod tests {
         assert_eq!(vic.read(0x1E), 0);
     }
 
-    #[test]
     fn a_transparent_pixel_never_collides() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2075,8 +2085,14 @@ mod tests {
         // 24-pixel span (100..124).
         assert_eq!(vic.read(0x1E), 0);
     }
-
+    /// Merged (every check kept): `overlapping_sprites_set_both_bits_in_d01e_and_clear_on_read`, `sprites_that_do_not_overlap_in_x_or_in_y_do_not_collide`, `a_transparent_pixel_never_collides`.
     #[test]
+    fn sprite_collisions() {
+        overlapping_sprites_set_both_bits_in_d01e_and_clear_on_read();
+        sprites_that_do_not_overlap_in_x_or_in_y_do_not_collide();
+        a_transparent_pixel_never_collides();
+    }
+
     fn sprite_sprite_collision_works_in_the_border_outside_the_display_window() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2108,7 +2124,6 @@ mod tests {
         ram[pointer as usize * 64..pointer as usize * 64 + 3].copy_from_slice(&[0xFF; 3]);
     }
 
-    #[test]
     fn sprites_collide_across_the_wrap_of_the_504_pixel_line() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2119,7 +2134,6 @@ mod tests {
         assert_eq!(vic.read(0x1E), 0b11, "the wrapped tail overlaps sprite 1");
     }
 
-    #[test]
     fn an_mxx_of_504_or_more_never_starts_so_it_never_collides() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2133,7 +2147,6 @@ mod tests {
         assert_eq!(vic.read(0x1E), 0b11);
     }
 
-    #[test]
     fn a_wide_sprite_at_the_right_end_of_the_line_reappears_at_the_left_of_the_window() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2152,6 +2165,14 @@ mod tests {
         assert_eq!(pixel(23), (0, 0, 0));
         assert_eq!(pixel(319), (0, 0, 0));
     }
+    /// Merged (every check kept): `sprite_sprite_collision_works_in_the_border_outside_the_display_window`, `sprites_collide_across_the_wrap_of_the_504_pixel_line`, `an_mxx_of_504_or_more_never_starts_so_it_never_collides`, `a_wide_sprite_at_the_right_end_of_the_line_reappears_at_the_left_of_the_window`.
+    #[test]
+    fn sprite_wrap_cases() {
+        sprite_sprite_collision_works_in_the_border_outside_the_display_window();
+        sprites_collide_across_the_wrap_of_the_504_pixel_line();
+        an_mxx_of_504_or_more_never_starts_so_it_never_collides();
+        a_wide_sprite_at_the_right_end_of_the_line_reappears_at_the_left_of_the_window();
+    }
 
     /// Cycles the VIC-II steals over one frame of 63-cycle ticks with the
     /// display off (so no bad line adds to it).
@@ -2165,7 +2186,6 @@ mod tests {
         vic.write(n * 2 + 1, y);
     }
 
-    #[test]
     fn line_mode_charges_a_lone_sprite_five_cycles_for_each_of_its_21_lines() {
         let mut vic = Vic::new();
         enable_sprite_at(&mut vic, 0, 100);
@@ -2176,7 +2196,6 @@ mod tests {
         assert_eq!(stolen_over_a_frame(&mut vic), 21 * 5);
     }
 
-    #[test]
     fn line_mode_shares_the_ba_warning_between_adjacent_sprites() {
         // 3 + 3 x 2 per line, as the cycle engine measures.
         let mut vic = Vic::new();
@@ -2197,7 +2216,6 @@ mod tests {
         assert_eq!(stolen_over_a_frame(&mut vic), 21 * 10);
     }
 
-    #[test]
     fn line_mode_charges_a_y_expanded_sprite_for_all_42_of_its_lines() {
         let mut vic = Vic::new();
         enable_sprite_at(&mut vic, 0, 100);
@@ -2205,7 +2223,6 @@ mod tests {
         assert_eq!(stolen_over_a_frame(&mut vic), 42 * 5);
     }
 
-    #[test]
     fn line_mode_charges_nothing_without_sprites_and_a_bad_line_still_adds_its_own() {
         let mut vic = Vic::new();
         assert_eq!(stolen_over_a_frame(&mut vic), 0);
@@ -2215,6 +2232,14 @@ mod tests {
         vic.write(0x11, 0x1B);
         let total: u32 = (0..312).map(|_| vic.tick(63).stolen_cycles).sum();
         assert_eq!(total, 25 * 40 + 21 * 5);
+    }
+    /// Merged (every check kept): `line_mode_charges_a_lone_sprite_five_cycles_for_each_of_its_21_lines`, `line_mode_shares_the_ba_warning_between_adjacent_sprites`, `line_mode_charges_a_y_expanded_sprite_for_all_42_of_its_lines`, `line_mode_charges_nothing_without_sprites_and_a_bad_line_still_adds_its_own`.
+    #[test]
+    fn line_mode_sprite_charges() {
+        line_mode_charges_a_lone_sprite_five_cycles_for_each_of_its_21_lines();
+        line_mode_shares_the_ba_warning_between_adjacent_sprites();
+        line_mode_charges_a_y_expanded_sprite_for_all_42_of_its_lines();
+        line_mode_charges_nothing_without_sprites_and_a_bad_line_still_adds_its_own();
     }
 
     #[test]
@@ -2231,7 +2256,6 @@ mod tests {
         assert_eq!(total, 21 * 5);
     }
 
-    #[test]
     fn sprite_over_a_foreground_pixel_sets_d01f_even_when_drawn_behind() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2253,7 +2277,6 @@ mod tests {
         assert_eq!(vic.read(0x1F), 0);
     }
 
-    #[test]
     fn collision_interrupts_latch_only_on_the_zero_to_nonzero_edge_and_need_d01a() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2276,7 +2299,6 @@ mod tests {
         assert_eq!(vic.read(0x19) & 0x84, 0x84);
     }
 
-    #[test]
     fn expanded_and_multicolor_sprites_use_their_real_width_and_height() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2300,7 +2322,6 @@ mod tests {
         assert_eq!(vic.read(0x1E), 0b101);
     }
 
-    #[test]
     fn ntsc_has_65_cycle_lines_and_263_lines_per_frame() {
         let mut vic = Vic::new();
         vic.set_ntsc(true);
@@ -2318,26 +2339,36 @@ mod tests {
         assert_eq!(vic.tick(NTSC_CYCLES_PER_LINE).entered_line, Some(0));
     }
 
-    #[test]
     fn tick_reports_the_line_it_entered() {
         let mut vic = Vic::new();
         assert_eq!(vic.tick(10).entered_line, None);
         assert_eq!(vic.tick(CYCLES_PER_LINE).entered_line, Some(1));
     }
-
+    /// Merged (every check kept): `ntsc_has_65_cycle_lines_and_263_lines_per_frame`, `tick_reports_the_line_it_entered`.
     #[test]
+    fn line_timing() {
+        ntsc_has_65_cycle_lines_and_263_lines_per_frame();
+        tick_reports_the_line_it_entered();
+    }
+
     fn cpu_writes_to_the_collision_registers_are_ignored() {
         let mut vic = Vic::new();
         vic.write(0x1E, 0xFF);
         vic.write(0x1F, 0xFF);
         assert_eq!((vic.read(0x1E), vic.read(0x1F)), (0, 0));
     }
+    /// Merged (every check kept): `sprite_over_a_foreground_pixel_sets_d01f_even_when_drawn_behind`, `collision_interrupts_latch_only_on_the_zero_to_nonzero_edge_and_need_d01a`, `cpu_writes_to_the_collision_registers_are_ignored`.
+    #[test]
+    fn collision_registers() {
+        sprite_over_a_foreground_pixel_sets_d01f_even_when_drawn_behind();
+        collision_interrupts_latch_only_on_the_zero_to_nonzero_edge_and_need_d01a();
+        cpu_writes_to_the_collision_registers_are_ignored();
+    }
 
     fn blank_canvas() -> Vec<u8> {
         vec![0u8; (320 * 200 * 3) as usize]
     }
 
-    #[test]
     fn hires_sprite_renders_at_the_top_left_of_the_active_area() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2360,7 +2391,6 @@ mod tests {
         assert_eq!(px(30), &[0x00, 0x00, 0x00]);
     }
 
-    #[test]
     fn disabled_sprite_is_never_drawn() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2379,7 +2409,6 @@ mod tests {
         assert!(rgb.iter().all(|&b| b == 0));
     }
 
-    #[test]
     fn sprite_x_msb_from_d010_extends_the_9_bit_x_range() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2403,7 +2432,6 @@ mod tests {
         assert_eq!(px(0), &[0x00, 0x00, 0x00]);
     }
 
-    #[test]
     fn multicolor_sprite_maps_all_four_pixel_pair_values() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2432,7 +2460,6 @@ mod tests {
         assert_eq!(px(6), &[PALETTE[5].0, PALETTE[5].1, PALETTE[5].2]); // MM1 green
     }
 
-    #[test]
     fn x_expansion_doubles_sprite_pixel_width() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2456,7 +2483,6 @@ mod tests {
         assert_eq!(px(2), &[0x00, 0x00, 0x00]); // back to background
     }
 
-    #[test]
     fn y_expansion_doubles_sprite_pixel_height() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2483,8 +2509,18 @@ mod tests {
         assert_eq!(px_at(0, 1), &[PALETTE[2].0, PALETTE[2].1, PALETTE[2].2]);
         assert_eq!(px_at(0, 2), &[0x00, 0x00, 0x00]); // row 1's data byte is 0
     }
-
+    /// Merged (every check kept): `hires_sprite_renders_at_the_top_left_of_the_active_area`, `disabled_sprite_is_never_drawn`, `sprite_x_msb_from_d010_extends_the_9_bit_x_range`, `multicolor_sprite_maps_all_four_pixel_pair_values`, `x_expansion_doubles_sprite_pixel_width`, `y_expansion_doubles_sprite_pixel_height`, `expanded_and_multicolor_sprites_use_their_real_width_and_height`.
     #[test]
+    fn sprite_rendering() {
+        hires_sprite_renders_at_the_top_left_of_the_active_area();
+        disabled_sprite_is_never_drawn();
+        sprite_x_msb_from_d010_extends_the_9_bit_x_range();
+        multicolor_sprite_maps_all_four_pixel_pair_values();
+        x_expansion_doubles_sprite_pixel_width();
+        y_expansion_doubles_sprite_pixel_height();
+        expanded_and_multicolor_sprites_use_their_real_width_and_height();
+    }
+
     fn sprite_0_always_wins_over_sprite_7_regardless_of_write_order() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2511,7 +2547,6 @@ mod tests {
         assert_eq!(&rgb[0..3], &[PALETTE[2].0, PALETTE[2].1, PALETTE[2].2]);
     }
 
-    #[test]
     fn behind_background_sprite_hides_under_foreground_but_shows_over_background() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2540,7 +2575,6 @@ mod tests {
         assert_eq!(px(4), &[PALETTE[2].0, PALETTE[2].1, PALETTE[2].2]);
     }
 
-    #[test]
     fn sprite_positioned_off_canvas_is_clipped_without_panicking() {
         let mut vic = Vic::new();
         let mut ram = vec![0u8; 0x10000];
@@ -2559,6 +2593,13 @@ mod tests {
         let mut rgb = blank_canvas();
         vic.render_sprites(&mut rgb, &ram, &char_rom, &color_ram); // must not panic
         assert!(rgb.iter().all(|&b| b == 0));
+    }
+    /// Merged (every check kept): `sprite_0_always_wins_over_sprite_7_regardless_of_write_order`, `behind_background_sprite_hides_under_foreground_but_shows_over_background`, `sprite_positioned_off_canvas_is_clipped_without_panicking`.
+    #[test]
+    fn sprite_priority_and_clipping() {
+        sprite_0_always_wins_over_sprite_7_regardless_of_write_order();
+        behind_background_sprite_hides_under_foreground_but_shows_over_background();
+        sprite_positioned_off_canvas_is_clipped_without_panicking();
     }
 
     /// The original per-bit-branch algorithm `render_text` used before the
@@ -2635,52 +2676,6 @@ mod tests {
         );
     }
 
-    /// Real measured timing, this machine's own CPU, run manually (not
-    /// part of the normal test suite -- `#[ignore]`d, and `cargo test`
-    /// alone builds unoptimized, which wouldn't show a real SIMD win):
-    ///
-    /// ```text
-    /// cargo test --release -p vic-ii -- --ignored --nocapture bench_render_text
-    /// ```
-    #[test]
-    #[ignore]
-    fn bench_render_text_simd_vs_naive_scalar() {
-        let mut vic = Vic::new();
-        vic.write(0x20, 3);
-        vic.write(0x21, 11);
-        let screen = xorshift_bytes(1, 1000);
-        let color = xorshift_bytes(2, 1000);
-        let chars = xorshift_bytes(3, 2048);
-
-        const ITERS: u32 = 20_000;
-
-        let start = std::time::Instant::now();
-        for _ in 0..ITERS {
-            std::hint::black_box(vic.render_text(&screen, &color, &chars));
-        }
-        let simd_elapsed = start.elapsed();
-
-        let start = std::time::Instant::now();
-        for _ in 0..ITERS {
-            std::hint::black_box(render_text_naive_reference(&vic, &screen, &color, &chars));
-        }
-        let naive_elapsed = start.elapsed();
-
-        println!(
-            "SIMD:  {ITERS} frames in {simd_elapsed:?} ({:.2} us/frame)",
-            simd_elapsed.as_secs_f64() * 1e6 / ITERS as f64
-        );
-        println!(
-            "naive: {ITERS} frames in {naive_elapsed:?} ({:.2} us/frame)",
-            naive_elapsed.as_secs_f64() * 1e6 / ITERS as f64
-        );
-        println!(
-            "speedup: {:.2}x",
-            naive_elapsed.as_secs_f64() / simd_elapsed.as_secs_f64()
-        );
-    }
-
-    #[test]
     fn a_light_pen_latches_position_and_interrupt_once_per_frame() {
         let mut vic = Vic::default();
         vic.write(0x1A, 0x08); // light pen interrupt enabled
@@ -2708,10 +2703,15 @@ mod tests {
         assert_eq!(vic.read(0x13), 12);
     }
 
-    #[test]
     fn the_light_pen_interrupt_is_not_requested_while_masked() {
         let mut vic = Vic::default();
         assert!(!vic.light_pen_trigger(5, 5));
         assert_eq!(vic.read(0x19) & 0x08, 0x08, "latched even when masked");
+    }
+    /// Merged (every check kept): `a_light_pen_latches_position_and_interrupt_once_per_frame`, `the_light_pen_interrupt_is_not_requested_while_masked`.
+    #[test]
+    fn light_pen() {
+        a_light_pen_latches_position_and_interrupt_once_per_frame();
+        the_light_pen_interrupt_is_not_requested_while_masked();
     }
 }

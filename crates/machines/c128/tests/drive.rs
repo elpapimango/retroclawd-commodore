@@ -191,10 +191,6 @@ fn the_c64_mode_kernal_loads_a_directory_from_a_1541() {
     assert!(text.contains("BLOCKS FREE"), "{text}");
 }
 
-fn screen80(m: &C128) -> String {
-    screen80_as(m, std::env::var("ASCII").is_ok())
-}
-
 /// The VDC text screen; `ascii` shows codes `0x20..=0x7E` as plain ASCII
 /// (CP/M writes them that way) instead of screen codes.
 fn screen80_as(m: &C128, ascii: bool) -> String {
@@ -214,61 +210,6 @@ fn screen80_as(m: &C128, ascii: bool) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
-}
-
-/// Exploration harness: `DISK=<image> [DRIVE=1541|1571|1581] [C64=1] [COLS80=1]
-/// [TYPE=<text, \n = Return>] [SECONDS=n] cargo test --release -p c128 --test
-/// drive probe -- --ignored --nocapture`.
-#[test]
-#[ignore = "exploration harness"]
-fn probe_disk() {
-    let Ok(path) = std::env::var("DISK") else {
-        return;
-    };
-    let bytes = std::fs::read(&path).unwrap();
-    let ext = path.rsplit('.').next().unwrap().to_ascii_lowercase();
-    let disk = match ext.as_str() {
-        "d71" => Disk::Gcr(c1541::Medium::D71(d71::D71::parse(&bytes).unwrap())),
-        "d81" => Disk::D81(d81::D81::parse(&bytes).unwrap()),
-        _ => Disk::Gcr(c1541::Medium::D64(d64::D64::parse(&bytes).unwrap())),
-    };
-    let (kind, rom) = match std::env::var("DRIVE").as_deref() {
-        Ok("1541") => (
-            DriveKind::C1541,
-            "roms/1541/dos1541-325302-01+901229-05.bin",
-        ),
-        Ok("1581") => (DriveKind::C1581, "roms/c64/VC1581"),
-        _ => (DriveKind::C1571, "roms/c64/VC1571"),
-    };
-    let mut m = machine().unwrap();
-    let mut link = DriveLink::new(kind, read(rom).unwrap(), 8).unwrap();
-    link.attach_disk(disk).unwrap();
-    let cols80 = std::env::var("COLS80").is_ok();
-    if cols80 {
-        m.set_80_columns(true);
-    }
-    if std::env::var("C64").is_ok() {
-        m.boot_into_c64_mode();
-    }
-    run(&mut m, &mut link, 8_000_000);
-    if let Ok(text) = std::env::var("TYPE") {
-        type_text(&mut m, &mut link, &text.replace("\\n", "\n"));
-    }
-    let seconds: u64 = std::env::var("SECONDS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(10);
-    if std::env::var("TRACE").is_ok() {
-        for _ in 0..seconds * 4 {
-            run(&mut m, &mut link, 246_312);
-            println!("pc {:04X} {} ", m.pc(), m.cpu_name());
-        }
-    } else {
-        run(&mut m, &mut link, seconds * 985_248);
-    }
-    println!("pc {:04X} cpu {}", m.pc(), m.cpu_name());
-    println!("mode: {}", if m.mmu().c64_mode() { "c64" } else { "c128" });
-    println!("{}", if cols80 { screen80(&m) } else { screen(&m) });
 }
 
 /// The CP/M Plus system disk (a CBM-format `.d64` with a boot sector) boots on

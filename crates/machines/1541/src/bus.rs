@@ -723,7 +723,6 @@ mod tests {
         assert_eq!(drive.read_memory(0x0400), 0x42);
     }
 
-    #[test]
     fn via1_registers_mirror_across_the_whole_1800_1bff_window() {
         let mut drive = test_drive();
         drive.load(0x1802, &[0x1A]); // DDRB via the primary address
@@ -734,11 +733,16 @@ mod tests {
         );
     }
 
-    #[test]
     fn via2_registers_mirror_across_the_whole_1c00_1fff_window() {
         let mut drive = test_drive();
         drive.load(0x1C02, &[0x55]);
         assert_eq!(drive.read_memory(0x1FF2), 0x55);
+    }
+    /// Merged (every check kept): `via1_registers_mirror_across_the_whole_1800_1bff_window`, `via2_registers_mirror_across_the_whole_1c00_1fff_window`.
+    #[test]
+    fn via_mirrors() {
+        via1_registers_mirror_across_the_whole_1800_1bff_window();
+        via2_registers_mirror_across_the_whole_1c00_1fff_window();
     }
 
     #[test]
@@ -752,7 +756,6 @@ mod tests {
         assert_eq!(drive11.read_memory(0x1800) & 0x60, 0x60);
     }
 
-    #[test]
     fn idle_iec_bus_reads_every_input_bit_high() {
         let drive = test_drive();
         assert_eq!(
@@ -776,7 +779,6 @@ mod tests {
         assert!(drive.iec_output().1, "gate closes the other way round");
     }
 
-    #[test]
     fn atn_input_reaches_both_port_b_and_the_real_ca1_edge_interrupt() {
         let mut drive = test_drive();
         drive.load(0x180E, &[0x80 | 0x02]); // enable VIA1's CA1 interrupt (IER)
@@ -795,7 +797,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn drive_output_getter_reflects_clock_and_data_out_bits() {
         let mut drive = test_drive();
         drive.load(0x1802, &[0x1A]); // DDRB: bits 1/3/4 output
@@ -803,6 +804,13 @@ mod tests {
 
         drive.load(0x1800, &[VIA1_PB_CLOCK_OUT | VIA1_PB_DATA_OUT]);
         assert_eq!(drive.iec_output(), (true, true));
+    }
+    /// Merged (every check kept): `idle_iec_bus_reads_every_input_bit_high`, `atn_input_reaches_both_port_b_and_the_real_ca1_edge_interrupt`, `drive_output_getter_reflects_clock_and_data_out_bits`.
+    #[test]
+    fn iec_lines() {
+        idle_iec_bus_reads_every_input_bit_high();
+        atn_input_reaches_both_port_b_and_the_real_ca1_edge_interrupt();
+        drive_output_getter_reflects_clock_and_data_out_bits();
     }
 
     fn blank_test_disk() -> d64::D64 {
@@ -878,14 +886,12 @@ mod tests {
         C1541::with_model(DriveModel::C1571, vec![0xEA; ROM_SIZE_1571], 8).unwrap()
     }
 
-    #[test]
     fn a_1571_needs_a_32k_rom_and_a_1541_a_16k_one() {
         assert!(C1541::with_model(DriveModel::C1571, vec![0; ROM_SIZE], 8).is_err());
         assert!(C1541::with_model(DriveModel::C1541, vec![0; ROM_SIZE_1571], 8).is_err());
         assert!(C1541::with_model(DriveModel::C1570, vec![0; ROM_SIZE_1571], 8).is_ok());
     }
 
-    #[test]
     fn the_1571_resets_through_its_vector_at_the_top_of_a_32k_rom() {
         let mut rom = vec![0xEAu8; ROM_SIZE_1571];
         rom[0x7FFC] = 0x78;
@@ -894,7 +900,6 @@ mod tests {
         assert_eq!(drive.pc(), 0x5678);
     }
 
-    #[test]
     fn the_1571_mirrors_its_2k_ram_and_maps_a_6526_at_4000() {
         let mut drive = drive_1571();
         drive.load(0x0010, &[0x77]);
@@ -915,8 +920,14 @@ mod tests {
         plain.load(0x4002, &[0x12]);
         assert_eq!(plain.read_memory(0x4002), 0xFF);
     }
-
+    /// Merged (every check kept): `a_1571_needs_a_32k_rom_and_a_1541_a_16k_one`, `the_1571_resets_through_its_vector_at_the_top_of_a_32k_rom`, `the_1571_mirrors_its_2k_ram_and_maps_a_6526_at_4000`.
     #[test]
+    fn c1571_memory() {
+        a_1571_needs_a_32k_rom_and_a_1541_a_16k_one();
+        the_1571_resets_through_its_vector_at_the_top_of_a_32k_rom();
+        the_1571_mirrors_its_2k_ram_and_maps_a_6526_at_4000();
+    }
+
     fn via1_port_a_reports_byte_ready_inverted_and_the_track_zero_sensor() {
         let mut drive = drive_1571();
         // Idle: no byte waiting (bit 7 = 1), on track 1 (bit 0 = 0).
@@ -931,7 +942,6 @@ mod tests {
         assert!(!drive.bus.byte_ready_latch);
     }
 
-    #[test]
     fn via1_port_a_bit_5_switches_the_drive_to_2_mhz_and_bit_2_selects_the_head() {
         let mut drive = drive_1571();
         assert_eq!(drive.clock_hz(), 1_000_000);
@@ -945,8 +955,13 @@ mod tests {
         drive.bus.write(0x180F, 0x00);
         assert_eq!(drive.bus.disk.side(), 0);
     }
-
+    /// Merged (every check kept): `via1_port_a_reports_byte_ready_inverted_and_the_track_zero_sensor`, `via1_port_a_bit_5_switches_the_drive_to_2_mhz_and_bit_2_selects_the_head`.
     #[test]
+    fn via1_port_a() {
+        via1_port_a_reports_byte_ready_inverted_and_the_track_zero_sensor();
+        via1_port_a_bit_5_switches_the_drive_to_2_mhz_and_bit_2_selects_the_head();
+    }
+
     fn a_1570_has_one_head() {
         let mut drive = C1541::with_model(DriveModel::C1570, vec![0xEA; ROM_SIZE_1571], 8).unwrap();
         drive.bus.write(0x1803, 0x26);
@@ -954,7 +969,6 @@ mod tests {
         assert_eq!(drive.bus.disk.side(), 0);
     }
 
-    #[test]
     fn a_1541_refuses_a_d71() {
         let mut drive = test_drive();
         assert!(drive.attach_d71(d71::D71::blank_formatted(*b"71")).is_err());
@@ -962,12 +976,18 @@ mod tests {
         assert!(drive.attach_d71(d71::D71::blank_formatted(*b"71")).is_ok());
     }
 
-    #[test]
     fn the_1571_save_state_refuses_a_different_model() {
         let saved = drive_1571().save_state();
         let mut other = C1541::with_model(DriveModel::C1570, vec![0xEA; ROM_SIZE_1571], 8).unwrap();
         assert!(other.load_state(&saved).is_err());
         let mut same = drive_1571();
         assert!(same.load_state(&saved).is_ok());
+    }
+    /// Merged (every check kept): `a_1570_has_one_head`, `a_1541_refuses_a_d71`, `the_1571_save_state_refuses_a_different_model`.
+    #[test]
+    fn drive_model_limits() {
+        a_1570_has_one_head();
+        a_1541_refuses_a_d71();
+        the_1571_save_state_refuses_a_different_model();
     }
 }

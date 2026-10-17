@@ -292,7 +292,6 @@ mod tests {
         f.store(d, addr, byte);
     }
 
-    #[test]
     fn programming_clears_bits_and_returns_to_read_mode() {
         let (mut f, mut d) = chip();
         program(&mut f, &mut d, 0x1234, 0x5A);
@@ -317,7 +316,6 @@ mod tests {
         assert_eq!(f.read(&d, 0), 0xFF);
     }
 
-    #[test]
     fn a_wrong_unlock_sequence_does_nothing() {
         let (mut f, mut d) = chip();
         f.store(&mut d, 0x555, 0xAA);
@@ -325,6 +323,12 @@ mod tests {
         f.store(&mut d, 0x555, 0xA0);
         f.store(&mut d, 0x10, 0x00);
         assert_eq!(d[0x10], 0xFF);
+    }
+    /// Merged (every check kept): `a_wrong_unlock_sequence_does_nothing`, `programming_clears_bits_and_returns_to_read_mode`.
+    #[test]
+    fn programming_cases() {
+        a_wrong_unlock_sequence_does_nothing();
+        programming_clears_bits_and_returns_to_read_mode();
     }
 
     #[test]

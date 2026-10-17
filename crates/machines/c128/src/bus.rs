@@ -790,7 +790,6 @@ mod tests {
         C128Bus::new(roms())
     }
 
-    #[test]
     fn reset_configuration_shows_the_roms_and_io() {
         let mut bus = bus();
         assert_eq!(bus.read(0x4000), 0xBA);
@@ -802,14 +801,18 @@ mod tests {
         assert_eq!(bus.read(0xD50B), 0x20);
     }
 
-    #[test]
     fn character_rom_replaces_io_when_cr_bit_0_is_set() {
         let mut bus = bus();
         bus.write(0xFF00, 0x01);
         assert_eq!(bus.read(0xD000), 0xC1, "the C128 set");
     }
-
+    /// Merged (every check kept): `reset_configuration_shows_the_roms_and_io`, `character_rom_replaces_io_when_cr_bit_0_is_set`.
     #[test]
+    fn cr_visibility() {
+        reset_configuration_shows_the_roms_and_io();
+        character_rom_replaces_io_when_cr_bit_0_is_set();
+    }
+
     fn writes_to_rom_areas_land_in_the_ram_beneath() {
         let mut bus = bus();
         bus.write(0x4000, 0x99);
@@ -818,7 +821,6 @@ mod tests {
         assert_eq!(bus.read(0x4000), 0x99);
     }
 
-    #[test]
     fn the_second_ram_bank_is_separate_except_for_the_common_area() {
         let mut bus = bus();
         bus.write(0xFF00, 0x3F); // all RAM, bank 0, no I/O
@@ -833,8 +835,13 @@ mod tests {
         bus.write(0xD506, 0); // I/O is off in this configuration
         let _ = bus.read(0x2000);
     }
-
+    /// Merged (every check kept): `writes_to_rom_areas_land_in_the_ram_beneath`, `the_second_ram_bank_is_separate_except_for_the_common_area`.
     #[test]
+    fn ram_behind_roms() {
+        writes_to_rom_areas_land_in_the_ram_beneath();
+        the_second_ram_bank_is_separate_except_for_the_common_area();
+    }
+
     fn the_preconfiguration_registers_switch_cr_through_ff01() {
         let mut bus = bus();
         bus.write(0xFF00, 0x3F);
@@ -843,13 +850,18 @@ mod tests {
         assert_eq!(bus.read(0xE000), 0xCE);
     }
 
-    #[test]
     fn the_cpu_port_is_always_at_zero_and_one() {
         let mut bus = bus();
         bus.write(0x0000, 0x2F);
         bus.write(0x0001, 0x07);
         assert_eq!(bus.read(0x0000), 0x2F);
         assert_eq!(bus.read(0x0001) & 0x07, 0x07);
+    }
+    /// Merged (every check kept): `the_preconfiguration_registers_switch_cr_through_ff01`, `the_cpu_port_is_always_at_zero_and_one`.
+    #[test]
+    fn mmu_ports() {
+        the_preconfiguration_registers_switch_cr_through_ff01();
+        the_cpu_port_is_always_at_zero_and_one();
     }
 
     #[test]
@@ -864,7 +876,6 @@ mod tests {
         assert_eq!(bus.read(0xDC01) & 1, 1);
     }
 
-    #[test]
     fn the_z80_sees_the_bios_at_zero_while_io_is_on() {
         let mut z = z80_bus();
         assert_eq!(z.read(0x0000), 0xB1);
@@ -875,11 +886,16 @@ mod tests {
         assert_eq!(z.read(0x0000), 0x77);
     }
 
-    #[test]
     fn z80_ports_reach_the_chips_by_their_high_byte() {
         let mut bus = z80_bus();
         bus.write_io(0xD02F, 0x05);
         assert_eq!(bus.k_lines, 5);
         assert_eq!(bus.read_io(0xD50B), 0x20);
+    }
+    /// Merged (every check kept): `the_z80_sees_the_bios_at_zero_while_io_is_on`, `z80_ports_reach_the_chips_by_their_high_byte`.
+    #[test]
+    fn z80_view() {
+        the_z80_sees_the_bios_at_zero_while_io_is_on();
+        z80_ports_reach_the_chips_by_their_high_byte();
     }
 }

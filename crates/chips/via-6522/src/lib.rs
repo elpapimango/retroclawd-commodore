@@ -608,7 +608,6 @@ mod tests {
         assert_eq!(via.peek(0x01), 0x5A);
     }
 
-    #[test]
     fn timer1_continuous_mode_reloads_and_fires_repeatedly() {
         let mut via = Via::new();
         via.write(0x06, 0x02); // T1L-L = 2
@@ -629,7 +628,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn timer1_one_shot_mode_does_not_reload_from_the_latch() {
         let mut via = Via::new();
         via.write(0x06, 0x01);
@@ -645,7 +643,6 @@ mod tests {
         assert_eq!(via.peek(0x05), 0xFF);
     }
 
-    #[test]
     fn timer1_pb7_square_wave_toggles_every_underflow_and_overrides_port_b() {
         let mut via = Via::new();
         via.write(0x06, 0x01);
@@ -668,8 +665,14 @@ mod tests {
             "PB7 toggled high on underflow"
         );
     }
-
+    /// Merged (every check kept): `timer1_continuous_mode_reloads_and_fires_repeatedly`, `timer1_one_shot_mode_does_not_reload_from_the_latch`, `timer1_pb7_square_wave_toggles_every_underflow_and_overrides_port_b`.
     #[test]
+    fn timer1_cases() {
+        timer1_continuous_mode_reloads_and_fires_repeatedly();
+        timer1_one_shot_mode_does_not_reload_from_the_latch();
+        timer1_pb7_square_wave_toggles_every_underflow_and_overrides_port_b();
+    }
+
     fn timer2_one_shot_fires_once_and_needs_rewriting_to_fire_again() {
         let mut via = Via::new();
         via.write(0x08, 0x02); // T2C-L latch = 2
@@ -688,7 +691,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn timer2_pulse_counting_mode_ignores_phi2_and_only_counts_pb6_edges() {
         let mut via = Via::new();
         via.write(0x08, 0x02);
@@ -718,6 +720,12 @@ mod tests {
             "third falling edge should underflow and report the IRQ"
         );
     }
+    /// Merged (every check kept): `timer2_one_shot_fires_once_and_needs_rewriting_to_fire_again`, `timer2_pulse_counting_mode_ignores_phi2_and_only_counts_pb6_edges`.
+    #[test]
+    fn timer2_cases() {
+        timer2_one_shot_fires_once_and_needs_rewriting_to_fire_again();
+        timer2_pulse_counting_mode_ignores_phi2_and_only_counts_pb6_edges();
+    }
 
     #[test]
     fn ora_handshake_register_clears_ca1_but_the_no_handshake_alias_does_not() {
@@ -737,7 +745,6 @@ mod tests {
         assert_eq!(via.peek(0x0D) & IFR_CA1, 0, "reading $01 must clear CA1");
     }
 
-    #[test]
     fn ca2_handshake_output_goes_low_on_ora_access_and_high_on_ca1_edge() {
         let mut via = Via::new();
         // CA2 bits (PCR bits 3:1) = 100 -> handshake output.
@@ -751,7 +758,6 @@ mod tests {
         assert_eq!(via.ca2_output_level(), Some(true));
     }
 
-    #[test]
     fn ca2_pulse_output_goes_low_for_exactly_one_cycle() {
         let mut via = Via::new();
         via.write(0x0C, 0b101 << 1); // CA2 = pulse output
@@ -765,7 +771,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn ca2_manual_output_is_driven_directly_by_pcr_and_ignores_ora_access() {
         let mut via = Via::new();
         via.write(0x0C, 0b111 << 1); // CA2 = manual output, high
@@ -776,8 +781,14 @@ mod tests {
         via.write(0x0C, 0b110 << 1); // manual output, low
         assert_eq!(via.ca2_output_level(), Some(false));
     }
-
+    /// Merged (every check kept): `ca2_handshake_output_goes_low_on_ora_access_and_high_on_ca1_edge`, `ca2_pulse_output_goes_low_for_exactly_one_cycle`, `ca2_manual_output_is_driven_directly_by_pcr_and_ignores_ora_access`.
     #[test]
+    fn ca2_outputs() {
+        ca2_handshake_output_goes_low_on_ora_access_and_high_on_ca1_edge();
+        ca2_pulse_output_goes_low_for_exactly_one_cycle();
+        ca2_manual_output_is_driven_directly_by_pcr_and_ignores_ora_access();
+    }
+
     fn ca2_independent_input_mode_is_not_cleared_by_ora_access() {
         let mut via = Via::new();
         via.write(0x0C, 0b001 << 1); // CA2 = input, negative edge, independent
@@ -792,7 +803,6 @@ mod tests {
         assert_eq!(via.peek(0x0D) & IFR_CA2, 0);
     }
 
-    #[test]
     fn ca2_non_independent_input_mode_is_cleared_by_ora_access() {
         let mut via = Via::new();
         via.write(0x0C, 0b000 << 1); // CA2 = input, negative edge, NOT independent
@@ -802,6 +812,12 @@ mod tests {
 
         via.read(0x01); // non-independent: ORA access clears it too
         assert_eq!(via.peek(0x0D) & IFR_CA2, 0);
+    }
+    /// Merged (every check kept): `ca2_independent_input_mode_is_not_cleared_by_ora_access`, `ca2_non_independent_input_mode_is_cleared_by_ora_access`.
+    #[test]
+    fn ca2_inputs() {
+        ca2_independent_input_mode_is_not_cleared_by_ora_access();
+        ca2_non_independent_input_mode_is_cleared_by_ora_access();
     }
 
     #[test]
@@ -823,7 +839,6 @@ mod tests {
         assert_eq!(via.peek(0x01), 0x99);
     }
 
-    #[test]
     fn ier_set_clear_mask_protocol_and_the_bit7_readback_quirk() {
         let mut via = Via::new();
         via.write(0x0E, 0x80 | IFR_T1 | IFR_T2); // set bits
@@ -837,7 +852,6 @@ mod tests {
         assert_eq!(via.peek(0x0E), 0x80 | IFR_T2);
     }
 
-    #[test]
     fn irq_summary_bit_reflects_enabled_and_pending_sources_only() {
         let mut via = Via::new();
         via.write(0x06, 0x01);
@@ -855,6 +869,12 @@ mod tests {
             0x80,
             "now enabled, summary bit reflects it"
         );
+    }
+    /// Merged (every check kept): `ier_set_clear_mask_protocol_and_the_bit7_readback_quirk`, `irq_summary_bit_reflects_enabled_and_pending_sources_only`.
+    #[test]
+    fn interrupt_enable_and_summary() {
+        ier_set_clear_mask_protocol_and_the_bit7_readback_quirk();
+        irq_summary_bit_reflects_enabled_and_pending_sources_only();
     }
 
     #[test]

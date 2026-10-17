@@ -100,26 +100,30 @@ fn check_disk<I: Image>(mut disk: I, expected_free: usize) {
     );
 }
 
-#[test]
 fn d64_35_tracks() {
     let disk = d64::D64::blank_formatted(d64::Variant::Track35, *b"01");
     check_disk(disk, 664);
 }
 
-#[test]
 fn d64_40_tracks() {
     let disk = d64::D64::blank_formatted(d64::Variant::Track40, *b"01");
     check_disk(disk, 664 + 5 * 17);
 }
 
-#[test]
 fn d71() {
     check_disk(d71::D71::blank_formatted(*b"01"), 1328);
 }
 
-#[test]
 fn d81() {
     check_disk(d81::D81::blank_formatted(*b"01"), 3160);
+}
+/// Merged (every check kept): `d64_35_tracks`, `d64_40_tracks`, `d71`, `d81`.
+#[test]
+fn per_format_operations() {
+    d64_35_tracks();
+    d64_40_tracks();
+    d71();
+    d81();
 }
 
 #[test]

@@ -273,7 +273,6 @@ impl Mmu {
 mod tests {
     use super::*;
 
-    #[test]
     fn reset_state_is_z80_with_everything_rom_and_page_1_in_place() {
         let mmu = Mmu::new();
         assert!(!mmu.cpu_is_8502());
@@ -284,7 +283,6 @@ mod tests {
         assert_eq!(mmu.read(11, (true, true)), 0x20);
     }
 
-    #[test]
     fn cr_selects_rom_ram_and_function_roms_per_region() {
         let mut mmu = Mmu::new();
         assert_eq!(mmu.source(0x1000), Source::Ram);
@@ -305,7 +303,6 @@ mod tests {
         assert_eq!(mmu.source(0xE000), Source::ExternalFunction);
     }
 
-    #[test]
     fn writing_ff01_to_ff04_loads_the_matching_preconfiguration_into_cr() {
         let mut mmu = Mmu::new();
         mmu.write(1, 0x3E);
@@ -316,8 +313,14 @@ mod tests {
         assert_eq!(mmu.cr(), 0x7F);
         assert_eq!(mmu.cpu_bank(), 1);
     }
-
+    /// Merged (every check kept): `reset_state_is_z80_with_everything_rom_and_page_1_in_place`, `cr_selects_rom_ram_and_function_roms_per_region`, `writing_ff01_to_ff04_loads_the_matching_preconfiguration_into_cr`.
     #[test]
+    fn cr_and_preconfig() {
+        reset_state_is_z80_with_everything_rom_and_page_1_in_place();
+        cr_selects_rom_ram_and_function_roms_per_region();
+        writing_ff01_to_ff04_loads_the_matching_preconfiguration_into_cr();
+    }
+
     fn shared_ram_is_always_bank_zero_and_sized_by_rcr() {
         let mut mmu = Mmu::new();
         mmu.write(0, 0x40); // bank 1
@@ -337,7 +340,6 @@ mod tests {
         assert_eq!(mmu.ram_index(0xFFFF), 0xFFFF);
     }
 
-    #[test]
     fn the_high_page_pointer_bytes_are_latched_until_the_low_byte_is_written() {
         let mut mmu = Mmu::new();
         mmu.write(8, 1);
@@ -351,7 +353,6 @@ mod tests {
         );
     }
 
-    #[test]
     fn page_zero_relocation_swaps_page_0_and_the_target_page() {
         let mut mmu = Mmu::new();
         mmu.write(7, 0x30); // page 0 now lives at page $30 of bank 0
@@ -369,12 +370,19 @@ mod tests {
         assert_eq!(mmu.relocated(0x40FF), Some(0x01FF));
     }
 
-    #[test]
     fn a_relocation_target_that_is_rom_is_not_swapped_back() {
         let mut mmu = Mmu::new();
         mmu.write(7, 0x50); // page $50 is BASIC ROM in the reset configuration
         assert_eq!(mmu.relocated(0x0010), Some(0x5010));
         assert_eq!(mmu.relocated(0x5010), None);
+    }
+    /// Merged (every check kept): `shared_ram_is_always_bank_zero_and_sized_by_rcr`, `the_high_page_pointer_bytes_are_latched_until_the_low_byte_is_written`, `page_zero_relocation_swaps_page_0_and_the_target_page`, `a_relocation_target_that_is_rom_is_not_swapped_back`.
+    #[test]
+    fn ram_sharing_and_relocation() {
+        shared_ram_is_always_bank_zero_and_sized_by_rcr();
+        the_high_page_pointer_bytes_are_latched_until_the_low_byte_is_written();
+        page_zero_relocation_swaps_page_0_and_the_target_page();
+        a_relocation_target_that_is_rom_is_not_swapped_back();
     }
 
     #[test]

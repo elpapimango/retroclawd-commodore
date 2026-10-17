@@ -99,20 +99,6 @@ fn typed_keys_reach_basic_through_the_matrix() {
     assert!(text.contains("SYNTAX ERROR"), "{text}");
 }
 
-#[test]
-#[ignore = "writes a picture when OUT is set"]
-fn dump_picture() {
-    let Some(mut m) = machine() else { return };
-    run(&mut m, 8_000_000);
-    let Ok(path) = std::env::var("OUT") else {
-        return;
-    };
-    let (w, h, rgb) = m.render_frame().unwrap();
-    let mut ppm = format!("P6\n{w} {h}\n255\n").into_bytes();
-    ppm.extend(rgb);
-    std::fs::write(path, ppm).unwrap();
-}
-
 /// The 80-column screen as text, read straight out of the VDC's RAM.
 fn vdc_text(m: &C128) -> String {
     let ram = m.vdc_ram();

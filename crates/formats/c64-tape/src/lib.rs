@@ -502,24 +502,20 @@ mod tests {
         header
     }
 
-    #[test]
     fn parse_tap_rejects_a_bad_magic() {
         let bytes = vec![0u8; TAP_HEADER_SIZE];
         assert_eq!(parse_tap(&bytes).unwrap_err(), Error::BadTapMagic);
     }
 
-    #[test]
     fn parse_tap_rejects_too_short_a_file() {
         assert_eq!(parse_tap(&[0u8; 4]).unwrap_err(), Error::TooShort(4));
     }
 
-    #[test]
     fn parse_tap_rejects_version_2() {
         let bytes = tap_header(2);
         assert_eq!(parse_tap(&bytes).unwrap_err(), Error::UnsupportedVersion(2));
     }
 
-    #[test]
     fn parse_tap_version_0_decodes_nonzero_bytes_as_times_eight_cycles() {
         let mut bytes = tap_header(0);
         bytes.extend([0x10, 0x20, 0xFF]);
@@ -527,14 +523,12 @@ mod tests {
         assert_eq!(tape.pulses, vec![0x10 * 8, 0x20 * 8, 0xFF * 8]);
     }
 
-    #[test]
     fn parse_tap_version_0_rejects_a_zero_byte() {
         let mut bytes = tap_header(0);
         bytes.push(0x00);
         assert_eq!(parse_tap(&bytes).unwrap_err(), Error::ZeroByteInVersion0);
     }
 
-    #[test]
     fn parse_tap_version_1_decodes_the_real_extended_pulse_as_an_exact_cycle_count() {
         let mut bytes = tap_header(1);
         // 0x00 escape + 3-byte LE extended value = 0x654321 cycles exactly
@@ -543,15 +537,28 @@ mod tests {
         let tape = parse_tap(&bytes).unwrap();
         assert_eq!(tape.pulses, vec![0x654321]);
     }
-
+    /// Merged (every check kept): `parse_tap_version_0_decodes_nonzero_bytes_as_times_eight_cycles`, `parse_tap_version_1_decodes_the_real_extended_pulse_as_an_exact_cycle_count`.
     #[test]
+    fn tap_decoding() {
+        parse_tap_version_0_decodes_nonzero_bytes_as_times_eight_cycles();
+        parse_tap_version_1_decodes_the_real_extended_pulse_as_an_exact_cycle_count();
+    }
+
     fn parse_tap_version_1_errors_on_a_truncated_extended_pulse() {
         let mut bytes = tap_header(1);
         bytes.extend([0x00, 0x21]); // needs 3 bytes, only 2 given
         assert_eq!(parse_tap(&bytes).unwrap_err(), Error::UnexpectedEof);
     }
-
+    /// Merged (every check kept): `parse_tap_rejects_a_bad_magic`, `parse_tap_rejects_too_short_a_file`, `parse_tap_rejects_version_2`, `parse_tap_version_0_rejects_a_zero_byte`, `parse_tap_version_1_errors_on_a_truncated_extended_pulse`.
     #[test]
+    fn tap_rejections() {
+        parse_tap_rejects_a_bad_magic();
+        parse_tap_rejects_too_short_a_file();
+        parse_tap_rejects_version_2();
+        parse_tap_version_0_rejects_a_zero_byte();
+        parse_tap_version_1_errors_on_a_truncated_extended_pulse();
+    }
+
     fn tape_player_toggles_the_read_line_once_per_completed_pulse() {
         let tape = Tape {
             pulses: vec![10, 20, 30],
@@ -570,7 +577,6 @@ mod tests {
         assert!(player.read_bit(), "toggled back high");
     }
 
-    #[test]
     fn tape_player_reports_every_transition_even_across_multiple_pulses_in_one_tick() {
         let tape = Tape {
             pulses: vec![5, 5, 5, 5],
@@ -581,8 +587,13 @@ mod tests {
         assert_eq!(transitions, 4);
         assert!(player.finished());
     }
-
+    /// Merged (every check kept): `tape_player_toggles_the_read_line_once_per_completed_pulse`, `tape_player_reports_every_transition_even_across_multiple_pulses_in_one_tick`.
     #[test]
+    fn tape_player_transitions() {
+        tape_player_toggles_the_read_line_once_per_completed_pulse();
+        tape_player_reports_every_transition_even_across_multiple_pulses_in_one_tick();
+    }
+
     fn tape_player_pause_freezes_position_and_resumes_from_the_same_point() {
         let tape = Tape { pulses: vec![100] };
         let mut player = TapePlayer::new(tape);
@@ -595,7 +606,6 @@ mod tests {
         assert_eq!(player.tick(1), 1, "completes right on schedule");
     }
 
-    #[test]
     fn tape_player_save_state_round_trips_and_clamps_a_stale_position() {
         let tape = Tape {
             pulses: vec![10, 10, 10],
@@ -612,6 +622,12 @@ mod tests {
             restored.position <= 1,
             "position must be clamped to the shorter tape's own pulse count"
         );
+    }
+    /// Merged (every check kept): `tape_player_pause_freezes_position_and_resumes_from_the_same_point`, `tape_player_save_state_round_trips_and_clamps_a_stale_position`.
+    #[test]
+    fn tape_player_pause_and_state() {
+        tape_player_pause_freezes_position_and_resumes_from_the_same_point();
+        tape_player_save_state_round_trips_and_clamps_a_stale_position();
     }
 
     fn t64_header(num_entries: u16, num_used: u16) -> Vec<u8> {
@@ -645,7 +661,6 @@ mod tests {
         rec
     }
 
-    #[test]
     fn parse_t64_extracts_the_first_normal_programs_load_address_and_data() {
         let mut bytes = t64_header(1, 1);
         let data_offset = (T64_HEADER_SIZE + T64_REC_SIZE) as u32;
@@ -665,7 +680,6 @@ mod tests {
         assert_eq!(data, &[0xAA, 0xBB, 0xCC]);
     }
 
-    #[test]
     fn parse_t64_skips_unused_slots_and_finds_the_first_real_entry_after_them() {
         let mut bytes = t64_header(2, 1);
         bytes.extend(vec![0u8; T64_REC_SIZE]); // slot 0: entry_type 0, unused
@@ -687,7 +701,6 @@ mod tests {
         assert_eq!(data, &[0x11, 0x22]);
     }
 
-    #[test]
     fn parse_t64_falls_back_to_reading_until_eof_when_end_addr_does_not_exceed_start_addr() {
         let mut bytes = t64_header(1, 1);
         let data_offset = (T64_HEADER_SIZE + T64_REC_SIZE) as u32;
@@ -705,6 +718,13 @@ mod tests {
         let t64 = parse_t64(&bytes).unwrap();
         let (_, data) = t64.first_program().unwrap();
         assert_eq!(data, &[1, 2, 3, 4, 5], "must read every remaining byte");
+    }
+    /// Merged (every check kept): `parse_t64_extracts_the_first_normal_programs_load_address_and_data`, `parse_t64_skips_unused_slots_and_finds_the_first_real_entry_after_them`, `parse_t64_falls_back_to_reading_until_eof_when_end_addr_does_not_exceed_start_addr`.
+    #[test]
+    fn parse_t64_cases() {
+        parse_t64_extracts_the_first_normal_programs_load_address_and_data();
+        parse_t64_skips_unused_slots_and_finds_the_first_real_entry_after_them();
+        parse_t64_falls_back_to_reading_until_eof_when_end_addr_does_not_exceed_start_addr();
     }
 
     #[test]
