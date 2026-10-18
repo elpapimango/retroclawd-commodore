@@ -670,6 +670,11 @@ impl Vic {
     /// written there (a `$D012`/`$D011`-bit-7 write instead sets a
     /// raster *compare* value for IRQ purposes, reconstructed on demand
     /// by `raster_compare_line`, not this method).
+    ///
+    /// The bits marked `-` in Bauer's register table (3.2) "are not connected and yield 1 on
+    /// reading": bits 6-7 of `$D016`, bit 0 of `$D018`, bits 4-6 of `$D019`, bits 4-7 of
+    /// `$D01A` and the upper nibble of `$D020`-`$D02E`; "the unused addresses `$d02f`-`$d03f`
+    /// yield `$ff` on reading".
     pub fn read(&self, reg: u8) -> u8 {
         match (reg as usize) % REG_COUNT {
             REG_CONTROL1 => {
@@ -677,11 +682,16 @@ impl Vic {
                 (self.registers[REG_CONTROL1] & 0x7F) | (raster_bit8 << 7)
             }
             REG_RASTER => (self.raster_line() & 0xFF) as u8,
+            REG_CONTROL2 => self.registers[REG_CONTROL2] | 0xC0,
+            REG_MEMORY_PTRS => self.registers[REG_MEMORY_PTRS] | 0x01,
             REG_IRQ_STATUS => {
-                (self.irq_status & 0x0F) | if self.irq_line_asserted() { 0x80 } else { 0 }
+                0x70 | (self.irq_status & 0x0F) | if self.irq_line_asserted() { 0x80 } else { 0 }
             }
+            REG_IRQ_ENABLE => self.registers[REG_IRQ_ENABLE] | 0xF0,
             REG_COLLISION_SPRITE_SPRITE => self.collision_sprite_sprite,
             REG_COLLISION_SPRITE_BACKGROUND => self.collision_sprite_background,
+            0x20..=0x2E => self.registers[reg as usize % REG_COUNT] | 0xF0,
+            0x2F..=0x3F => 0xFF,
             other => self.registers[other],
         }
     }
@@ -707,7 +717,9 @@ impl Vic {
     /// `d019_store` (see `CREDITS.md`), not guessed.
     pub fn write(&mut self, reg: u8, val: u8) {
         let reg = (reg as usize) % REG_COUNT;
-        if reg == REG_IRQ_STATUS {
+        if reg >= 0x2F {
+            // The unused addresses ignore writes.
+        } else if reg == REG_IRQ_STATUS {
             self.irq_status &= !(val & 0x0F);
         } else if reg == REG_COLLISION_SPRITE_SPRITE
             || reg == REG_COLLISION_SPRITE_BACKGROUND
@@ -1685,6 +1697,28 @@ mod tests {
         );
     }
     /// Merged (every check kept): `raster_register_advances_with_tick_and_wraps_at_frame_boundary`, `control1_bit7_reflects_the_raster_lines_9th_bit`, `raster_compare_uses_both_d012_and_d011_bit7_as_the_9th_bit`.
+    /// Bauer 3.2: the bits marked `-` yield 1 on reading, `$D02F`-`$D03F` read `$FF` and ignore writes.
+    #[test]
+    fn unconnected_bits_read_one_and_unused_addresses_read_ff() {
+        let mut vic = Vic::new();
+        for reg in (0x20..=0x2E).chain([0x16, 0x18, 0x1A]) {
+            vic.write(reg, 0);
+        }
+        for reg in 0x20..=0x2E {
+            assert_eq!(vic.read(reg), 0xF0, "register ${reg:02X}");
+        }
+        assert_eq!(vic.read(0x16) & 0xC0, 0xC0);
+        assert_eq!(vic.read(0x18) & 0x01, 0x01);
+        assert_eq!(vic.read(0x1A) & 0xF0, 0xF0);
+        assert_eq!(vic.read(0x19) & 0x70, 0x70);
+        vic.write(0x21, 0x05);
+        assert_eq!(vic.read(0x21), 0xF5, "the stored nibble is kept");
+        for reg in 0x2F..=0x3F {
+            vic.write(reg, 0x55);
+            assert_eq!(vic.read(reg), 0xFF, "unused ${reg:02X}");
+        }
+    }
+
     #[test]
     fn raster_register() {
         raster_register_advances_with_tick_and_wraps_at_frame_boundary();
@@ -1698,12 +1732,12 @@ mod tests {
         vic.write(0x1A, 0x01);
         assert!(vic.tick(CYCLES_PER_LINE).raster_irq);
 
-        assert_eq!(vic.read(0x19), 0x81, "latch bit + asserted IRQ flag");
+        assert_eq!(vic.read(0x19), 0xF1, "latch bit + asserted IRQ flag (bits 4-6 read 1)");
         vic.write(0x19, 0x01); // ack: write 1 to clear bit 0
         assert_eq!(
             vic.read(0x19),
-            0x00,
-            "clearing the only latched+enabled source also clears bit 7"
+            0x70,
+            "clearing the only latched+enabled source also clears bit 7 (bits 4-6 read 1)"
         );
     }
     /// Merged (every check kept): `raster_irq_fires_once_when_the_raster_reaches_the_compare_line_and_is_enabled`, `raster_irq_does_not_fire_when_disabled_in_d01a`, `writing_1_to_d019_clears_the_latched_bit_and_deasserts_irq_flag`.
