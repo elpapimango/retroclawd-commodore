@@ -1,0 +1,53 @@
+machine = "c128"
+# Goldens are VICE 3.10 (x128, VIC-II 40 column screen: -exitscreenshotvicii) exit screenshots on retroclawd's 384x264 canvas
+# (capture_vice_screen.py --vicii --crop 0,3,384,264), taken after a fixed number of emulated cycles (-limitcycles). The
+# palettes differ (normalize), the shapes agree. Not covered: S3 (media; rcld has no C128 target, and the C64 .d64 holds
+# C64 code), the 80 column VDC screen, C64 mode, S4 (SID) and S7. The combined 32K BASIC image is made by
+# scenarios/build.sh from the two 16K ROMs.
+
+[reference]
+emulator = "vice"
+version = "3.10 (x128, GTK3 win64)"
+command = "retroclawd-tools/scripts/capture_vice_screen.py x128 CYCLES OUT.png --vicii --crop 0,3,384,264 [--keybuf 'print 12*34\\n']   (x128 -default +sound -warp -limitcycles CYCLES -exitscreenshotvicii)"
+
+[files]
+rom-basic = "commodore/software/scenarios/c128-basic-32k.rom"
+rom-kernal = "commodore/roms/c128/kernal-318020-05.bin"
+rom-char = "commodore/roms/c128/chargen-390059-01.bin"
+rom-c64-basic = "commodore/roms/c128/basic64-901226-01.bin"
+rom-c64-kernal = "commodore/roms/c128/kernal64-901227-03.bin"
+
+[[scenario]]
+id = "S1"
+kind = "screen"
+frames = 300
+golden = "c128/S1-boot.png"
+golden_sha256 = "784e94e953d030ad45f7056767f0a51b5dd36383572ddb9b96748beccb3dd457"
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.3], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the BASIC 7.0 banner, above the blinking cursor" }
+
+[[scenario]]
+id = "S2"
+kind = "screen"
+frames = 450
+args = ["--type-after", "250", "--type-delay", "60", "--type", "PRINT 12*34\n"]
+golden = "c128/S2-print.png"
+golden_sha256 = "a2efb60f3230cbb09a53de312b855198d11072d6691520ffd387787ea891d171"
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.4], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the banner, the typed line and its answer 408, above the blinking cursor" }
+
+[[scenario]]
+id = "S5"
+kind = "state"
+frames = 450
+more_frames = 100
+args = ["--type-after", "250", "--type-delay", "60", "--type", "PRINT 12*34\n"]
+
+# VICE x128 (PAL, 1 MHz 40 column mode) runs 63 cycles x 312 lines = 19656 cycles per frame, retroclawd 19706: the same
+# 0.25 % as the C64 (985248 Hz paced at 50 Hz instead of the raster's 50.125 Hz). Known gap, see the C64 note.
+[[scenario]]
+id = "S6"
+kind = "timing"
+frames = 100
+cycles_per_frame = 19656
+cycles_tolerance = 30
+status = "known-gap"
+gap = { reason = "VICE PAL is 19656 cycles per frame (312 lines x 63), retroclawd paces at 985248 Hz / 50 Hz = 19705; same as the C64", evidence = "machines/commodore/docs/c64-timing-gap.md" }

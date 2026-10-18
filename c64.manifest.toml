@@ -1,0 +1,64 @@
+machine = "c64"
+# Goldens are VICE 3.10 (x64sc) exit screenshots on retroclawd's 384x264 canvas (capture_vice_screen.py --crop 0,3,384,264:
+# VICE's picture is 272 rows with the screen 3 rows lower), taken after a fixed number of emulated cycles (-limitcycles), so
+# there is no timing noise. The palettes differ (normalize), the shapes agree pixel for pixel. S4 (SID) and S7 (hardware
+# test programs) are not here yet.
+
+[reference]
+emulator = "vice"
+version = "3.10 (x64sc, GTK3 win64)"
+command = "retroclawd-tools/scripts/capture_vice_screen.py x64sc CYCLES OUT.png --crop 0,3,384,264 [--keybuf 'print 12*34\n' | -- -autostart FILE]   (x64sc -default +sound -warp -limitcycles CYCLES -exitscreenshot)"
+
+[files]
+rom-kernal = "commodore/roms/c64/kernal-901227-03.bin"
+rom-basic = "commodore/roms/c64/basic-901226-01.bin"
+rom-char = "commodore/roms/c64/chargen-901225-01.bin"
+
+[[scenario]]
+id = "S1"
+kind = "screen"
+frames = 180
+golden = "c64/S1-boot.png"
+golden_sha256 = "eef070b71c2ea48aa18b07e631a28e25e4bae3ac721bb0a36e3c5eab8311518d"
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.3], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the banner and the READY. line, above the blinking cursor" }
+
+[[scenario]]
+id = "S2"
+kind = "screen"
+frames = 400
+args = ["--type-after", "150", "--type-delay", "60", "--type", "PRINT 12*34\n"]
+golden = "c64/S2-print.png"
+golden_sha256 = "8fdeaecbb7888c3831e13514ff0f02f5883f1f74cb82a90c8f7937d38f6ce136"
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.38], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the banner, the typed line and its answer 408, above the blinking cursor" }
+
+# VICE's autostart of a .d64 prints LOAD"*",8,1 / SEARCHING FOR * / LOADING / READY. / RUN / HELLO / READY.; retroclawd's
+# fast loader skips the SEARCHING and LOADING lines a real KERNAL LOAD prints, so HELLO ends two lines higher.
+[[scenario]]
+id = "S3-d64"
+kind = "screen"
+frames = 900
+args = ["--type-after", "150", "--type-delay", "60", "--type", "load\"*\",8,1\nrun\n"]
+files = { disk = "commodore/software/scenarios/c64-hello.d64" }
+golden = "c64/S3-d64.png"
+golden_sha256 = "2fc58c0b5835738b825c489f86244c3eb525821a93c557debc47deea68e65e21"
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.6], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the whole text area up to the cursor" }
+status = "known-gap"
+gap = { reason = "a real KERNAL LOAD (VICE) prints SEARCHING FOR * and LOADING; retroclawd's fast-load trap prints neither, so the picture has two lines fewer", evidence = "machines/commodore/docs/c64-load-messages-gap.md" }
+
+[[scenario]]
+id = "S5"
+kind = "state"
+frames = 400
+more_frames = 100
+args = ["--type-after", "150", "--type-delay", "60", "--type", "PRINT 12*34\n"]
+
+# VICE (PAL, x64sc) runs 63 cycles x 312 lines = 19656 cycles per frame at 985248 Hz (50.125 Hz); retroclawd 19706
+# (985248 Hz / 50 Hz). Known gap, see the note.
+[[scenario]]
+id = "S6"
+kind = "timing"
+frames = 100
+cycles_per_frame = 19656
+cycles_tolerance = 30
+status = "known-gap"
+gap = { reason = "VICE PAL is 19656 cycles per frame (312 lines x 63, 50.125 Hz), retroclawd paces at 985248 Hz / 50 Hz = 19705", evidence = "machines/commodore/docs/c64-timing-gap.md" }

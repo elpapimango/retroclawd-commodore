@@ -1,0 +1,13 @@
+# rcld build hello.toml -o hello.<prg|d64>   (scenarios/build.sh builds both into software/scenarios/)
+machine = "c64"
+name = "HELLO"
+entry = "start"
+output = "hello.prg"
+
+[[input]]
+asm = ["hello.asm"]
+
+[[region]]
+name = "ram"
+start = 0x0801
+end = 0x9FFF
