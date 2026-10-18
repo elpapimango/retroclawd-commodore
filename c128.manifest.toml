@@ -34,6 +34,16 @@ golden = "c128/S2-print.png"
 golden_sha256 = "a2efb60f3230cbb09a53de312b855198d11072d6691520ffd387787ea891d171"
 compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.4], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the banner, the typed line and its answer 408, above the blinking cursor" }
 
+# S4: SID voice 1, triangle, frequency register 8861 (520.4 Hz), set by typed POKEs. VICE 3.10 (x128, recorded with -soundrecdev wav in real
+# time): 520.32 Hz at amplitude 0.087; retroclawd 520.38 Hz at amplitude 0.135. The pitch is the check; the level is a mixer
+# choice. The typing takes about 10 s at 60 ms per key event, hence the late window.
+[[scenario]]
+id = "S4"
+kind = "audio"
+frames = 1100
+args = ["--type-after", "250", "--type-delay", "60", "--type", "poke54296,15:poke54277,0:poke54278,240:poke54273,34:poke54272,157:poke54276,17\n"]
+audio = { from_s = 18.0, to_s = 21.0, tone_hz = 520.4, tone_tolerance_pct = 1.0, min_amplitude = 0.05 }
+
 [[scenario]]
 id = "S5"
 kind = "state"

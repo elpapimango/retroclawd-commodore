@@ -45,6 +45,16 @@ compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0
 status = "known-gap"
 gap = { reason = "a real KERNAL LOAD (VICE) prints SEARCHING FOR * and LOADING; retroclawd's fast-load trap prints neither, so the picture has two lines fewer", evidence = "machines/commodore/docs/c64-load-messages-gap.md" }
 
+# S4: SID voice 1, triangle, frequency register 8861 (520.4 Hz), set by typed POKEs. VICE 3.10 (x64sc, recorded with -soundrecdev wav in real
+# time): 520.32 Hz at amplitude 0.071; retroclawd 520.38 Hz at amplitude 0.135. The pitch is the check; the level is a mixer
+# choice. The typing takes about 10 s at 60 ms per key event, hence the late window.
+[[scenario]]
+id = "S4"
+kind = "audio"
+frames = 900
+args = ["--type-after", "150", "--type-delay", "60", "--type", "poke54296,15:poke54277,0:poke54278,240:poke54273,34:poke54272,157:poke54276,17\n"]
+audio = { from_s = 15.0, to_s = 17.0, tone_hz = 520.4, tone_tolerance_pct = 1.0, min_amplitude = 0.05 }
+
 [[scenario]]
 id = "S5"
 kind = "state"
