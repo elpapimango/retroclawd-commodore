@@ -199,7 +199,9 @@ fn real_dos_loads_the_directory_over_iec() {
         };
         assert!(!out.carry_set, "{dos}: LOAD failed, A={}", out.error);
         assert_eq!(out.status & 0xBF, 0, "{dos}: only EOI may be set");
-        let listing: Vec<u8> = (0x0801..out.end).map(|a| out.c64.read_memory(a)).collect();
+        let listing: Vec<u8> = (0x0801..out.end)
+            .map(|a| out.c64.read_memory(a.into()))
+            .collect();
         let text = String::from_utf8_lossy(&listing).to_string();
         assert!(text.contains("BOMB JACK+"), "{dos}: {text:?}");
         assert!(text.contains("BLOCKS FREE"), "{dos}: {text:?}");
@@ -239,7 +241,9 @@ fn real_dos_loads_the_first_program_of_each_disk_image() {
             "{}",
             disk.display()
         );
-        let loaded: Vec<u8> = (load_at..out.end).map(|a| out.c64.read_memory(a)).collect();
+        let loaded: Vec<u8> = (load_at..out.end)
+            .map(|a| out.c64.read_memory(a.into()))
+            .collect();
         assert_eq!(loaded, file[2..], "{}", disk.display());
         eprintln!(
             "{}: {} bytes in {} cycles ({:.0} s)",
@@ -259,7 +263,7 @@ fn type_text(c64: &mut c64::C64, run: &mut impl FnMut(&mut c64::C64, u64), text:
             run(c64, 20_000);
         }
         let n = c64.read_memory(0x00C6);
-        c64.load(0x0277 + u16::from(n), &[ch]);
+        c64.load((0x0277 + u16::from(n)).into(), &[ch]);
         c64.load(0x00C6, &[n + 1]);
     }
 }
@@ -533,7 +537,9 @@ fn real_1571_dos_loads_a_single_sided_disk_over_iec() {
             panic!("{name}: the LOAD never finished");
         };
         assert!(!out.carry_set, "{name}: LOAD failed, A={}", out.error);
-        let listing: Vec<u8> = (0x0801..out.end).map(|a| out.c64.read_memory(a)).collect();
+        let listing: Vec<u8> = (0x0801..out.end)
+            .map(|a| out.c64.read_memory(a.into()))
+            .collect();
         let text = String::from_utf8_lossy(&listing).to_string();
         assert!(text.contains("BOMB JACK+"), "{name}: {text:?}");
         assert!(text.contains("BLOCKS FREE"), "{name}: {text:?}");
@@ -578,7 +584,9 @@ fn real_1571_dos_loads_a_file_from_the_second_side_of_a_d71() {
     // The PRG's first two bytes are its load address; `LOAD ,8` (secondary
     // 0) puts the rest at $0801.
     assert_eq!(usize::from(out.end - 0x0801), payload.len() - 2);
-    let got: Vec<u8> = (0x0801..out.end).map(|a| out.c64.read_memory(a)).collect();
+    let got: Vec<u8> = (0x0801..out.end)
+        .map(|a| out.c64.read_memory(a.into()))
+        .collect();
     assert_eq!(got, &payload[2..]);
 }
 
@@ -633,7 +641,9 @@ fn real_1581_dos_loads_the_directory_and_a_file_over_iec() {
     let out =
         true_drive_load_with(c64, drive, b"$", 0, 120_000_000).expect("directory LOAD finished");
     assert!(!out.carry_set, "LOAD failed, A={}", out.error);
-    let listing: Vec<u8> = (0x0801..out.end).map(|a| out.c64.read_memory(a)).collect();
+    let listing: Vec<u8> = (0x0801..out.end)
+        .map(|a| out.c64.read_memory(a.into()))
+        .collect();
     let text = String::from_utf8_lossy(&listing).to_string();
     assert!(text.contains("HELLO"), "{text:?}");
     assert!(text.contains("BLOCKS FREE"), "{text:?}");
@@ -645,7 +655,9 @@ fn real_1581_dos_loads_the_directory_and_a_file_over_iec() {
     let out =
         true_drive_load_with(c64, drive, b"HELLO", 0, 120_000_000).expect("file LOAD finished");
     assert!(!out.carry_set, "LOAD failed, A={}", out.error);
-    let got: Vec<u8> = (0x0801..out.end).map(|a| out.c64.read_memory(a)).collect();
+    let got: Vec<u8> = (0x0801..out.end)
+        .map(|a| out.c64.read_memory(a.into()))
+        .collect();
     assert_eq!(got, &payload[2..]);
 }
 
@@ -682,7 +694,9 @@ fn real_1581_dos_formats_a_blank_disk_with_write_track() {
     let out = true_drive_load_cmd(c64, drive, Some(b"N:FRESH,81"), b"$", 0, 600_000_000)
         .expect("the format and the directory LOAD finished");
     assert!(!out.carry_set, "LOAD failed, A={}", out.error);
-    let listing: Vec<u8> = (0x0801..out.end).map(|a| out.c64.read_memory(a)).collect();
+    let listing: Vec<u8> = (0x0801..out.end)
+        .map(|a| out.c64.read_memory(a.into()))
+        .collect();
     let text = String::from_utf8_lossy(&listing).to_string();
     assert!(text.contains("FRESH"), "{text:?}");
     assert!(text.contains("BLOCKS FREE"), "{text:?}");

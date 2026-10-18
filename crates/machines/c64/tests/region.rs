@@ -39,7 +39,7 @@ fn screen_has_ready(c64: &C64) -> bool {
         ready
             .iter()
             .enumerate()
-            .all(|(k, &b)| c64.read_memory(SCREEN + i + k as u16) == b)
+            .all(|(k, &b)| c64.read_memory((SCREEN + i + k as u16).into()) == b)
     })
 }
 
@@ -49,8 +49,8 @@ fn the_kernal_detects_the_selected_standard_and_boots_to_ready() {
         eprintln!("skipped: roms/c64 not present");
         return;
     };
-    assert_eq!(pal.read_memory(PALNTSC), 1, "PAL");
-    assert_eq!(ntsc.read_memory(PALNTSC), 0, "NTSC");
+    assert_eq!(pal.read_memory(PALNTSC.into()), 1, "PAL");
+    assert_eq!(ntsc.read_memory(PALNTSC.into()), 0, "NTSC");
     assert!(screen_has_ready(&pal), "PAL boot reached READY.");
     assert!(screen_has_ready(&ntsc), "NTSC boot reached READY.");
     assert_eq!((pal.clock_hz(), pal.frame_hz()), (985_248, 50));

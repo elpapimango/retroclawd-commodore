@@ -1732,7 +1732,11 @@ mod tests {
         vic.write(0x1A, 0x01);
         assert!(vic.tick(CYCLES_PER_LINE).raster_irq);
 
-        assert_eq!(vic.read(0x19), 0xF1, "latch bit + asserted IRQ flag (bits 4-6 read 1)");
+        assert_eq!(
+            vic.read(0x19),
+            0xF1,
+            "latch bit + asserted IRQ flag (bits 4-6 read 1)"
+        );
         vic.write(0x19, 0x01); // ack: write 1 to clear bit 0
         assert_eq!(
             vic.read(0x19),

@@ -40,7 +40,7 @@ fn screen_has_ready(c64: &C64) -> bool {
         ready
             .iter()
             .enumerate()
-            .all(|(k, &b)| c64.read_memory(SCREEN + i + k as u16) == b)
+            .all(|(k, &b)| c64.read_memory((SCREEN + i + k as u16).into()) == b)
     })
 }
 
@@ -73,7 +73,7 @@ fn line_and_cycle_mode_boot_to_the_same_screen() {
     assert!(screen_has_ready(&line) && screen_has_ready(&cycle));
     let text = |m: &C64| {
         (0..1000u16)
-            .map(|i| m.read_memory(SCREEN + i))
+            .map(|i| m.read_memory((SCREEN + i).into()))
             .collect::<Vec<_>>()
     };
     assert_eq!(text(&line), text(&cycle), "same boot screen in both modes");

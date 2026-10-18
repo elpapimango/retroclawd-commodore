@@ -71,7 +71,11 @@ fn a_program_stashes_wipes_and_fetches_a_block_through_the_registers() {
     run(&mut c64, 5_000);
 
     for (i, want) in (1..=8u8).enumerate() {
-        assert_eq!(c64.read_memory(0x0400 + i as u16), want, "byte {i}");
+        assert_eq!(
+            c64.read_memory((0x0400 + i as u16).into()),
+            want,
+            "byte {i}"
+        );
     }
     let status = c64.read_memory(0x0500);
     assert_ne!(status & 0x40, 0, "end-of-block status {status:#x}");

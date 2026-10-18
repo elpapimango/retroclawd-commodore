@@ -2183,8 +2183,8 @@ impl Machine for C64 {
         self.cpu.halted
     }
 
-    fn pc(&self) -> u16 {
-        self.cpu.pc
+    fn pc(&self) -> machine::Addr {
+        u64::from(self.cpu.pc)
     }
 
     fn registers(&self) -> Vec<(&'static str, u64)> {
@@ -2220,11 +2220,13 @@ impl Machine for C64 {
         ))
     }
 
-    fn read_memory(&self, addr: u16) -> u8 {
+    fn read_memory(&self, addr: machine::Addr) -> u8 {
+        let addr = addr as u16;
         self.bus.peek(addr)
     }
 
-    fn load(&mut self, addr: u16, bytes: &[u8]) -> usize {
+    fn load(&mut self, addr: machine::Addr, bytes: &[u8]) -> usize {
+        let addr = addr as u16;
         // Real hardware never truly drops a write anywhere in the address
         // space (a ROM window's write always lands in the RAM underneath,
         // and even the I/O window's writes land somewhere real) -- so
@@ -2238,7 +2240,8 @@ impl Machine for C64 {
         bytes.len()
     }
 
-    fn set_pc(&mut self, addr: u16) {
+    fn set_pc(&mut self, addr: machine::Addr) {
+        let addr = addr as u16;
         self.cpu.pc = addr;
     }
 

@@ -50,12 +50,12 @@ fn run_program(c64: &mut C64, mut code: Vec<u8>, max_cycles: u64) {
     c64.load(0xC000, &code);
     c64.set_pc(0xC000);
     let mut spent = 0u64;
-    while spent < max_cycles && c64.pc() != spin {
+    while spent < max_cycles && c64.pc() != spin.into() {
         spent += u64::from(c64.step());
     }
     assert_eq!(
         c64.pc(),
-        spin,
+        spin.into(),
         "the routine did not finish in {max_cycles} cycles"
     );
 }
@@ -109,7 +109,11 @@ fn an_encoded_tape_loads_through_the_real_kernal_in_real_time() {
     run_program(&mut c64, code, 80_000_000);
 
     for (i, &byte) in program.iter().enumerate() {
-        assert_eq!(c64.read_memory(0x5000 + i as u16), byte, "byte {i}");
+        assert_eq!(
+            c64.read_memory((0x5000 + i as u16).into()),
+            byte,
+            "byte {i}"
+        );
     }
 }
 
@@ -156,9 +160,17 @@ fn fast_tape_load_and_save_use_the_same_kernal_calls_and_finish_at_once() {
     code.extend(call(0, 0, 0, 0xFFD5));
     run_program(&mut c64, code, 200_000);
     for (i, &b) in first.iter().enumerate() {
-        assert_eq!(c64.read_memory(0x4000 + i as u16), b, "first byte {i}");
+        assert_eq!(
+            c64.read_memory((0x4000 + i as u16).into()),
+            b,
+            "first byte {i}"
+        );
     }
     for (i, &b) in second.iter().enumerate() {
-        assert_eq!(c64.read_memory(0x6000 + i as u16), b, "second byte {i}");
+        assert_eq!(
+            c64.read_memory((0x6000 + i as u16).into()),
+            b,
+            "second byte {i}"
+        );
     }
 }

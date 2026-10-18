@@ -73,7 +73,7 @@ fn type_chord(booted: &Booted, phase: u64, deferral: u64) -> u8 {
     run(&mut c64, deferral);
     c64.press_key(C64Key::Asterisk);
     run(&mut c64, 3 * TICK_CYCLES);
-    let typed = c64.read_memory(FIRST_TYPED_CELL);
+    let typed = c64.read_memory(FIRST_TYPED_CELL.into());
     c64.release_key(C64Key::Asterisk);
     typed
 }

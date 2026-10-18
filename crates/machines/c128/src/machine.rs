@@ -386,11 +386,11 @@ impl Machine for C128 {
         }
     }
 
-    fn pc(&self) -> u16 {
+    fn pc(&self) -> machine::Addr {
         if self.bus.mmu.cpu_is_8502() {
-            self.cpu.pc
+            u64::from(self.cpu.pc)
         } else {
-            self.z80.pc
+            u64::from(self.z80.pc)
         }
     }
 
@@ -448,11 +448,13 @@ impl Machine for C128 {
         ))
     }
 
-    fn read_memory(&self, addr: u16) -> u8 {
+    fn read_memory(&self, addr: machine::Addr) -> u8 {
+        let addr = addr as u16;
         self.bus.peek(addr)
     }
 
-    fn load(&mut self, addr: u16, bytes: &[u8]) -> usize {
+    fn load(&mut self, addr: machine::Addr, bytes: &[u8]) -> usize {
+        let addr = addr as u16;
         let mut a = addr;
         for &b in bytes {
             self.bus.write(a, b);
@@ -461,7 +463,8 @@ impl Machine for C128 {
         bytes.len()
     }
 
-    fn set_pc(&mut self, addr: u16) {
+    fn set_pc(&mut self, addr: machine::Addr) {
+        let addr = addr as u16;
         if self.bus.mmu.cpu_is_8502() {
             self.cpu.pc = addr;
         } else {
