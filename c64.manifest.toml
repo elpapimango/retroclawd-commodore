@@ -55,6 +55,31 @@ frames = 900
 args = ["--type-after", "150", "--type-delay", "60", "--type", "poke54296,15:poke54277,0:poke54278,240:poke54273,34:poke54272,157:poke54276,17\n"]
 audio = { from_s = 15.0, to_s = 17.0, tone_hz = 520.4, tone_tolerance_pct = 1.0, min_amplitude = 0.05 }
 
+# S7: crystalct's Unified Diagnostic Cartridge (its dead test, which runs from the cartridge in Ultimax mode). The reference
+# is VICE 3.10 with the first 16 KiB of the 32K image attached as an Ultimax cartridge (-cartultimax: the standard diagnostic
+# at $8000, the dead test at $E000), 2000 frames in; retroclawd loads the same two halves as its own cartridge type
+# (software/scenarios/c64-unified-diag.crt, made by scenarios/build.sh). The dead test's title and its first two results agree;
+# the clock it keeps at the bottom does not (S7-clock).
+[[scenario]]
+id = "S7"
+kind = "screen"
+frames = 2000
+files = { cartridge = "commodore/software/scenarios/c64-unified-diag.crt" }
+golden = "c64/S7-unified.png"
+golden_sha256 = "7625793dc3005ca2f8cae8be05927d969bad5eb653924053162703ba8559e679"
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.09, 0.125, 0.75, 0.245], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop stays inside the screen (the border colours are a third tone that stretching does not remove) and is the dead test's title, ZERO PAGE OK and STACK PAGE OK" }
+
+[[scenario]]
+id = "S7-clock"
+kind = "screen"
+frames = 2000
+files = { cartridge = "commodore/software/scenarios/c64-unified-diag.crt" }
+golden = "c64/S7-unified.png"
+golden_sha256 = "7625793dc3005ca2f8cae8be05927d969bad5eb653924053162703ba8559e679"
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.45, 0.85, 0.915, 0.92], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop stays inside the screen and is the two clocks at the bottom of the dead test" }
+status = "known-gap"
+gap = { reason = "the dead test's clocks read 00-00-11 in VICE and 00-00-14 in retroclawd after 2000 frames: its time base (a CIA timer or the TOD clock) runs at a different rate", evidence = "machines/commodore/docs/c64-deadtest-clock-gap.md" }
+
 [[scenario]]
 id = "S5"
 kind = "state"

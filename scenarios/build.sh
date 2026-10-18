@@ -11,3 +11,5 @@ for ext in prg d64; do
 done
 # The C128 BASIC option wants the two 16K halves as one 32K image.
 cat "$here/../roms/c128/basiclo-318018-04.bin" "$here/../roms/c128/basichi-318019-04.bin" > "$out/c128-basic-32k.rom"
+# The unified diagnostic cartridge as a .crt of retroclawd's own type (needs software/diagnostics/unified_32k.bin).
+[ -f "$here/../software/diagnostics/unified_32k.bin" ] && python3 "$here/make_unified_crt.py" "$here/../software/diagnostics/unified_32k.bin" "$out/c64-unified-diag.crt"
