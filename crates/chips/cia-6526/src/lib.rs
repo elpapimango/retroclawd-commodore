@@ -66,24 +66,24 @@ const CRB_TB_INMODE_PHI2: u8 = 0x00;
 const CRB_TB_INMODE_TIMER_A: u8 = 0x40;
 const CRB_ALARM_SELECT: u8 = 0x80;
 
-/// This chip runs off the same phi2 clock as the CPU on real hardware
-/// (mirrors `c64::bus::PAL_CLOCK_HZ`, redeclared here since this module
-/// has no path dependency on `bus`). Used only to derive the TOD clock's
-/// real-time tenths-of-a-second tick -- see `tod_tick`'s own doc comment
-/// for why the CRA `TODIN` (50/60Hz) bit doesn't otherwise factor in.
+/// CRA bit 7, `TODIN`: the TOD clock's mains input is 50 Hz (set) or 60 Hz
+/// (clear). The chip divides the mains pulses by 5 or 6 to make its tenths.
+const CRA_TODIN_50HZ: u8 = 0x80;
+
+/// The phi2 clock the chip runs from (mirrors `c64::bus::PAL_CLOCK_HZ`;
+/// this crate has no dependency on the machine).
 const CIA_CLOCK_HZ: u32 = 985_248;
-/// Rounded `CIA_CLOCK_HZ / 10`. A real 6526 derives its 10Hz TOD tick from
-/// an external 50Hz/60Hz AC-mains reference (selected by CRA's `TODIN`
-/// bit) divided down internally -- this emulation has no AC-mains signal
-/// to divide at all, so it derives the same nominal 10Hz rate directly
-/// from the CPU's own already-modeled clock instead. The `8` discarded by
-/// integer rounding (`985_248 / 10 == 98_524.8`) is a deliberately
-/// accepted, tiny long-run drift source, same epistemic tier as this
-/// project's other documented timing approximations (e.g.
-/// `zx_spectrum::SpeakerType`'s filter cutoffs).
-const TOD_TENTH_CYCLES: u32 = CIA_CLOCK_HZ / 10;
-/// The same for the NTSC machine's 1 022 727 Hz clock.
-const NTSC_TOD_TENTH_CYCLES: u32 = 1_022_727 / 10;
+/// The NTSC machine's phi2 clock.
+const NTSC_CIA_CLOCK_HZ: u32 = 1_022_727;
+/// The mains frequency the C64's power supply feeds the TOD pin: 50 Hz on a
+/// PAL machine, 60 Hz on an NTSC one. A real 6526 counts these pulses and
+/// makes a tenth every 5 (`TODIN` set) or 6 (`TODIN` clear) of them, so a
+/// program that leaves `TODIN` clear on a PAL machine (the dead test does;
+/// the KERNAL sets it to match) sees its clock run at 5/6 speed -- VICE does
+/// the same. The pulses are derived from phi2 with an exact fractional
+/// accumulator (no long-run drift).
+const PAL_MAINS_HZ: u32 = 50;
+const NTSC_MAINS_HZ: u32 = 60;
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Cia {
@@ -129,7 +129,12 @@ pub struct Cia {
     /// either; reading tenths (the last register in the real read order)
     /// releases the latch. `None` = live (unlatched) registers.
     tod_latch: Option<[u8; 4]>,
+    /// phi2 cycles times the mains frequency since the last mains pulse; a
+    /// pulse falls due when it reaches the phi2 clock rate.
     tod_cycle_accumulator: u32,
+    /// Mains pulses since the last tenth (the chip's /5 or /6 prescaler).
+    #[serde(default)]
+    tod_prescaler: u8,
 
     sdr: u8,
     /// Real hardware, output mode only: writing `SDR` loads this with `8`
@@ -217,6 +222,27 @@ impl Cia {
         let next_hour = if hour >= 12 { 1 } else { hour + 1 };
         let next_pm = if next_hour == 12 { pm ^ 0x80 } else { pm };
         self.tod_hours = next_pm | ((next_hour / 10) << 4) | (next_hour % 10);
+    }
+
+    /// One phi2 cycle of the TOD input: a mains pulse when due, and a tenth
+    /// every 5 or 6 pulses (`TODIN`).
+    fn tick_tod_input(&mut self) {
+        let (clock, mains) = if self.ntsc {
+            (NTSC_CIA_CLOCK_HZ, NTSC_MAINS_HZ)
+        } else {
+            (CIA_CLOCK_HZ, PAL_MAINS_HZ)
+        };
+        self.tod_cycle_accumulator += mains;
+        if self.tod_cycle_accumulator < clock {
+            return;
+        }
+        self.tod_cycle_accumulator -= clock;
+        self.tod_prescaler += 1;
+        let divide = if self.cra & CRA_TODIN_50HZ != 0 { 5 } else { 6 };
+        if self.tod_prescaler >= divide {
+            self.tod_prescaler = 0;
+            self.tod_tick();
+        }
     }
 
     fn tod_tick(&mut self) {
@@ -313,16 +339,7 @@ impl Cia {
                 }
             }
 
-            self.tod_cycle_accumulator += 1;
-            let tenth = if self.ntsc {
-                NTSC_TOD_TENTH_CYCLES
-            } else {
-                TOD_TENTH_CYCLES
-            };
-            if self.tod_cycle_accumulator >= tenth {
-                self.tod_cycle_accumulator -= tenth;
-                self.tod_tick();
-            }
+            self.tick_tod_input();
         }
         self.icr_data & self.icr_mask != 0
     }
@@ -479,6 +496,45 @@ impl Cia {
 mod tests {
     use super::*;
 
+    /// phi2 cycles to the first tenth on a PAL machine with `TODIN` set: 5
+    /// mains pulses of 985248/50 = 19704.96 cycles, due on cycle 98525.
+    const TOD_TENTH_CYCLES: u32 = 98_525;
+
+    /// A PAL CIA with `TODIN` set (50 Hz), as the KERNAL leaves it.
+    fn pal_tod_50hz() -> Cia {
+        let mut cia = Cia::new();
+        cia.write(0x0E, CRA_TODIN_50HZ);
+        cia
+    }
+
+    fn cycles_to_first_tenth(mut cia: Cia) -> u32 {
+        cia.write(0x08, 0x00);
+        let mut n = 0;
+        while cia.peek(0x08) == 0 {
+            cia.tick(1);
+            n += 1;
+            assert!(n < 1_000_000, "TOD never advanced");
+        }
+        n
+    }
+
+    /// The TOD clock counts mains pulses (50 Hz PAL, 60 Hz NTSC) and makes a
+    /// tenth every 5 (`TODIN` set) or 6 (clear) of them: a PAL machine whose
+    /// program leaves `TODIN` clear sees its clock run at 5/6 speed.
+    #[test]
+    fn tod_divides_the_mains_pulses_by_five_or_six_as_todin_says() {
+        assert_eq!(cycles_to_first_tenth(pal_tod_50hz()), TOD_TENTH_CYCLES);
+        // PAL, TODIN clear: 6 x 19704.96 = 118229.76.
+        assert_eq!(cycles_to_first_tenth(Cia::new()), 118_230);
+        let mut ntsc = Cia::new();
+        ntsc.set_ntsc(true);
+        // NTSC, TODIN clear (the right setting there): 6 x 1022727/60 = 102272.7.
+        assert_eq!(cycles_to_first_tenth(ntsc.clone()), 102_273);
+        ntsc.write(0x0E, CRA_TODIN_50HZ);
+        // NTSC, TODIN set: 5 x 17045.45 = 85227.25.
+        assert_eq!(cycles_to_first_tenth(ntsc), 85_228);
+    }
+
     fn timer_a_underflows_reloads_and_reports_irq_when_enabled() {
         let mut cia = Cia::new();
         cia.write(0x04, 0x02); // latch low = 2
@@ -628,7 +684,7 @@ mod tests {
     }
 
     fn tod_tenths_advance_in_real_time_and_roll_into_seconds() {
-        let mut cia = Cia::new();
+        let mut cia = pal_tod_50hz();
         cia.write(0x08, 0x09); // clock tenths = 9 (also un-halts TOD)
         for _ in 0..(TOD_TENTH_CYCLES - 1) {
             cia.tick(1);
@@ -640,7 +696,7 @@ mod tests {
     }
 
     fn writing_the_hour_register_halts_tod_until_tenths_is_written() {
-        let mut cia = Cia::new();
+        let mut cia = pal_tod_50hz();
         cia.write(0x0B, 0x12); // write clock hours -> halts TOD
         for _ in 0..(TOD_TENTH_CYCLES * 3) {
             cia.tick(1);
@@ -658,7 +714,7 @@ mod tests {
     }
 
     fn reading_the_hour_register_latches_all_four_tod_registers() {
-        let mut cia = Cia::new();
+        let mut cia = pal_tod_50hz();
         cia.write(0x08, 0x00); // un-halt, start from 00:00:00.0
         let hours_snapshot = cia.read(0x0B); // latches
         for _ in 0..(TOD_TENTH_CYCLES * 15) {
@@ -687,7 +743,7 @@ mod tests {
     }
 
     fn tod_alarm_match_sets_the_icr_bit_when_enabled() {
-        let mut cia = Cia::new();
+        let mut cia = pal_tod_50hz();
         cia.write(0x0D, 0x84); // enable TOD alarm interrupt
         cia.write(0x0F, 0x80); // CRB ALARM select -> $08-$0B now target the alarm regs
         cia.write(0x08, 0x01); // alarm tenths = 1 (seconds/minutes/hours stay 0, matching clock's own start)
