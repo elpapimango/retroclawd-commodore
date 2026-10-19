@@ -75,6 +75,24 @@ const KERNAL_LOAD_ENTRY: u16 = 0xF49E;
 /// something else isn't silently hijacked.
 const KERNAL_LOAD_ENTRY_FIRST_BYTES: [u8; 2] = [0x86, 0xC3];
 const ZP_STATUS: u16 = 0x90;
+/// KERNAL 901227-03's own LOAD message routines, run after a trapped disk
+/// load so the screen shows what a real LOAD prints (`try_fast_kernal_load_trap`):
+/// `$F5AF` prints `SEARCHING FOR <name>` and `$F5D2` `LOADING` (both only in
+/// direct mode, `$9D` bit 7), and `$F5A9` is LOAD's own exit (`CLC`, `LDX $AE`,
+/// `LDY $AF`, `RTS`). Each is checked byte for byte before it is used.
+const KERNAL_LOAD_MESSAGE_ROUTINES: [(u16, &[u8]); 3] = [
+    (
+        0xF5AF,
+        &[0xA5, 0x9D, 0x10, 0x1E, 0xA0, 0x0C, 0x20, 0x2F, 0xF1],
+    ),
+    (
+        0xF5D2,
+        &[
+            0xA0, 0x49, 0xA5, 0x93, 0xF0, 0x02, 0xA0, 0x59, 0x4C, 0x2B, 0xF1,
+        ],
+    ),
+    (0xF5A9, &[0x18, 0xA6, 0xAE, 0xA4, 0xAF, 0x60]),
+];
 const ZP_VERCK: u16 = 0x93;
 const ZP_FNLEN: u16 = 0xB7;
 const ZP_SA: u16 = 0xB9;
@@ -1863,12 +1881,15 @@ impl C64 {
     /// KERNAL LOAD convention), sets `X`/`Y` (and the real `$AE`/`$AF`
     /// scratch registers some code reads directly) to the real "one past
     /// the last byte loaded" exit convention, clears carry and `STATUS`,
-    /// and simulates the routine's own eventual `RTS` back to its caller
-    /// by popping a real return address off the stack -- same "never
-    /// executes any of the routine's own instructions" principle
-    /// `zx_spectrum`'s trap already established. On a file-not-found: sets
-    /// carry and `A = KERNAL_ERROR_FILE_NOT_FOUND`, then the same
-    /// simulated `RTS`.
+    /// and returns to the caller. A disk load returns through the KERNAL's
+    /// own message routines (`KERNAL_LOAD_MESSAGE_ROUTINES`: SEARCHING FOR
+    /// <name>, LOADING, then LOAD's exit, which reloads `X`/`Y` from
+    /// `$AE`/`$AF` and clears carry), so the screen shows what a real LOAD
+    /// prints in direct mode; a tape load, or a KERNAL without those
+    /// routines, simulates the routine's `RTS` by popping the return
+    /// address. On a file-not-found: sets carry and
+    /// `A = KERNAL_ERROR_FILE_NOT_FOUND`, then the simulated `RTS` (no
+    /// message).
     fn try_fast_kernal_load_trap(&mut self) -> bool {
         if self.cpu.pc != KERNAL_LOAD_ENTRY {
             return false;
@@ -1932,8 +1953,41 @@ impl C64 {
         self.bus.write(ZP_VERCK, 0);
         self.cpu.p &= !0x01; // carry clear = success
 
-        self.simulate_rts();
+        if on_disk && self.kernal_load_messages_present() {
+            // Run the KERNAL's own SEARCHING FOR / LOADING printers and LOAD's
+            // exit, as a chain of returns: $F5AF returns into $F5D2, whose
+            // message printer returns into $F5A9, which returns to the caller
+            // with X/Y = the end address and carry clear.
+            let [(searching, _), (loading, _), (exit, _)] = KERNAL_LOAD_MESSAGE_ROUTINES;
+            self.push_return_address(exit);
+            self.push_return_address(loading);
+            self.cpu.pc = searching;
+        } else {
+            self.simulate_rts();
+        }
         true
+    }
+
+    /// Whether the KERNAL in place holds the LOAD message routines
+    /// `KERNAL_LOAD_MESSAGE_ROUTINES` names (a custom KERNAL may not).
+    fn kernal_load_messages_present(&mut self) -> bool {
+        KERNAL_LOAD_MESSAGE_ROUTINES.iter().all(|&(addr, bytes)| {
+            bytes
+                .iter()
+                .enumerate()
+                .all(|(i, &b)| self.bus.read(addr.wrapping_add(i as u16)) == b)
+        })
+    }
+
+    /// Pushes a return address that makes the next `RTS` continue at
+    /// `target` (as a `JSR` would push `target - 1`).
+    fn push_return_address(&mut self, target: u16) {
+        let ret = target.wrapping_sub(1);
+        self.bus
+            .write(0x0100 + self.cpu.sp as u16, (ret >> 8) as u8);
+        self.cpu.sp = self.cpu.sp.wrapping_sub(1);
+        self.bus.write(0x0100 + self.cpu.sp as u16, ret as u8);
+        self.cpu.sp = self.cpu.sp.wrapping_sub(1);
     }
 
     /// **IEC-level fast SAVE.** Traps real KERNAL SAVE at `KERNAL_SAVE_ENTRY`

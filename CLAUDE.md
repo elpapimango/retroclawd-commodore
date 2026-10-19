@@ -18,7 +18,7 @@ The Commodore (C64, C128, drives) machine family of retroclawd, split out of the
 `c64 and c128` have `<id>.manifest.toml` files here: the playbook's standard scenarios (S1 boot, S2 typed input, S3 media, S4 audio, S5 state, S6
 timing, S7 hardware test) against VICE 3.10, run by `rc-scenarios` of `retroclawd-tools` (see the host's `CLAUDE.md` for the command and
 environment). The test media come from `scenarios/c64/hello.asm`, the combined C128 BASIC image and the unified diagnostic `.crt` (`scenarios/make_unified_crt.py`); `scenarios/build.sh` builds them into the git-ignored `software/scenarios/`. Goldens are
-not committed. Known gaps are `status = "known-gap"` entries with a note under `docs/`: the fast loader's missing SEARCHING/LOADING lines (`docs/c64-load-messages-gap.md`) and the dead test's clock (`docs/c64-deadtest-clock-gap.md`). S6 (frame length) was closed 2026-10-19: `Machine::frame_rate` of the C64 and C128 is the clock over one raster frame (`docs/c64-timing-gap.md`).
+not committed. Known gaps are `status = "known-gap"` entries with a note under `docs/`; none is open. Closed 2026-10-19: the fast loader's missing SEARCHING/LOADING lines (the trap now returns through the KERNAL's own message routines, `docs/c64-load-messages-gap.md`) and the dead test's clock (the CIA TOD clock honours CRA `TODIN`: mains pulses divided by 5 or 6, `docs/c64-deadtest-clock-gap.md`). S6 (frame length) was closed 2026-10-19: `Machine::frame_rate` of the C64 and C128 is the clock over one raster frame (`docs/c64-timing-gap.md`).
 
 ## Crate notes
 
@@ -400,7 +400,7 @@ The notes below were written in the host repository before the split and refer t
   plugin at creation from the host's `--region`, `retroclawd.toml`/game-config
   `region`; `Japan` counts as NTSC) switches `Vic::set_ntsc` (6567R8: 65 cycles x
   263 lines instead of 63 x 312; display window, bad-line range and sprite offsets
-  are identical), both CIAs' TOD divider (`Cia::set_ntsc`, 1 022 727 / 10) and
+  are identical), both CIAs' TOD input (`Cia::set_ntsc`: 60 Hz mains from 1 022 727 Hz) and
   `Machine::clock_hz`/`frame_hz` (1 022 727 Hz / 60 Hz instead of 985 248 / 50).
   The older 6567R56A (64 x 262) is not modelled. The KERNAL detects the standard
   itself by timing the raster and stores it at `$02A6` (`1` PAL, `0` NTSC) --

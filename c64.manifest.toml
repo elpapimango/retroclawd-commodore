@@ -32,7 +32,8 @@ golden_sha256 = "8fdeaecbb7888c3831e13514ff0f02f5883f1f74cb82a90c8f7937d38f6ce13
 compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.38], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the banner, the typed line and its answer 408, above the blinking cursor" }
 
 # VICE's autostart of a .d64 prints LOAD"*",8,1 / SEARCHING FOR * / LOADING / READY. / RUN / HELLO / READY.; retroclawd's
-# fast loader skips the SEARCHING and LOADING lines a real KERNAL LOAD prints, so HELLO ends two lines higher.
+# fast loader runs the KERNAL's own message routines after the load, so the screen is the same (closed 2026-10-19,
+# docs/c64-load-messages-gap.md).
 [[scenario]]
 id = "S3-d64"
 kind = "screen"
@@ -42,8 +43,6 @@ files = { disk = "commodore/software/scenarios/c64-hello.d64" }
 golden = "c64/S3-d64.png"
 golden_sha256 = "2fc58c0b5835738b825c489f86244c3eb525821a93c557debc47deea68e65e21"
 compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.0, 0.1, 1.0, 0.6], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the whole text area up to the cursor" }
-status = "known-gap"
-gap = { reason = "a real KERNAL LOAD (VICE) prints SEARCHING FOR * and LOADING; retroclawd's fast-load trap prints neither, so the picture has two lines fewer", evidence = "machines/commodore/docs/c64-load-messages-gap.md" }
 
 # S4: SID voice 1, triangle, frequency register 8861 (520.4 Hz), set by typed POKEs. VICE 3.10 (x64sc, recorded with -soundrecdev wav in real
 # time): 520.32 Hz at amplitude 0.071; retroclawd 520.38 Hz at amplitude 0.135. The pitch is the check; the level is a mixer
@@ -59,7 +58,7 @@ audio = { from_s = 15.0, to_s = 17.0, tone_hz = 520.4, tone_tolerance_pct = 1.0,
 # is VICE 3.10 with the first 16 KiB of the 32K image attached as an Ultimax cartridge (-cartultimax: the standard diagnostic
 # at $8000, the dead test at $E000), 2000 frames in; retroclawd loads the same two halves as its own cartridge type
 # (software/scenarios/c64-unified-diag.crt, made by scenarios/build.sh). The dead test's title and its first two results agree;
-# the clock it keeps at the bottom does not (S7-clock).
+# S7-clock checks the clock it keeps at the bottom (closed 2026-10-19: the TOD clock now honours CRA TODIN, docs/c64-deadtest-clock-gap.md).
 [[scenario]]
 id = "S7"
 kind = "screen"
@@ -76,9 +75,7 @@ frames = 2000
 files = { cartridge = "commodore/software/scenarios/c64-unified-diag.crt" }
 golden = "c64/S7-unified.png"
 golden_sha256 = "7625793dc3005ca2f8cae8be05927d969bad5eb653924053162703ba8559e679"
-compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.45, 0.85, 0.915, 0.92], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop stays inside the screen and is the two clocks at the bottom of the dead test" }
-status = "known-gap"
-gap = { reason = "the dead test's clocks read 00-00-11 in VICE and 00-00-14 in retroclawd after 2000 frames: its time base (a CIA timer or the TOD clock) runs at a different rate", evidence = "machines/commodore/docs/c64-deadtest-clock-gap.md" }
+compare = { mode = "similarity", normalize = true, max_mad = 1.0, crop = [0.45, 0.845, 0.915, 0.878], reason = "VICE's palette differs from ours, so both pictures are stretched to the full range; the crop is the bottom text row inside the screen (the border colours are a third tone that stretching does not remove) and holds the dead test's two clocks" }
 
 [[scenario]]
 id = "S5"

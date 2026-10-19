@@ -94,3 +94,81 @@ fn a_program_saves_a_file_through_the_real_kernal_save_vector() {
     assert_eq!(&file[..2], &[0x00, 0x40]);
     assert_eq!(&file[2..], &(0..16u8).collect::<Vec<_>>()[..]);
 }
+
+/// The screen as text, one string per row (screen codes of letters,
+/// digits and the common punctuation; anything else is `?`).
+fn screen_rows(c64: &C64) -> Vec<String> {
+    (0..25u16)
+        .map(|row| {
+            (0..40u16)
+                .map(
+                    |col| match c64.read_memory(u64::from(0x0400 + row * 40 + col)) {
+                        c @ 1..=26 => char::from(b'A' + c - 1),
+                        c @ 0x20..=0x3F => char::from(c),
+                        _ => '?',
+                    },
+                )
+                .collect::<String>()
+                .trim_end()
+                .to_string()
+        })
+        .collect()
+}
+
+fn run_cycles(c64: &mut C64, cycles: u64) {
+    let mut spent = 0u64;
+    while spent < cycles {
+        spent += u64::from(c64.step());
+    }
+}
+
+/// Puts `text` in the KERNAL keyboard buffer (`$0277`, count at `$C6`) and
+/// runs until BASIC has taken it.
+fn type_text(c64: &mut C64, text: &[u8]) {
+    assert!(text.len() <= 10, "the keyboard buffer holds ten characters");
+    c64.load(0x0277, text);
+    c64.load(0x00C6, &[text.len() as u8]);
+    while c64.read_memory(0xC6) != 0 {
+        run_cycles(c64, 1_000);
+    }
+}
+
+/// The fast loader serves `LOAD"*",8,1` at once, but the screen must show
+/// what the real KERNAL LOAD prints in direct mode: SEARCHING FOR <name>,
+/// LOADING, then READY. (the trap runs the KERNAL's own message routines).
+#[test]
+fn a_fast_disk_load_prints_the_kernals_searching_and_loading_lines() {
+    let (Some(kernal), Some(basic), Some(chars)) = (
+        rom("kernal-901227-03.bin"),
+        rom("basic-901226-01.bin"),
+        rom("chargen-901225-01.bin"),
+    ) else {
+        eprintln!("skipped: roms/c64 not present");
+        return;
+    };
+    let mut c64 = C64::new(kernal, basic, chars).unwrap();
+    let mut disk = formatted_d64();
+    disk.save_program(b"PROG", &[0x00, 0xC0, 0x11, 0x22, 0x33], false)
+        .unwrap();
+    c64.load_disk(disk);
+    run_cycles(&mut c64, 3_000_000); // boot to READY.
+
+    type_text(&mut c64, b"LOAD\"*\",8");
+    type_text(&mut c64, b",1\r");
+    run_cycles(&mut c64, 200_000);
+
+    let rows = screen_rows(&c64);
+    let at = rows
+        .iter()
+        .position(|r| r == "LOAD\"*\",8,1")
+        .unwrap_or_else(|| panic!("the typed line is on screen: {rows:#?}"));
+    assert_eq!(
+        &rows[at + 1..at + 5],
+        &["", "SEARCHING FOR *", "LOADING", "READY."],
+        "{rows:#?}"
+    );
+    assert_eq!(
+        [0xC000, 0xC001, 0xC002].map(|a| c64.read_memory(a)),
+        [0x11, 0x22, 0x33]
+    );
+}

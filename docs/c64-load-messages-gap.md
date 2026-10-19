@@ -1,4 +1,14 @@
-# C64: a fast-loaded disk prints no SEARCHING / LOADING lines (S3-d64 known gap)
+# C64: a fast-loaded disk prints no SEARCHING / LOADING lines (S3-d64, closed 2026-10-19)
+
+**Closed 2026-10-19.** After a successful disk load the trap no longer returns straight to the caller: it pushes two return
+addresses and jumps into the KERNAL's own `$F5AF` (SEARCHING FOR <name>), which returns into `$F5D2` (LOADING, or VERIFYING
+from `$93`), which returns into `$F5A9` (LOAD's exit: `CLC`, `LDX $AE`, `LDY $AF`, `RTS`) and so to the caller. All three are
+checked byte for byte in the KERNAL in place first (901227-03 bytes confirmed); a custom KERNAL without them gets the old
+direct return. The routines print only in direct mode (`$9D` bit 7), as on the machine. Test
+`tests/disk_save.rs::a_fast_disk_load_prints_the_kernals_searching_and_loading_lines` (real ROMs, mutation-checked); S3-d64
+passes. A file-not-found still returns without SEARCHING FOR; tape loads are unchanged.
+
+The original finding:
 
 Found 2026-10-18 by `c64.manifest.toml` scenario S3-d64.
 
