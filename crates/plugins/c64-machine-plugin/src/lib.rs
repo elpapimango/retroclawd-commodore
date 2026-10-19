@@ -21,6 +21,13 @@ const KERNAL_ROM_SIZE: usize = 0x2000;
 const BASIC_ROM_SIZE: usize = 0x2000;
 const CHAR_ROM_SIZE: usize = 0x1000;
 
+/// `MachineMetadata::frame_rate`: one raster frame exactly (the host paces
+/// and budgets by it instead of the rounded `frame_hz`).
+fn exact_frame_rate(machine: &C64) -> (u32, u32) {
+    let rate = Machine::frame_rate(machine);
+    (rate.num, rate.den)
+}
+
 fn bitmap_palette() -> Vec<BitmapPaletteColor> {
     [
         ("black", (0x00, 0x00, 0x00)),
@@ -847,6 +854,7 @@ fn create_machine(req: MachineCreateRequest) -> Result<MachineCreateResponse, St
     }
     let auto_run = option_bool(&req.options, "run")?.unwrap_or(false);
 
+    let frame_rate = exact_frame_rate(&machine);
     let mut state = state()
         .lock()
         .map_err(|_| "plugin state mutex poisoned".to_string())?;
@@ -875,6 +883,7 @@ fn create_machine(req: MachineCreateRequest) -> Result<MachineCreateResponse, St
             notes: vec!["external machine plugin v1".to_string()],
             bitmap_palette: bitmap_palette(),
             bitmap_defaults: Some(bitmap_defaults()),
+            frame_rate,
             ..MachineMetadata::default()
         },
     })
@@ -1682,6 +1691,7 @@ fn handle_debug_command(
             notes: vec!["external machine plugin v1".to_string()],
             bitmap_palette: bitmap_palette(),
             bitmap_defaults: Some(bitmap_defaults()),
+            frame_rate: exact_frame_rate(&record.machine),
             ..MachineMetadata::default()
         })),
     }

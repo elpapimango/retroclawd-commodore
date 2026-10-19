@@ -1,5 +1,10 @@
 # C64 timing: 19706 against 19656 cycles per frame (S6 known gap)
 
+**Closed 2026-10-19.** The C64 and the C128 report an exact frame rate of the clock over one raster frame
+(`Vic::cycles_per_frame`: 312 x 63 PAL, 263 x 65 NTSC) through `Machine::frame_rate` and the plugins' `MachineMetadata::frame_rate`;
+the host paces and budgets by it, so a frame is 19656 cycles (50.12 Hz) on PAL and 17095 (59.83 Hz) on NTSC. Audio pacing is
+unchanged: the host still runs the clock's cycles per real second.
+
 Found 2026-10-18 by `c64.manifest.toml` scenario S6.
 
 | | clock | frame | per frame |

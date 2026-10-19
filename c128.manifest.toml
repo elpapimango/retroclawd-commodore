@@ -51,13 +51,11 @@ frames = 450
 more_frames = 100
 args = ["--type-after", "250", "--type-delay", "60", "--type", "PRINT 12*34\n"]
 
-# VICE x128 (PAL, 1 MHz 40 column mode) runs 63 cycles x 312 lines = 19656 cycles per frame, retroclawd 19706: the same
-# 0.25 % as the C64 (985248 Hz paced at 50 Hz instead of the raster's 50.125 Hz). Known gap, see the C64 note.
+# VICE x128 (PAL, 1 MHz 40 column mode) runs 63 cycles x 312 lines = 19656 cycles per frame; closed 2026-10-19 with the
+# C64 (docs/c64-timing-gap.md).
 [[scenario]]
 id = "S6"
 kind = "timing"
 frames = 100
 cycles_per_frame = 19656
 cycles_tolerance = 30
-status = "known-gap"
-gap = { reason = "VICE PAL is 19656 cycles per frame (312 lines x 63), retroclawd paces at 985248 Hz / 50 Hz = 19705; same as the C64", evidence = "machines/commodore/docs/c64-timing-gap.md" }

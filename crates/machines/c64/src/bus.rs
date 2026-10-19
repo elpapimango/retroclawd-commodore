@@ -2152,6 +2152,16 @@ impl Machine for C64 {
         }
     }
 
+    /// One raster frame exactly: the clock over 312 x 63 cycles (PAL,
+    /// 50.12 Hz) or 263 x 65 (NTSC, 59.83 Hz). `frame_hz` stays the rounded
+    /// 50 / 60.
+    fn frame_rate(&self) -> machine::FrameRate {
+        machine::FrameRate {
+            num: u32::try_from(self.clock_hz()).unwrap_or(u32::MAX),
+            den: self.bus.vic.cycles_per_frame(),
+        }
+    }
+
     fn run(&mut self, running: &mut dyn FnMut(&dyn Machine) -> bool) -> RunStats {
         machine::Clock::new(self.frame_hz()).run(self, running)
     }

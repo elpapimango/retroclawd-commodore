@@ -87,13 +87,11 @@ frames = 400
 more_frames = 100
 args = ["--type-after", "150", "--type-delay", "60", "--type", "PRINT 12*34\n"]
 
-# VICE (PAL, x64sc) runs 63 cycles x 312 lines = 19656 cycles per frame at 985248 Hz (50.125 Hz); retroclawd 19706
-# (985248 Hz / 50 Hz). Known gap, see the note.
+# VICE (PAL, x64sc) runs 63 cycles x 312 lines = 19656 cycles per frame at 985248 Hz (50.125 Hz); closed 2026-10-19
+# (docs/c64-timing-gap.md).
 [[scenario]]
 id = "S6"
 kind = "timing"
 frames = 100
 cycles_per_frame = 19656
 cycles_tolerance = 30
-status = "known-gap"
-gap = { reason = "VICE PAL is 19656 cycles per frame (312 lines x 63, 50.125 Hz), retroclawd paces at 985248 Hz / 50 Hz = 19705", evidence = "machines/commodore/docs/c64-timing-gap.md" }

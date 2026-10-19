@@ -577,7 +577,9 @@ impl Vic {
         }
     }
 
-    fn cycles_per_frame(&self) -> u32 {
+    /// CPU cycles in one whole frame: 312 lines of 63 (PAL), 263 of 65
+    /// (6567R8 NTSC).
+    pub fn cycles_per_frame(&self) -> u32 {
         if self.ntsc {
             NTSC_CYCLES_PER_LINE * NTSC_TOTAL_RASTER_LINES
         } else {
