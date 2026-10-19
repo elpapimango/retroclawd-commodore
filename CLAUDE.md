@@ -13,6 +13,13 @@ The Commodore (C64, C128, drives) machine family of retroclawd, split out of the
 - `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all`
 - Private host: `CARGO_NET_GIT_FETCH_WITH_CLI=true` and git credentials for `github.com/elpapimango/retroclawd`
 
+## Scenario manifests (2026-10-18)
+
+`c64 and c128` have `<id>.manifest.toml` files here: the playbook's standard scenarios (S1 boot, S2 typed input, S3 media, S4 audio, S5 state, S6
+timing, S7 hardware test) against VICE 3.10, run by `rc-scenarios` of `retroclawd-tools` (see the host's `CLAUDE.md` for the command and
+environment). The test media come from `scenarios/c64/hello.asm`, the combined C128 BASIC image and the unified diagnostic `.crt` (`scenarios/make_unified_crt.py`); `scenarios/build.sh` builds them into the git-ignored `software/scenarios/`. Goldens are
+not committed. Known gaps are `status = "known-gap"` entries with a note under `docs/`: S6 (`docs/c64-timing-gap.md`), the fast loader's missing SEARCHING/LOADING lines (`docs/c64-load-messages-gap.md`) and the dead test's clock (`docs/c64-deadtest-clock-gap.md`).
+
 ## Crate notes
 
 The notes below were written in the host repository before the split and refer to it in places (`retroclawd`'s GUI, `HostedMachine`, `emu_thread`, the CLI flags): those parts are host code and are documented in the host's CLAUDE.md.
