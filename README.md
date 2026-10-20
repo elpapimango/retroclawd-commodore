@@ -15,6 +15,10 @@ shared libraries this workspace builds (`c64_machine_plugin`, `c128_machine_plug
 
 The ROM files and how to call each machine: `docs/firmware.md`.
 
+`vic20.intake.toml` records primary-source research for the VIC-20. It does not
+add a Machine or Plugin; VIC-20 boot, media, and reference scenarios remain
+unimplemented and unverified.
+
 ## Execution modes
 
 Both Plugins accept `--execution-mode fast|accurate` (configuration key

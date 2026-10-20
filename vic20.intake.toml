@@ -1,0 +1,167 @@
+machine = "vic20"
+display_name = "Commodore VIC-20"
+family = "commodore"
+default_region = "pal"
+
+[implementation]
+status = "intake-only"
+boot_verified = false
+note = "No VIC-20 Machine, VIC-I Chip, or Plugin is implemented yet. This file records researched inputs, not supported hardware or passing scenarios."
+
+[core]
+reuse = "mos6502"
+variant = "NMOS MOS 6502, not the C64's 6510 with its on-chip port"
+tests = ["Klaus Dormann functional test", "Tom Seddon instruction tests"]
+
+[chips]
+reuse = ["via6522"]
+new = ["MOS 6561 VIC-I (PAL)", "MOS 6560 VIC-I (NTSC)"]
+note = "Do not substitute VIC-II or SID. VIC-I supplies both video and sound."
+via_limit = "The existing VIA shift-register implementation documents simplified completion timing and does not model serial data movement. Verify and extend it before claiming serial/user-port fidelity."
+
+[reference]
+emulator = "VICE"
+version = "3.10.0"
+executable = "xvic"
+source_revision = "4d283a2e7dd59b7e378524878e81ecc7826b700c"
+installed = false
+goldens_captured = false
+note = "Pin the executable/build identity and capture commands when the reference is available; no reference execution has been claimed."
+
+[timing.pal]
+clock_hz = 1108405
+cycles_per_line = 71
+lines = 312
+cycles_per_frame = 22152
+source = "VICE 3.10.0 vice/src/vic20/vic20.h"
+
+[timing.ntsc]
+clock_hz = 1022727
+cycles_per_line = 65
+equivalent_full_lines = 261
+first_line_cycles = 32
+last_line_cycles = 33
+cycles_per_frame = 16965
+source = "VICE 3.10.0 vice/src/vic20/vic20.h"
+note = "The noninterlaced first and last partial lines add to one complete line. Interlace requires separate field scheduling; do not treat 261 equivalent lines as 261 identical raster rows."
+
+[memory]
+ram = ["0000-03ff", "1000-1fff"]
+optional_ram = ["0400-0fff", "2000-3fff", "4000-5fff", "6000-7fff", "a000-bfff"]
+character_rom = "8000-8fff"
+vic = "9000-900f"
+via1 = "9110-911f"
+via2 = "9120-912f"
+color_ram = "9400-97ff"
+expansion_io = ["9800-9bff", "9c00-9fff"]
+basic_rom = "c000-dfff"
+kernal_rom = "e000-ffff"
+note = "Base RAM totals 5 KiB. Verify incomplete Chip decode and simultaneous VIA selection, not just nominal addresses. Unconnected reads follow bus behavior; they are not uniformly ff. Color RAM has four stored bits and bus-driven upper bits."
+
+[wiring]
+via1_interrupt = "CPU NMI"
+via2_interrupt = "CPU IRQ"
+via1_port_a = ["IEC clock in", "IEC data in", "joystick up", "joystick down", "joystick left", "joystick fire/light pen", "cassette sense", "IEC ATN out"]
+via2_port_b = "Keyboard column selection; PB3 also cassette write, PB7 also joystick right"
+via2_port_a = "Keyboard row input; verify reverse-direction scans"
+via1_ca1 = "Restore key"
+via1_ca2 = "Cassette motor"
+via2_ca1 = "Cassette read"
+via2_ca2 = "IEC clock out"
+via2_cb1 = "IEC SRQ in"
+via2_cb2 = "IEC data out"
+
+[keyboard]
+note = "Each matrix entry lists Port A bits 0-7 for the selected Port B bit. This is not the C64 keyboard matrix. Host-facing aliases and shifted combinations still need implementation."
+matrix = [
+  ["Digit1", "LeftArrow", "Control", "RunStop", "Space", "Commodore", "KeyQ", "Digit2"],
+  ["Digit3", "KeyW", "KeyA", "ShiftLeft", "KeyZ", "KeyS", "KeyE", "Digit4"],
+  ["Digit5", "KeyR", "KeyD", "KeyX", "KeyC", "KeyF", "KeyT", "Digit6"],
+  ["Digit7", "KeyY", "KeyG", "KeyV", "KeyB", "KeyH", "KeyU", "Digit8"],
+  ["Digit9", "KeyI", "KeyJ", "KeyN", "KeyM", "KeyK", "KeyO", "Digit0"],
+  ["Plus", "KeyP", "KeyL", "Comma", "Period", "Colon", "At", "Minus"],
+  ["Pound", "Asterisk", "Semicolon", "Slash", "ShiftRight", "Equals", "UpArrow", "Home"],
+  ["Delete", "Return", "CursorLeftRight", "CursorUpDown", "F1", "F3", "F5", "F7"],
+]
+
+[video_audio]
+register_range = "9000-900f"
+features = ["programmable screen origin and dimensions", "8x8 and 8x16 characters", "monochrome and multicolor characters", "16 colors", "border and background", "raster readback", "three tone generators", "noise generator", "shared volume", "paddle conversion", "light pen"]
+note = "The primary guide says VIC-I refresh does not insert CPU wait states. Accurate scheduling must reproduce VIC-I fetches and register visibility, not copy C64 bad-line stalls."
+open_questions = ["PAL/NTSC display crop and pixel aspect", "exact fetch phases and bus retention", "tone/noise waveform and phase behavior", "interlace field behavior", "paddle and light-pen timing"]
+
+[media]
+candidate_reuse = ["Commodore TAP pulse Format", "PRG load-address convention", "D64 Format", "1541 and drive-link"]
+supported = []
+note = "Reuse is conditional on wiring the VIC-20 datasette and IEC bus. A shared Format or drive implementation does not itself provide Machine media support. Verify cartridge image conventions separately; do not advertise C64 CRT cartridges."
+
+[[firmware]]
+option = "basic"
+part = "901486-01"
+size = 8192
+sha1 = "587d1e90950675ab6b12d91248a3f0d640d02e8d"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[[firmware]]
+option = "kernal"
+region = "pal"
+part = "901486-07"
+size = 8192
+sha1 = "ce0137ed69f003a299f43538fa9eee27898e621e"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[[firmware]]
+option = "kernal"
+region = "ntsc"
+part = "901486-06"
+size = 8192
+sha1 = "06de7ec017a5e78bd6746d89c2ecebb646efeb19"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[[firmware]]
+option = "char"
+part = "901460-03"
+size = 4096
+sha1 = "4fd85ab6647ee2ac7ba40f729323f2472d35b9b4"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[firmware_policy]
+redistribution_permission = "Not established; firmware is not included or downloaded."
+local_vic20_firmware_found = false
+note = "Hashes identify bytes, not permission. Require lawful user-supplied images or a verified authorized distribution. The archive index lists 901486-04 as 8191 bytes; do not silently pad or accept that as an 8192-byte ROM."
+
+[scenarios]
+required = ["S1 boot", "S2 input", "S3 each supported medium", "S4 audio", "S5 state and reset", "S6 timing", "S7 hardware diagnostics"]
+optional = ["S8 instruction trace"]
+removed = []
+overrides = []
+hardware_diagnostics = "Not yet selected and license-verified."
+status = "Not run; no Machine implementation, legal local firmware, reference executable, or goldens are available."
+note = "Do not create passing manifest entries or weaken tolerances from this intake. Preserve all standard scenarios."
+
+[[source]]
+kind = "manufacturer manual"
+title = "Commodore VIC-20 Programmer's Reference Guide, etext 1.1"
+url = "https://www.zimmers.net/anonftp/pub/cbm/manuals/vic20/vic20-programmers-reference-guide-1.1.txt"
+sections = ["memory map, printed pages 174-177", "VIC Chip, printed pages 212-216"]
+note = "Treat the etext as a transcription, not an error-free datasheet: cross-check duplicated color-RAM bit text and inconsistent timer labels against the Chip API/datasheet."
+
+[[source]]
+kind = "reference source"
+title = "VICE 3.10.0 VIC-20 timing definitions"
+url = "https://github.com/VICE-Team/svn-mirror/blob/4d283a2e7dd59b7e378524878e81ecc7826b700c/vice/src/vic20/vic20.h"
+license = "GPL-2.0-or-later"
+
+[[source]]
+kind = "reference source"
+title = "VICE VIC-20 memory, keyboard, and VIA wiring"
+revision = "d928b850b7ef4c1b1826a6efd175d8eaa80344d8"
+url = "https://github.com/VICE-Team/svn-mirror/tree/d928b850b7ef4c1b1826a6efd175d8eaa80344d8/vice/src/vic20"
+files = ["vic20mem.c", "vic20via1.c", "vic20via2.c"]
+license = "GPL-2.0-or-later"
+
+[[source]]
+kind = "reference source and firmware metadata"
+title = "MAME VIC-20 driver"
+url = "https://github.com/mamedev/mame/blob/848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605/src/mame/commodore/vic20.cpp"
+license = "BSD-3-Clause"

@@ -6,6 +6,31 @@ implementation of documented behavior, cited here because that behavior
 (file layouts, byte offsets, register constants) came from reading them,
 not from independent derivation.
 
+## VIC-20 intake (not an implemented Machine)
+
+`vic20.intake.toml` records hardware facts and unresolved prerequisites, not
+passing scenarios or support claims. References read for this intake:
+
+- Commodore, *VIC-20 Programmer's Reference Guide*, etext 1.1, archived at
+  <https://www.zimmers.net/anonftp/pub/cbm/manuals/vic20/vic20-programmers-reference-guide-1.1.txt>.
+  Printed pages 174-177 identify the memory map and VIA wiring; pages 212-216
+  describe VIC-I registers, character modes, video, and sound. The transcription
+  has conflicting timer labels and duplicated color-RAM wording; it must not
+  override the Chip datasheet or verified behavior.
+- VICE 3.10.0, revision `4d283a2e7dd59b7e378524878e81ecc7826b700c`,
+  `vice/src/vic20/vic20.h`, for PAL and NTSC timing, including the partial
+  first/last NTSC raster lines. VICE revision
+  `d928b850b7ef4c1b1826a6efd175d8eaa80344d8`, `vic20mem.c`, `vic20via1.c`,
+  and `vic20via2.c`, for open bus, keyboard matrix, and VIA wiring.
+  <https://github.com/VICE-Team/svn-mirror> (GPL-2.0-or-later).
+- MAME revision `848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605`,
+  `src/mame/commodore/vic20.cpp`, for independent address-decode checks and
+  firmware SHA-1/size metadata.
+  <https://github.com/mamedev/mame> (driver: BSD-3-Clause).
+
+No emulator source or firmware bytes were copied. Firmware hashes establish
+identity only; firmware redistribution permission has not been established.
+No VIC-20 firmware was downloaded, and no reference executable was run.
 
 ## Commodore 64 hardware (`crates/machines/c64`, `crates/chips/vic-ii`)
 
@@ -1200,5 +1225,4 @@ kernal, character ROM halves) was confirmed by running the ROMs. The C128 Progra
 Reference Guide gives the MMU register table. `roms/c128/` is user-supplied (from the VICE data set). The
 C64-mode mapping reuses the C64 PLA behaviour documented above. Everything was then checked by running the
 real ROMs (`crates/machines/c128/tests/{boot,drive}.rs`), not by comparing with VICE output.
-
 
