@@ -4,7 +4,7 @@ Status: experimental, 2026-10-20. **Real PAL/NTSC firmware boots, BASIC typing,
 tone pitch, state continuation and frame budgets pass in fast and accurate
 modes.** Boot/input images match the installed VICE 3.9 reference after
 palette and framing normalization. Tools-built PRG output also matches.
-The manifest reports **38 passed, 0 failed, 2 known gaps**.
+The manifest reports **54 passed, 0 failed, 1 known gap** (external diagnostics).
 This is not completion of the additional-machine request.
 
 ## Implemented and checked
@@ -36,6 +36,13 @@ PRG/P00 headers, so no duplicate file parser was introduced.
 
 Validation executed:
 
+- Cartridge increment: 26 Format/Machine/Plugin tests and 19 Host bridge tests
+  passed. Strict release Clippy (affected Family packages and Host, all targets),
+  formatting and release Host/Plugin builds passed. All 54 manifest cases pass;
+  S7 remains explicitly not run. Independent regional VICE captures match all
+  64 glyph pixels in both modes. Raw/addressed attachment yields byte-identical
+  states; 60+120-frame continuation equals direct 180 frames. Reset retains the
+  cartridge and restarts through the real KERNAL.
 - Disk increment: `cargo test --release -p c1541 -p drive-link -p vic20
   -p vic20-machine-plugin -p c64 -p c128` passed 169 tests, with 25 explicit
   real-firmware ignores. Focused release Clippy with `-D warnings`, formatting,
@@ -99,9 +106,9 @@ The installed GTK3 Win64 `xvic.exe` identifies itself in its logfile as
 This is the identity of the executable actually used, not a claim that its
 build was independently reproduced from the separately pinned 3.10 sources.
 
-`vic20.manifest.toml` retains all standard scenarios. S1/S2/S3-program/S3-tape/S3-disk/S4/S5/S6
+`vic20.manifest.toml` retains all standard scenarios. S1/S2/S3-program/S3-tape/S3-disk/S3-cartridge/S4/S5/S6
 cover PAL/NTSC and fast/accurate; S4 also checks PAL volume 7 in both modes.
-Cartridge and S7 remain explicit known gaps.
+S7 remains an explicit known gap.
 An uncaptured screen omits its golden and hash instead of inventing either.
 The matching `rc-scenarios` change reports these as **not run**, never passed.
 The initial real-ROM manifest run correctly rejected the now-passing S4/S5/S6
@@ -280,7 +287,7 @@ hashes happen to equal the corresponding program hashes because the same glyph
 and palette result; each was derived from its actual cassette capture.
 
 State version 2 introduced a SHA-1 recording identity and playback position without
-changing the old hardware prefix. Current version 3 retains both fields and
+changing the old hardware prefix. Version 3 retains both fields and
 adds the Drive checkpoint. Versions 1/2 still load without a Drive.
 Wrong/missing recordings and corrupt positions fail before mutation.
 All four real-KERNAL mid-load saves at frame 600 followed by 1600 frames
@@ -359,9 +366,73 @@ both execution modes and atomic failure. Real mid-transfer saves at frame 350
 for byte in all four cases. Four S5-disk cases also check mounted-Drive
 continuation in the manifest.
 
-Cartridge attachment, HDD interfaces, tape recording/export and external
+HDD interfaces, tape recording/export and external
 snapshot formats remain unimplemented. Native desktop disk dialogs were not
 manually exercised in this increment; they use the existing Host media path.
+
+### Read-only generic ROM cartridges
+
+`vic20-cartridge` is a pure Format crate. It accepts one generic cartridge,
+not C64 CRT data or a bank-switching cartridge. Use `--cartridge` explicitly:
+
+```
+retroclawd vic20 --firmware auto --cartridge game.a0
+retroclawd vic20 --firmware auto --cartridge addressed-cartridge.prg
+```
+
+| Input | Accepted layout |
+|---|---|
+| Raw `.20`, `.40`, `.60` | 4/8/16 KiB starting at $2000/$4000/$6000; `.20` also accepts 32 KiB |
+| Raw `.a0` | 4/8 KiB at $a000 |
+| Raw `.b0` | 2/4 KiB, mirrored across BLK5 |
+| Addressed `.prg`, `.bin`, `.rom` | Two-byte little-endian address followed by 2/4/8/16/32 KiB |
+
+Addressed 2 KiB requires $b000. Addressed 4 KiB accepts $2000/$3000,
+$4000/$5000, $6000/$7000 or $a000/$b000; 8 KiB accepts BLK1/2/3/5.
+16 KiB starts at $2000/$4000/$6000; 32 KiB starts at $2000.
+16 KiB at $6000 continues at $a000, and 32 KiB fills BLK1/2/3/5,
+never character ROM or I/O. Raw 4 KiB block files mirror across their 8 KiB
+block; addressed 4 KiB selects one half and reads $ff from the other half,
+except $b000, which mirrors across BLK5. These distinctions follow pinned
+VICE `vic20-generic.c` explicit block selection versus autodetection.
+Ambiguous unaddressed `.bin`/`.rom`, unsupported sizes, CRT, extra Media
+Options, other slots and overlapping RAM expansion fail before mutation.
+Use nonoverlapping expansion only; conflicting physical drivers are not modeled.
+
+Attach/replacement and eject reset through the KERNAL reset vector, preserving
+RAM and other Media. ROM is read-only to CPU stores, Program attachment and
+Debugger writes. Runtime/debug Media snapshots report a generic ROM cartridge.
+No flash export is needed. State version 4 appends the canonical mapped-ROM
+identity; raw/addressed files with the same mapping are interchangeable.
+Restore requires the same attached ROM and validates before mutation.
+Versions 1/2/3 remain readable with no cartridge; old states cannot silently
+discard a newly attached cartridge. No ABI or protocol bump was needed.
+A published version-3 PAL/fast mid-disk-transfer state at frame 350 was also
+loaded by this Plugin: 850 more frames produce the byte-identical version-4
+state of a fresh 1200-frame run, preserving the earlier Drive checkpoint.
+
+Existing `rcasm` builds `scenarios/vic20/cartridge.asm` as an 8192-byte `.a0`
+and an 8194-byte addressed `.prg`. The real regional KERNAL checks
+`41 30 c3 c2 cd` at $a004 and jumps through $a000 to $a009.
+After 180 frames PC is $a03d in both modes/Regions. Nothing sets PC in the Host.
+For an independent reference capture use the existing reference recipe,
+disable Drives 8-11, omit keybuf/monitor Program loading, and add:
+
+```
+-cartA vic20-pattern.a0
+```
+
+Use 3987360 PAL or 3053700 NTSC cycles. The installed VICE 3.9 produces
+568x284 PAL or 520x234 NTSC. Crop `[96, 48, 112, 56)` and deduplicate columns
+with the existing PNG helper to make the 8x8 canonical golden. The captures
+were made separately, not copied from Program/tape/disk goldens; equal hashes
+result from the same glyph and palette. All 64 foreground pixels match.
+The manifest covers raw/addressed startup, reset and exact continuation in all
+four Region/mode combinations, without changing any comparison tolerance.
+
+Bank-switching/flash/RAM cartridges, VIC CRT containers and multi-file
+cartridges remain unsupported. The external diagnostic gap remains separate;
+the first-party pattern cartridge is not a hardware diagnostic.
 
 ## S4 audio
 

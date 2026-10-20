@@ -39,8 +39,8 @@ for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
 types `PRINT 12*34` -> `408` in both modes and regions; text output matches
 the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
-The VIC-20 manifest preserves S1-S7: 38 S1/S2/S3-program/S3-tape/S3-disk/S4/S5/S6 variants pass;
-two cartridge/diagnostic gaps remain. The tools-built 55-byte Program
+The VIC-20 manifest preserves S1-S7: 54 S1/S2/S3-program/S3-tape/S3-disk/S3-cartridge/S4/S5/S6 variants pass;
+only external diagnostics remain a known gap. The tools-built 55-byte Program
 matches VICE in both modes and regions. Audio uses the pinned nonlinear mixer
 calibration, not a fitted gain multiplier: single-voice RMS agrees within 1%
 at full volume in both regions and PAL volume 7.
@@ -59,6 +59,14 @@ insertion, medium bytes, dirty track, write shifter and unsaved flag.
 Versions 1/2 still load without a Drive. The existing C64/C128 legacy Drive
 state API is unchanged. Wrong ROM/media/configuration and corrupt checkpoints
 fail before Machine mutation. Tape recording and analogue motor/rising-edge timing are absent.
+`vic20-cartridge` parses generic read-only ROMs (raw block extensions or addressed
+PRG/BIN/ROM), with VICE's mirrors and BLK1/2/3/5 ordering. The Machine owns mapping,
+expansion-conflict checks and reset on attach/eject; the Plugin reports cartridge
+status and uses the existing Media commands. State version 4 appends mapped-ROM
+identity; versions 1/2/3 still load with no cartridge. Both regional KERNALs start
+the tools-built cartridge through its real signature/vector; all four modes/Regions
+match VICE's full glyph, reset and byte-exact state continuation.
+No banking, flash, cartridge RAM, VIC CRT or multi-file assembly is implemented.
 Uncaptured screen goldens are omitted rather than assigned placeholder
 hashes; this requires the matching `rc-scenarios` change described in
 `docs/vic20-gaps.md`. Firmware and goldens are never committed. Existing audio

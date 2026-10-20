@@ -42,6 +42,16 @@ Installed VICE 3.9 was run with `-drive8truedrive +virtualdev8`,
 the same hash-verified 1541 DOS and tools-built D64. Both regional disk LOADs
 produce the same glyph. No reference source or DOS ROM was copied.
 
+At that same 3.10.0 source revision,
+[`vic20/cart/vic20-generic.c`](https://github.com/VICE-Team/svn-mirror/blob/4d283a2e7dd59b7e378524878e81ecc7826b700c/vice/src/vic20/cart/vic20-generic.c)
+documents generic ROM layouts, half-block selection, mirrors, BLK1/2/3/5
+ordering and read-only stores; `vic20cart.c` documents reset-on-change and
+explicit block flags. These files are GPL-2.0-or-later reference sources.
+The private regional KERNALs confirm the signature/vector startup used by the
+first-party cartridge fixture. Installed VICE 3.9 was independently captured
+with `-cartA`; all 64 glyph pixels match in both execution modes and Regions.
+`vic20-cartridge` is a separate pure Format crate; no commercial ROM is included.
+
 `vic20.intake.toml` records hardware facts and unresolved prerequisites.
 `docs/vic20-gaps.md` distinguishes implemented behavior from reference proof.
 References read for this implementation:

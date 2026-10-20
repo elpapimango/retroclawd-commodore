@@ -17,6 +17,9 @@ for region in pal ntsc; do
 done
 "$tools/rcdisk" create "$out/vic20-pattern.d64" --name VIC20 --id V2 --force
 "$tools/rcdisk" add "$out/vic20-pattern.d64" "$out/vic20-tape.prg" --name PATTERN
+# A real KERNAL-started, read-only BLK5 ROM; no direct PC injection.
+"$tools/rcasm" "$here/vic20/cartridge.asm" -f bin -o "$out/vic20-pattern.a0" --force
+"$tools/rcasm" "$here/vic20/cartridge.asm" -f prg -o "$out/vic20-cartridge.prg" --force
 # The C128 BASIC option wants the two 16K halves as one 32K image.
 cat "$here/../roms/c128/basiclo-318018-04.bin" "$here/../roms/c128/basichi-318019-04.bin" > "$out/c128-basic-32k.rom"
 # The unified diagnostic cartridge as a .crt of retroclawd's own type (needs software/diagnostics/unified_32k.bin).

@@ -10,6 +10,7 @@ mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30b
 vic-i = { path = "../../chips/vic-i" }
 via6522 = { path = "../../chips/via-6522" }
 c64-tape = { path = "../../formats/c64-tape" }
+vic20-cartridge = { path = "../../formats/vic20-cartridge" }
 drive-link = { path = "../drive-link" }
 c1541 = { path = "../1541" }
 d64 = { path = "../../formats/d64" }

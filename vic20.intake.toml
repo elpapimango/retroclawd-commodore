@@ -6,7 +6,7 @@ default_region = "pal"
 [implementation]
 status = "experimental"
 boot_verified = true
-note = "Real PAL/NTSC boots, BASIC input, tools-built PRG/cassette/disk LOAD, calibrated audio, state continuation and frame budgets pass in fast and accurate modes. VICE 3.9 boot/input/program/cassette/disk goldens are hash-pinned. Cartridge, diagnostics and additional fidelity work remain open. See docs/vic20-gaps.md."
+note = "Real PAL/NTSC boots, BASIC input, tools-built PRG/cassette/disk LOAD and generic cartridge startup, calibrated audio, state continuation and frame budgets pass in fast and accurate modes. VICE 3.9 goldens are hash-pinned. External diagnostics and additional fidelity work remain open. See docs/vic20-gaps.md."
 
 [core]
 reuse = "mos6502"
@@ -95,8 +95,16 @@ open_questions = ["full-border geometry, PAL/NTSC palette and pixel aspect", "ex
 
 [media]
 candidate_reuse = ["Commodore TAP pulse Format", "PRG load-address convention", "D64 Format", "1541 and drive-link"]
-supported = ["raw programs through --program/--org", "PRG/P00 headers through the existing Host parser", "read-only VIC-20 TAP v0/v1, platform 1, matching PAL/NTSC", "writable D64 through a real 1541 at IEC device 8 with true_drive"]
+supported = ["raw programs through --program/--org", "PRG/P00 headers through the existing Host parser", "read-only VIC-20 TAP v0/v1, platform 1, matching PAL/NTSC", "writable D64 through a real 1541 at IEC device 8 with true_drive", "read-only generic ROM cartridge; see cartridge scope/layouts"]
 note = "Datasette PLAY is pressed on attach; VIA1 PA6 sense, active-low CA2 motor, VIA2 CA1 falling READ edge per full pulse. Shared TapePlayer/KERNAL encoder and 1541/drive-link are reused. Drive CPU steps at instruction granularity in both modes; no loader trap. No recording, motor inertia, or physical rising-edge phase. Do not advertise C64 CRT cartridges or other Drive models/formats."
+
+[cartridge]
+scope = "One read-only generic ROM cartridge; no bank switching, flash, cartridge RAM, multi-file assembly or CRT container."
+formats = ["raw .20/.40/.60: 4/8/16 KiB (.20 also 32 KiB)", "raw .a0: 4/8 KiB", "raw .b0: 2/4 KiB", "load-address-prefixed .prg/.bin/.rom: 2/4/8/16/32 KiB at supported block addresses"]
+mapping = "BLK1=$2000, BLK2=$4000, BLK3=$6000, BLK5=$a000. A 16 KiB cartridge at $6000 continues at $a000; 32 KiB fills BLK1/2/3/5. Raw 4 KiB block files mirror across 8 KiB; B000 cartridges mirror across BLK5. Addressed 4 KiB images select one half and leave the other ff, matching VICE generic autodetection."
+startup = "Attach/detach resets the Machine. The real KERNAL detects the five-byte A0 CBM signature at $a004 and jumps through the cold-start vector at $a000; there is no Host entry-point shortcut."
+conflicts = "Reject RAM expansion overlapping any cartridge-selected block before mutation; do not simulate conflicting physical drivers."
+reference = "VICE 3.10.0 vice/src/vic20/cart/vic20-generic.c attach_image and generic_blk*_read/store; vic20cart.c cartreset default and -cart2/-cart4/-cart6/-cartA/-cartB."
 
 [[firmware]]
 option = "basic"
@@ -139,8 +147,15 @@ optional = ["S8 instruction trace"]
 removed = []
 overrides = []
 hardware_diagnostics = "Not yet selected and license-verified."
-status = "38 passed, 0 failed, 2 known gaps: S1/S2/S3-program/S3-tape/S3-disk/S4/S5/S6 cover both modes and regions with real firmware; PAL volume-7 and complete Drive state cases also pass. Cartridge and S7 diagnostics remain open."
+status = "54 passed, 0 failed, 1 known gap: S1/S2/S3-program/S3-tape/S3-disk/S3-cartridge/S4/S5/S6 cover both modes and regions with real firmware; PAL volume-7, complete Drive state, raw/addressed cartridge/reset/state cases also pass. S7 diagnostics remains open."
 note = "Do not create passing manifest entries or weaken tolerances from this intake. Preserve all standard scenarios."
+
+[[source]]
+kind = "reference source"
+title = "VICE generic VIC-20 ROM cartridge layouts, mirrors and reset lifecycle"
+url = "https://github.com/VICE-Team/svn-mirror/blob/4d283a2e7dd59b7e378524878e81ecc7826b700c/vice/src/vic20/cart/vic20-generic.c"
+files = ["vic20-generic.c", "vic20cart.c"]
+license = "GPL-2.0-or-later"
 
 [[source]]
 kind = "reference source"

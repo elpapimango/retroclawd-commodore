@@ -114,9 +114,9 @@ fn profile() -> MachineProfile {
         cpu_family: CpuFamily::Mos6502, default_region: Some("pal".to_string()),
         contract_version: MACHINE_PROFILE_CONTRACT_VERSION,
         debug_capabilities: REQUIRED_MACHINE_DEBUG_CAPABILITIES.to_vec(),
-        capabilities: vec![MachineCapability::Video, MachineCapability::Audio, MachineCapability::Tape, MachineCapability::Disk,
+        capabilities: vec![MachineCapability::Video, MachineCapability::Audio, MachineCapability::Tape, MachineCapability::Disk, MachineCapability::Cartridge,
             MachineCapability::SaveState, MachineCapability::Debug],
-        media_kinds: vec![MediaKind::Program, MediaKind::Tape, MediaKind::Disk],
+        media_kinds: vec![MediaKind::Program, MediaKind::Tape, MediaKind::Disk, MediaKind::Cartridge],
         options: vec![
             file_option("basic", "rom-basic", "VIC-20 BASIC ROM (8192 bytes)"),
             file_option("kernal", "rom-kernal", "VIC-20 KERNAL ROM for the selected Region (8192 bytes)"),
@@ -437,7 +437,14 @@ impl Instance {
                 })
                 .into_iter()
                 .collect(),
-            cartridge: None,
+            cartridge: self
+                .machine
+                .cartridge_attached()
+                .then(|| plugin_api::CartridgeStatus {
+                    attached: true,
+                    mapper: Some("VIC-20 generic read-only ROM".to_string()),
+                    active_banks: Vec::new(),
+                }),
         }
     }
 
@@ -640,6 +647,27 @@ impl Instance {
             MachineCommand::LoadBytes { address, bytes } => Ok(MachineResponse::BytesWritten(
                 self.write_memory(address, &bytes, None)?,
             )),
+            MachineCommand::AttachMedia {
+                slot: MediaSlot::Cartridge { slot },
+                kind: MediaKind::Cartridge,
+                name,
+                bytes,
+                options,
+            } => {
+                if slot != 0 || !options.is_empty() {
+                    return Err("VIC-20 cartridge requires slot 0 and no Media Options".to_string());
+                }
+                let extension = name.as_deref().and_then(|name| name.rsplit_once('.'))
+                    .map(|(_, extension)| extension)
+                    .ok_or("VIC-20 cartridge requires a filename with an extension")?;
+                self.machine.load_cartridge(extension, &bytes)?;
+                Ok(MachineResponse::Ack)
+            }
+            MachineCommand::DetachMedia { slot: MediaSlot::Cartridge { slot: 0 } } => {
+                self.machine.eject_cartridge();
+                Ok(MachineResponse::Ack)
+            }
+            MachineCommand::ExportCartridge => Ok(MachineResponse::CartridgeImage(None)),
             MachineCommand::AttachMedia {
                 slot: MediaSlot::Other(slot),
                 kind: MediaKind::Program,
@@ -1359,19 +1387,77 @@ mod tests {
     }
 
     #[test]
+    fn cartridge_lifecycle_validates_before_reset_and_reports_read_only_media() {
+        let mut instance = Instance::create(request()).unwrap();
+        let attach = |slot, name: &str, bytes, options| MachineCommand::AttachMedia {
+            slot: MediaSlot::Cartridge { slot },
+            kind: MediaKind::Cartridge,
+            name: Some(name.to_string()),
+            bytes,
+            options,
+        };
+        instance.machine.set_pc(0x1234);
+        instance
+            .command(attach(0, "test.A0", vec![0x55; 8192], Vec::new()))
+            .unwrap();
+        assert_eq!(instance.machine.pc(), 0xe000);
+        assert_eq!(instance.read_memory(0xa000, 2, None).unwrap(), [0x55; 2]);
+        assert!(instance.media().cartridge.unwrap().attached);
+        assert_eq!(instance.write_memory(0xa000, &[0], None).unwrap(), 0);
+        assert_eq!(instance.machine.read_memory(0xa000), 0x55);
+        assert!(matches!(
+            instance.command(MachineCommand::ExportCartridge).unwrap(),
+            MachineResponse::CartridgeImage(None)
+        ));
+        let before = instance.machine.save_state();
+        for command in [
+            attach(1, "test.a0", vec![0; 8192], Vec::new()),
+            attach(0, "test.crt", vec![0; 8192], Vec::new()),
+            attach(0, "test.a0", vec![0; 8191], Vec::new()),
+            attach(
+                0,
+                "test.a0",
+                vec![0; 8192],
+                vec![NamedValue {
+                    key: "bank".to_string(),
+                    value: DebugValue::U64(0),
+                }],
+            ),
+        ] {
+            assert!(instance.command(command).is_err());
+            assert_eq!(instance.machine.save_state(), before);
+        }
+        let saved = instance.command(MachineCommand::SaveState).unwrap();
+        instance
+            .command(MachineCommand::DetachMedia {
+                slot: MediaSlot::Cartridge { slot: 0 },
+            })
+            .unwrap();
+        assert!(instance.media().cartridge.is_none());
+        let MachineResponse::StateBlob(bytes) = saved else {
+            panic!("state")
+        };
+        assert!(
+            instance
+                .command(MachineCommand::LoadState { bytes })
+                .is_err()
+        );
+    }
+
+    #[test]
     fn unsupported_media_fails_without_echoing_payload_or_mutating_state() {
         let mut instance = Instance::create(request()).unwrap();
         let before = instance.machine.save_state();
         let error = instance
             .command(MachineCommand::AttachMedia {
-                slot: MediaSlot::Cartridge { slot: 0 },
+                slot: MediaSlot::Cartridge { slot: 1 },
                 kind: MediaKind::Cartridge,
                 name: None,
                 bytes: vec![137; 100_000],
                 options: Vec::new(),
             })
             .unwrap_err();
-        assert!(error.starts_with("unsupported"));
+        assert!(error.contains("slot 0"));
         assert!(error.len() < 200);
         assert_eq!(instance.machine.save_state(), before);
     }

@@ -105,6 +105,13 @@ pub enum Expansion {
 mod tests {
     use super::*;
 
+    type CurrentState = (
+        State,
+        Option<TapeState>,
+        Option<DriveState>,
+        Option<[u8; 20]>,
+    );
+
     fn roms() -> Roms {
         let mut kernal = vec![0xea; 8192];
         kernal[..3].copy_from_slice(&[0x4c, 0x00, 0xe0]);
@@ -120,6 +127,82 @@ mod tests {
 
     fn machine(timing: Timing) -> Vic20 {
         Vic20::new(roms(), Standard::Pal, Expansion::None, timing).unwrap()
+    }
+
+    #[test]
+    fn cartridge_rom_executes_is_read_only_and_survives_reset_and_state() {
+        for timing in [Timing::Fast, Timing::Accurate] {
+            let mut m = machine(timing);
+            let mut cart = vec![0xea; 8192];
+            cart[..7].copy_from_slice(&[0xe6, 0x20, 0x4c, 0x00, 0xa0, 0x00, 0x00]);
+            m.load_cartridge("a0", &cart).unwrap();
+            assert!(m.cartridge_attached());
+            assert_eq!(m.pc(), 0xe000, "attach resets through KERNAL");
+            assert!(!m.can_write(0xa000));
+            assert_eq!(m.load(0xa000, &[0]), 0);
+            assert!(m.load_program(0xa000, &[0]).is_err());
+            assert_eq!(m.read_memory(0xa000), 0xe6);
+            m.set_pc(0xa000);
+            m.step();
+            assert_eq!(m.read_memory(0x20), 1);
+            let saved = m.save_state();
+            for _ in 0..20 {
+                m.step();
+            }
+            let future = m.save_state();
+            m.load_state(&saved).unwrap();
+            for _ in 0..20 {
+                m.step();
+            }
+            assert_eq!(m.save_state(), future);
+            let before = m.save_state();
+            assert!(m.load_cartridge("a0", &[0; 5]).is_err());
+            assert_eq!(m.save_state(), before, "invalid replacement is atomic");
+            m.reset();
+            assert_eq!(m.read_memory(0xa000), 0xe6);
+            let mut other = cart.clone();
+            other[100] ^= 1;
+            m.load_cartridge("a0", &other).unwrap();
+            let before = m.save_state();
+            assert!(m.load_state(&saved).unwrap_err().contains("cartridge"));
+            assert_eq!(m.save_state(), before);
+            m.eject_cartridge();
+            assert!(!m.cartridge_attached());
+            assert_eq!(m.pc(), 0xe000);
+            let before = m.save_state();
+            assert!(m.load_state(&saved).unwrap_err().contains("cartridge"));
+            assert_eq!(m.save_state(), before);
+            let no_cart = before;
+            m.load_cartridge("a0", &cart).unwrap();
+            let before = m.save_state();
+            assert!(m.load_state(&no_cart).unwrap_err().contains("cartridge"));
+            assert_eq!(m.save_state(), before);
+        }
+    }
+
+    #[test]
+    fn cartridge_rejects_ram_expansion_conflicts_before_reset_or_replacement() {
+        for (expansion, extension) in [
+            (Expansion::K8, "20"),
+            (Expansion::K16, "40"),
+            (Expansion::K24, "60"),
+            (Expansion::K32, "a0"),
+            (Expansion::K35, "b0"),
+        ] {
+            let mut m = Vic20::new(roms(), Standard::Pal, expansion, Timing::Fast).unwrap();
+            m.load(0x2000, &[0x55]);
+            let before = m.save_state();
+            assert!(
+                m.load_cartridge(extension, &vec![0; 4096])
+                    .unwrap_err()
+                    .contains("conflicts")
+            );
+            assert_eq!(m.save_state(), before);
+        }
+        let mut m = Vic20::new(roms(), Standard::Pal, Expansion::K24, Timing::Fast).unwrap();
+        m.load_cartridge("a0", &vec![0x33; 4096]).unwrap();
+        assert_eq!(m.load(0x2000, &[0x55]), 1);
+        assert_eq!(m.read_memory(0xa000), 0x33);
     }
 
     #[test]
@@ -291,13 +374,11 @@ mod tests {
             trailing.push(0);
             assert!(m.load_state(&trailing).is_err());
             assert_eq!(m.save_state(), before);
-            let ((mut malformed, tape, drive), _): (
-                (State, Option<TapeState>, Option<DriveState>),
-                usize,
-            ) = bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
+            let ((mut malformed, tape, drive, cartridge), _): (CurrentState, usize) =
+                bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
             malformed.hardware.ram.pop();
             let malformed = bincode::serde::encode_to_vec(
-                (malformed, tape, drive),
+                (malformed, tape, drive, cartridge),
                 bincode::config::standard(),
             )
             .unwrap();
@@ -415,10 +496,8 @@ mod tests {
                 m.step();
             }
             assert_eq!(m.save_state(), future);
-            let ((core, mut tape_state, drive), _): (
-                (State, Option<TapeState>, Option<DriveState>),
-                usize,
-            ) = bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
+            let ((core, mut tape_state, drive, cartridge), _): (CurrentState, usize) =
+                bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
             // Corrupt the serialized phase; TapePosition's fields are private.
             let bad_position = bincode::serde::encode_to_vec(
                 (0usize, 100_000u32, true, true, 3u32),
@@ -430,7 +509,7 @@ mod tests {
                     .unwrap()
                     .0;
             let corrupt = bincode::serde::encode_to_vec(
-                (core, tape_state, drive),
+                (core, tape_state, drive, cartridge),
                 bincode::config::standard(),
             )
             .unwrap();
@@ -504,14 +583,14 @@ mod tests {
                 m.step();
             }
             assert_eq!(m.save_state(), future);
-            let ((core, tape, mut drive), _): (
-                (State, Option<TapeState>, Option<DriveState>),
-                usize,
-            ) = bincode::serde::decode_from_slice(&saved, bincode::config::standard()).unwrap();
+            let ((core, tape, mut drive, cartridge), _): (CurrentState, usize) =
+                bincode::serde::decode_from_slice(&saved, bincode::config::standard()).unwrap();
             drive.as_mut().unwrap().checkpoint.pop();
-            let corrupt =
-                bincode::serde::encode_to_vec((core, tape, drive), bincode::config::standard())
-                    .unwrap();
+            let corrupt = bincode::serde::encode_to_vec(
+                (core, tape, drive, cartridge),
+                bincode::config::standard(),
+            )
+            .unwrap();
             assert!(m.load_state(&corrupt).is_err());
             assert_eq!(m.save_state(), future);
             let mut other = disk.clone();
@@ -540,6 +619,15 @@ mod tests {
             bincode::serde::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
         state.version = 1;
         let legacy = bincode::serde::encode_to_vec(state, bincode::config::standard()).unwrap();
+        m.step();
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.save_state(), bytes);
+        let ((mut state, tape, drive, _), _): (CurrentState, usize) =
+            bincode::serde::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+        state.version = 3;
+        let legacy =
+            bincode::serde::encode_to_vec((state, tape, drive), bincode::config::standard())
+                .unwrap();
         m.step();
         m.load_state(&legacy).unwrap();
         assert_eq!(m.save_state(), bytes);
@@ -648,6 +736,7 @@ struct VicBus {
     tape: Option<c64_tape::TapePlayer>,
     tape_id: Option<[u8; 20]>,
     drive: Option<Drive>,
+    cartridge: Option<vic20_cartridge::Cartridge>,
 }
 
 struct Drive {
@@ -717,13 +806,19 @@ impl VicBus {
             tape: None,
             tape_id: None,
             drive: None,
+            cartridge: None,
         };
         bus.update_inputs();
         bus
     }
 
     fn ram_mapped(&self, address: u16) -> bool {
-        matches!(address, 0x0000..=0x03ff | 0x1000..=0x1fff) || self.expansion.maps(address)
+        self.cartridge
+            .as_ref()
+            .and_then(|cart| cart.read(address))
+            .is_none()
+            && (matches!(address, 0x0000..=0x03ff | 0x1000..=0x1fff)
+                || self.expansion.maps(address))
     }
 
     fn update_inputs(&mut self) {
@@ -818,6 +913,9 @@ impl VicBus {
     }
 
     fn peek(&self, address: u16) -> u8 {
+        if let Some(value) = self.cartridge.as_ref().and_then(|cart| cart.read(address)) {
+            return value;
+        }
         let h = &self.hardware;
         match address {
             _ if self.ram_mapped(address) => h.ram[usize::from(address)],
@@ -1023,6 +1121,42 @@ impl Vic20 {
 
     pub fn set_iec_input(&mut self, clock: bool, data: bool) {
         self.bus.set_iec_input(clock, data);
+    }
+
+    pub fn load_cartridge(&mut self, extension: &str, bytes: &[u8]) -> Result<(), String> {
+        let cartridge = vic20_cartridge::parse(extension, bytes)?;
+        if let Some((base, _)) = cartridge
+            .blocks()
+            .find(|&(base, _)| self.expansion().maps(base))
+        {
+            return Err(format!(
+                "VIC-20 cartridge block ${base:04x} conflicts with RAM expansion"
+            ));
+        }
+        self.bus.cartridge = Some(cartridge);
+        self.reset();
+        Ok(())
+    }
+
+    pub fn eject_cartridge(&mut self) {
+        if self.bus.cartridge.take().is_some() {
+            self.reset();
+        }
+    }
+
+    pub fn cartridge_attached(&self) -> bool {
+        self.bus.cartridge.is_some()
+    }
+
+    fn cartridge_id(&self) -> Option<[u8; 20]> {
+        self.bus.cartridge.as_ref().map(|cart| {
+            let mut hash = Sha1::new();
+            for (base, data) in cart.blocks() {
+                hash.update(base.to_le_bytes());
+                hash.update(data);
+            }
+            hash.finalize().into()
+        })
     }
 
     pub fn enable_1541(&mut self, rom: Vec<u8>) -> Result<(), String> {
@@ -1246,7 +1380,7 @@ impl Machine for Vic20 {
             (
                 State {
                     magic: *b"VIC1",
-                    version: 3,
+                    version: 4,
                     roms: self.bus.roms.fingerprint(),
                     timing: self.bus.timing,
                     expansion: self.bus.expansion,
@@ -1268,6 +1402,7 @@ impl Machine for Vic20 {
                         .save_gcr_checkpoint()
                         .expect("VIC-20 has a GCR Drive"),
                 }),
+                self.cartridge_id(),
             ),
             bincode::config::standard(),
         )
@@ -1282,16 +1417,16 @@ impl Machine for Vic20 {
             bincode::config::standard().with_limit::<1_048_576>(),
         )
         .map_err(|error| format!("invalid VIC-20 state: {error}"))?;
-        let (tape_state, drive_state) = match state.version {
-            1 if used == bytes.len() => (None, None),
-            2 | 3 => {
+        let (tape_state, drive_state, cartridge_id) = match state.version {
+            1 if used == bytes.len() => (None, None, None),
+            2..=4 => {
                 let (tape, count): (Option<TapeState>, usize) = bincode::serde::decode_from_slice(
                     &bytes[used..],
                     bincode::config::standard().with_limit::<1_048_576>(),
                 )
                 .map_err(|error| format!("invalid VIC-20 tape state: {error}"))?;
                 let end = used + count;
-                let (drive, count) = if state.version == 3 {
+                let (drive, count) = if state.version >= 3 {
                     bincode::serde::decode_from_slice::<Option<DriveState>, _>(
                         &bytes[end..],
                         bincode::config::standard().with_limit::<1_048_576>(),
@@ -1300,10 +1435,20 @@ impl Machine for Vic20 {
                 } else {
                     (None, 0)
                 };
+                let end = end + count;
+                let (cartridge, count) = if state.version == 4 {
+                    bincode::serde::decode_from_slice::<Option<[u8; 20]>, _>(
+                        &bytes[end..],
+                        bincode::config::standard().with_limit::<1_048_576>(),
+                    )
+                    .map_err(|error| format!("invalid VIC-20 cartridge state: {error}"))?
+                } else {
+                    (None, 0)
+                };
                 if end + count != bytes.len() {
                     return Err("invalid VIC-20 state trailing bytes".to_string());
                 }
-                (tape, drive)
+                (tape, drive, cartridge)
             }
             _ => return Err("invalid VIC-20 state version or trailing bytes".to_string()),
         };
@@ -1327,6 +1472,9 @@ impl Machine for Vic20 {
             return Err("invalid VIC-20 memory or input state".to_string());
         }
         state.hardware.vic.validate()?;
+        if cartridge_id != self.cartridge_id() {
+            return Err("VIC-20 state cartridge attachment or ROM differs".to_string());
+        }
         match (&self.bus.tape, &tape_state) {
             (Some(tape), Some(saved)) if self.bus.tape_id == Some(saved.fingerprint) => {
                 tape.validate_state(&saved.position)
