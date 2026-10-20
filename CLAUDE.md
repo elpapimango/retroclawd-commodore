@@ -40,7 +40,7 @@ types `PRINT 12*34` -> `408` in both modes and regions; text output matches
 the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
 The VIC-20 manifest preserves S1-S7: 26 S1/S2/S3-program/S4/S5/S6 variants pass;
-four cassette/disk/cartridge/diagnostic gaps remain. The tools-built 55-byte PRG
+four cassette/disk/cartridge/diagnostic gaps remain. The tools-built 55-byte Program
 matches VICE in both modes and regions. Audio uses the pinned nonlinear mixer
 calibration, not a fitted gain multiplier: single-voice RMS agrees within 1%
 at full volume in both regions and PAL volume 7. State layout is unchanged.

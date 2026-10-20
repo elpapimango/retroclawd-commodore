@@ -185,7 +185,8 @@ rcasm scenarios/vic20/pattern.asm -f prg -o software/scenarios/vic20-pattern.prg
 Create the ignored output folder first. The program initializes its own
 display; this is not a firmware-booted BASIC program or a loader trap.
 
-The current tools-built PRG is 55 bytes at `$1000-$1036`. It sets a visible
+The tools-built Program has a 55-byte payload at `$1000-$1036` (57-byte PRG
+including its load-address header). It sets a visible
 origin at CPU picture `(48, 76)` in both regions, draws character 1 in red
 on white, enables a tone and loops. All four S3-program cases match the
 reference's full 8x8 glyph after palette normalization.
