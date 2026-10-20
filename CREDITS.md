@@ -52,6 +52,15 @@ first-party cartridge fixture. Installed VICE 3.9 was independently captured
 with `-cartA`; all 64 glyph pixels match in both execution modes and Regions.
 `vic20-cartridge` is a separate pure Format crate; no commercial ROM is included.
 
+[VIC-20 Dead Test v1.1.01](https://github.com/piersfinlayson/Vic20-dead-test/tree/e4e4bdf8f9758e63da6f2754a576d4bab6eb1631)
+is an external GPL-3.0 diagnostic by Simon Rowe, Greg McCarthy and Piers
+Finlayson (license and authorship read at that release source pin). Its released
+BLK5 cartridge and regional replacement KERNALs run unmodified, with all eight
+mode/Region/configuration results matching independently captured VICE memory.
+The Host's existing diagnostic downloader pins their SHA-256 hashes; the
+intake and S7 notes record scope, missing-expansion output and self-CRC limits.
+No diagnostic source/binary or reference golden is included in this repository.
+
 `vic20.intake.toml` records hardware facts and unresolved prerequisites.
 `docs/vic20-gaps.md` distinguishes implemented behavior from reference proof.
 References read for this implementation:

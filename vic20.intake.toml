@@ -6,7 +6,7 @@ default_region = "pal"
 [implementation]
 status = "experimental"
 boot_verified = true
-note = "Real PAL/NTSC boots, BASIC input, tools-built PRG/cassette/disk LOAD and generic cartridge startup, calibrated audio, state continuation and frame budgets pass in fast and accurate modes. VICE 3.9 goldens are hash-pinned. External diagnostics and additional fidelity work remain open. See docs/vic20-gaps.md."
+note = "Real PAL/NTSC boots, BASIC input, tools-built PRG/cassette/disk LOAD and generic cartridge startup, calibrated audio, state continuation, frame budgets and external Dead Test results pass in fast and accurate modes. VICE 3.9 goldens are hash-pinned. Additional fidelity work remains open. See docs/vic20-gaps.md."
 
 [core]
 reuse = "mos6502"
@@ -146,9 +146,25 @@ required = ["S1 boot", "S2 input", "S3 each supported medium", "S4 audio", "S5 s
 optional = ["S8 instruction trace"]
 removed = []
 overrides = []
-hardware_diagnostics = "Not yet selected and license-verified."
-status = "54 passed, 0 failed, 1 known gap: S1/S2/S3-program/S3-tape/S3-disk/S3-cartridge/S4/S5/S6 cover both modes and regions with real firmware; PAL volume-7, complete Drive state, raw/addressed cartridge/reset/state cases also pass. S7 diagnostics remains open."
+hardware_diagnostics = "VIC-20 Dead Test v1.1.01 by Simon Rowe / Greg McCarthy / Piers Finlayson, GPL-3.0 at the release source pin below. Cartridge + base RAM checks real regional ROM CRCs; replacement regional KERNAL + 35k expansion passes all 42 displayed RAM checks. All eight mode/region/configuration runs match 1024 reference memory bytes exactly. No test plugs required. This does not test VIA/IEC/tape/analogue fidelity or BLK5 expansion RAM."
+status = "62 passed, 0 failed, 0 known scenario gaps: S1-S7 cover both modes and regions with real firmware; PAL volume-7, complete Drive state, raw/addressed cartridge/reset/state and both external diagnostic configurations also pass. Experimental fidelity limits remain documented."
 note = "Do not create passing manifest entries or weaken tolerances from this intake. Preserve all standard scenarios."
+
+[[source]]
+kind = "external hardware diagnostic"
+title = "VIC-20 Dead Test v1.1.01"
+url = "https://github.com/piersfinlayson/Vic20-dead-test/tree/e4e4bdf8f9758e63da6f2754a576d4bab6eb1631"
+revision = "e4e4bdf8f9758e63da6f2754a576d4bab6eb1631"
+license = "GPL-3.0 (readme.md and LICENSE in the release source; no firmware redistribution inferred)"
+binary_url = "https://github.com/piersfinlayson/Vic20-dead-test/releases/download/v1.1.01/dead-test.a0"
+binary_sha256 = "1b23bd17ec878fa6f87d5be67d40406f0f28abdbd7f6ffb21c5826b796198ea3"
+binary_size = 4096
+pal_kernal_url = "https://github.com/piersfinlayson/Vic20-dead-test/releases/download/v1.1.01/dead-test.pal.e0"
+pal_kernal_sha256 = "60873ebefe0d00ee1ebe1345c6b170ff2306ee87912d63ec90b7a602e8ee2be1"
+ntsc_kernal_url = "https://github.com/piersfinlayson/Vic20-dead-test/releases/download/v1.1.01/dead-test.ntsc.e0"
+ntsc_kernal_sha256 = "77f25a9c859ec04e89915d29c79aecb80b3084f32360ae71b490c7cb8357f841"
+kernal_size = 8192
+note = "Use the raw BLK5 cartridge with real regional KERNAL startup, not the unsupported VIC CRT container. Full-RAM runs use the replacement KERNAL because 35k RAM conflicts with a BLK5 cartridge. The diagnostic explicitly skips self-CRC in this configuration. Missing expansion marks in base-RAM runs match VICE; do not call absent RAM faulty emulation. Third-party bytes/goldens stay outside git."
 
 [[source]]
 kind = "reference source"

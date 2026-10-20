@@ -1,6 +1,5 @@
 machine = "vic20"
 # Firmware and reference-derived goldens are supplied separately, never committed.
-# Uncaptured S3/S7 goldens require the matching rc-scenarios feature change.
 
 [reference]
 emulator = "VICE xvic"
@@ -559,7 +558,87 @@ cycles_tolerance = 8
 
 [[scenario]]
 id = "S7"
-kind = "screen"
+kind = "memory"
 frames = 2000
-status = "known-gap"
-gap = { reason = "A third-party VIC-20 hardware diagnostic has not been selected, license-verified or run.", evidence = "docs/vic20-gaps.md#s7-diagnostics" }
+files = { cartridge = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.a0" }
+start = 0
+len = 1024
+golden = "vic20/S7-cartridge-pal.bin"
+golden_sha256 = "7d4df223fb1ba364a388132392434cc474a8370022a954672f4adb5d6d27b2be"
+
+[[scenario]]
+id = "S7-accurate"
+kind = "memory"
+frames = 2000
+args = ["--execution-mode", "accurate"]
+files = { cartridge = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.a0" }
+start = 0
+len = 1024
+golden = "vic20/S7-cartridge-pal.bin"
+golden_sha256 = "7d4df223fb1ba364a388132392434cc474a8370022a954672f4adb5d6d27b2be"
+
+[[scenario]]
+id = "S7-ntsc"
+kind = "memory"
+frames = 2000
+args = ["--region", "ntsc"]
+files = { cartridge = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.a0", rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+start = 0
+len = 1024
+golden = "vic20/S7-cartridge-ntsc.bin"
+golden_sha256 = "a4316b47bc122f2e10ec9498fabbdd6056c805a4501095cfdde67a4835b3deb1"
+
+[[scenario]]
+id = "S7-ntsc-accurate"
+kind = "memory"
+frames = 2000
+args = ["--region", "ntsc", "--execution-mode", "accurate"]
+files = { cartridge = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.a0", rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+start = 0
+len = 1024
+golden = "vic20/S7-cartridge-ntsc.bin"
+golden_sha256 = "a4316b47bc122f2e10ec9498fabbdd6056c805a4501095cfdde67a4835b3deb1"
+
+[[scenario]]
+id = "S7-full-ram"
+kind = "memory"
+frames = 2000
+args = ["--ram-expansion", "35k"]
+files = { rom-kernal = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.pal.e0" }
+start = 0
+len = 1024
+golden = "vic20/S7-kernal-pal.bin"
+golden_sha256 = "3548a7643fda53db330e78a0018a78197ec2e8b7ebee14bd8bb0ad8a4f6be370"
+
+[[scenario]]
+id = "S7-full-ram-accurate"
+kind = "memory"
+frames = 2000
+args = ["--ram-expansion", "35k", "--execution-mode", "accurate"]
+files = { rom-kernal = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.pal.e0" }
+start = 0
+len = 1024
+golden = "vic20/S7-kernal-pal.bin"
+golden_sha256 = "3548a7643fda53db330e78a0018a78197ec2e8b7ebee14bd8bb0ad8a4f6be370"
+
+[[scenario]]
+id = "S7-full-ram-ntsc"
+kind = "memory"
+frames = 2000
+args = ["--ram-expansion", "35k", "--region", "ntsc"]
+files = { rom-kernal = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.ntsc.e0" }
+start = 0
+len = 1024
+golden = "vic20/S7-kernal-ntsc.bin"
+golden_sha256 = "6f874b9bfc0fda9d02ea37df6c4a773f172e5351d7c6c91a9928500cbac0aec8"
+
+[[scenario]]
+id = "S7-full-ram-ntsc-accurate"
+kind = "memory"
+frames = 2000
+args = ["--ram-expansion", "35k", "--region", "ntsc", "--execution-mode", "accurate"]
+files = { rom-kernal = "commodore/software/diagnostics/vic20-dead-test-v1.1.01.ntsc.e0" }
+start = 0
+len = 1024
+golden = "vic20/S7-kernal-ntsc.bin"
+golden_sha256 = "6f874b9bfc0fda9d02ea37df6c4a773f172e5351d7c6c91a9928500cbac0aec8"

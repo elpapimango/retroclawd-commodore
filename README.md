@@ -20,9 +20,10 @@ keyboard, joystick, selectable RAM expansion, raw/PRG programs, read-only VIC-20
 TAP-v0/v1 playback, a real 1541 for writable D64 Media, read-only generic ROM cartridges and deterministic
 save states. It reuses `mos6502` and `via6522`, not VIC-II or SID. Real PAL/NTSC
 boots, BASIC typing, tone pitch, state continuation and frame budgets pass in
-both execution modes: 54 scenarios pass, with boot/input/program/cassette/disk/cartridge output
-compared against hash-pinned VICE 3.9 captures. External diagnostics remain
-an explicit gap. Tape headers must declare platform 1 and
+both execution modes: 62 scenarios pass, with boot/input/program/cassette/disk/cartridge output
+and external Dead Test memory compared against hash-pinned VICE 3.9 captures.
+The diagnostic covers RAM and ROM CRCs, not all hardware fidelity.
+Tape headers must declare platform 1 and
 the machine's PAL/NTSC region. Attach presses PLAY; VIA1 controls the motor.
 Use `--true-drive --disk game.d64`; supply `--rom-1541` or use `--firmware auto`.
 The existing 1541/IEC implementation runs the real DOS, without a fast-load trap.

@@ -4,7 +4,8 @@ Status: experimental, 2026-10-20. **Real PAL/NTSC firmware boots, BASIC typing,
 tone pitch, state continuation and frame budgets pass in fast and accurate
 modes.** Boot/input images match the installed VICE 3.9 reference after
 palette and framing normalization. Tools-built PRG output also matches.
-The manifest reports **54 passed, 0 failed, 1 known gap** (external diagnostics).
+The manifest reports **62 passed, 0 failed, 0 known scenario gaps**.
+External Dead Test results now match VICE exactly; additional fidelity limits remain below.
 This is not completion of the additional-machine request.
 
 ## Implemented and checked
@@ -36,10 +37,15 @@ PRG/P00 headers, so no duplicate file parser was introduced.
 
 Validation executed:
 
+- Diagnostic increment: all eight PAL/NTSC x fast/accurate x cartridge/replacement
+  KERNAL runs match independently captured VICE memory byte-for-byte (1024 bytes
+  each). Full expansion displays 42 RAM pass marks with no ROM/RAM error flags.
+  The complete manifest passes all 62 cases. No emulator code, Core, ABI,
+  tolerance or state-format changes were needed.
 - Cartridge increment: 26 Format/Machine/Plugin tests and 19 Host bridge tests
   passed. Strict release Clippy (affected Family packages and Host, all targets),
   formatting and release Host/Plugin builds passed. All 54 manifest cases pass;
-  S7 remains explicitly not run. Independent regional VICE captures match all
+  S7 was explicitly not run at that stage. Independent regional VICE captures match all
   64 glyph pixels in both modes. Raw/addressed attachment yields byte-identical
   states; 60+120-frame continuation equals direct 180 frames. Reset retains the
   cartridge and restarts through the real KERNAL.
@@ -502,8 +508,75 @@ captures; full-border geometry and pixel-aspect calibration remain open.
 
 ## S7 diagnostics
 
-No external VIC-20 diagnostic has been selected and license-verified. Do not
-claim the focused tests establish hardware conformance or game compatibility.
+The external [VIC-20 Dead Test v1.1.01](https://github.com/piersfinlayson/Vic20-dead-test/tree/e4e4bdf8f9758e63da6f2754a576d4bab6eb1631),
+by Simon Rowe, Greg McCarthy and Piers Finlayson, declares **GPL-3.0** in the
+release source's `readme.md` and `LICENSE`. Its source revision is
+`e4e4bdf8f9758e63da6f2754a576d4bab6eb1631`. This is not the original Commodore
+diagnostic firmware embedded in a differently licensed hardware project.
+No diagnostic bytes, firmware or goldens are committed.
+
+From the Host repository, `tools/fetch_diagnostics.sh` (or
+`tools\fetch_diagnostics.ps1`) downloads three hash-verified release assets
+into the Family's ignored `software/diagnostics/`:
+
+| Asset | Size | SHA-256 |
+|---|---:|---|
+| `dead-test.a0` | 4096 | `1b23bd17ec878fa6f87d5be67d40406f0f28abdbd7f6ffb21c5826b796198ea3` |
+| `dead-test.pal.e0` | 8192 | `60873ebefe0d00ee1ebe1345c6b170ff2306ee87912d63ec90b7a602e8ee2be1` |
+| `dead-test.ntsc.e0` | 8192 | `77f25a9c859ec04e89915d29c79aecb80b3084f32360ae71b490c7cb8357f841` |
+
+All runs use the same BASIC and character ROM hashes listed above. Two
+configurations are compared in both Regions and execution modes:
+
+- Cartridge + base RAM: `--cartridge vic20-dead-test-v1.1.01.a0`. The real
+  regional KERNAL detects the signature and starts the cartridge. Low RAM,
+  color RAM and the four main-RAM banks pass; BASIC, character and KERNAL ROMs
+  are identified by their CRCs. The six absent expansion regions show crosses,
+  exactly as in VICE. These are expected absent hardware, not six emulation defects.
+- Replacement regional KERNAL + `--ram-expansion 35k`:
+  `--rom-kernal vic20-dead-test-v1.1.01.pal.e0` or `.ntsc.e0`.
+  All **42 RAM pass marks** appear: low/color RAM, four tests for each of
+  four main-RAM banks, three 1 KiB expansion regions and BLK1/2/3.
+  ROM and RAM error flags `$e0-$ff` are zero. BASIC/character CRCs are checked;
+  upstream deliberately identifies its replacement KERNAL as `DEAD-TEST`
+  without checking its own CRC.
+
+No cartridge is attached to full-expansion runs: 35 KiB RAM overlaps BLK5,
+so attaching both would correctly fail. No test plugs are needed. BLK5 RAM
+is present in that configuration but **not tested by this diagnostic**.
+
+Each run is bounded to 2000 frames. The success loop is `$a1ca` in the
+cartridge and `$e1c1` in the replacement KERNAL. VICE is stopped there solely
+to read memory, without changing PC, memory, registers or input. Its monitor
+playback contains (substitute absolute output paths):
+
+```text
+bsave "OUTPUT-memory.bin" 0 $0000 $03ff
+bsave "OUTPUT-color.bin" 0 $9400 $97ff
+delete 1
+x
+```
+
+Use the common VICE command above with `-initbreak 0xa1ca -moncommands FILE`
+and `-cartA DIAGNOSTIC.a0`, or with `-kernal DIAGNOSTIC.pal.e0` / `.ntsc.e0`,
+`-memory all` and `-initbreak 0xe1c1`. Delete the initial breakpoint before
+resuming, since the diagnostic loops at that address. `-limitcycles` is
+44304000 PAL or 33930000 NTSC; retain `-exitscreenshot` and the version/limit
+log checks. The intentional cycle-limit exit is not a diagnostic failure.
+There is no monitor injection or LOAD trap.
+
+The four `S7-{cartridge,kernal}-{pal,ntsc}.bin` goldens are the **raw 1024-byte
+VICE dumps**, not Host-produced output. `S7` and its seven variants compare
+all bytes at `$0000-$03ff` exactly, including ROM CRCs, error flags, stack
+and the entire completed status screen at `$0200`. All eight runs match
+1024/1024 bytes; no palette normalization or tolerance applies. Regional
+goldens stay separate because ROM checksums differ even when the screen
+looks similar. Screenshots independently show the completed pass marks,
+not merely a title or an early boot frame.
+
+This closes the standard S7 acceptance gap, **not** full hardware conformance
+or game compatibility. The diagnostic does not exercise VIC raster tricks,
+VIA serial/timer fidelity, IEC/tape traffic, sound, paddles or light pen.
 
 ## Additional fidelity gaps
 

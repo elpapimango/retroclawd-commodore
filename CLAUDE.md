@@ -39,8 +39,14 @@ for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
 types `PRINT 12*34` -> `408` in both modes and regions; text output matches
 the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
-The VIC-20 manifest preserves S1-S7: 54 S1/S2/S3-program/S3-tape/S3-disk/S3-cartridge/S4/S5/S6 variants pass;
-only external diagnostics remain a known gap. The tools-built 55-byte Program
+The VIC-20 manifest preserves S1-S7: 62 variants pass with no known scenario gaps.
+GPL-3.0 VIC-20 Dead Test v1.1.01 (source e4e4bdf8f9758e63da6f2754a576d4bab6eb1631)
+runs as a base-RAM cartridge and a regional replacement KERNAL with 35k RAM.
+All eight configurations match VICE's entire 1024-byte low-memory dump exactly;
+full expansion shows 42 RAM passes. Base-RAM expansion crosses mean absent RAM.
+The diagnostic does not test BLK5 RAM, peripherals or all VIC/VIA fidelity.
+The Host's existing `tools/fetch_diagnostics` downloads hash-pinned binaries;
+none of its bytes or goldens are committed. The tools-built 55-byte Program
 matches VICE in both modes and regions. Audio uses the pinned nonlinear mixer
 calibration, not a fitted gain multiplier: single-voice RMS agrees within 1%
 at full volume in both regions and PAL volume 7.
