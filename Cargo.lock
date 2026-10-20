@@ -32,7 +32,7 @@ dependencies = [
 [[package]]
 name = "build-info"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=00edb656a76f8b920b0e22fd27f2e39dfb4056a9#00edb656a76f8b920b0e22fd27f2e39dfb4056a9"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc#10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc"
 
 [[package]]
 name = "bytemuck"
@@ -251,7 +251,7 @@ dependencies = [
 [[package]]
 name = "machine"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=00edb656a76f8b920b0e22fd27f2e39dfb4056a9#00edb656a76f8b920b0e22fd27f2e39dfb4056a9"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc#10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc"
 
 [[package]]
 name = "memchr"
@@ -262,7 +262,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "mos6502"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=00edb656a76f8b920b0e22fd27f2e39dfb4056a9#00edb656a76f8b920b0e22fd27f2e39dfb4056a9"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc#10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc"
 dependencies = [
  "machine",
  "serde",
@@ -271,7 +271,7 @@ dependencies = [
 [[package]]
 name = "plugin-api"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=00edb656a76f8b920b0e22fd27f2e39dfb4056a9#00edb656a76f8b920b0e22fd27f2e39dfb4056a9"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc#10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc"
 dependencies = [
  "bincode",
  "serde",
@@ -471,7 +471,7 @@ dependencies = [
 [[package]]
 name = "z80"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=00edb656a76f8b920b0e22fd27f2e39dfb4056a9#00edb656a76f8b920b0e22fd27f2e39dfb4056a9"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc#10ba4a4a66e2f1e8b0dcf7f7c56bdde1899024fc"
 dependencies = [
  "machine",
  "serde",
