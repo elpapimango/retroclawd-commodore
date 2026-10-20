@@ -22,6 +22,14 @@ not committed. Known gaps are `status = "known-gap"` entries with a note under `
 
 ## Crate notes
 
+`c64-tape::ted` is the C16/Plus4 TAP-v2 prerequisite, not a Machine or playback
+implementation. Its typed half-waves use slow TED timer cycles (886724 PAL,
+894886 NTSC), never the switchable CPU rate. It shares only pulse decoding
+with the legacy C64 parser. Header/length/duration checks are strict and
+payloads are capped at 32 MiB; canonical output never rounds or clips cycles.
+Tests cover exact-duration round trips, malformed headers/escapes, truncation,
+limits and C64-parser rejection. No C16/Plus4 firmware/reference run is claimed.
+
 `vic-i` and `vic20` implement an experimental MOS 6560/6561 Machine with the
 existing NMOS `mos6502` Core and two `via6522` Chips. `vic20-machine-plugin`
 owns its Options, matrix-derived keys, shifted combos, debug contract and C ABI;

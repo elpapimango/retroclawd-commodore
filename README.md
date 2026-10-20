@@ -92,6 +92,20 @@ This feature branch temporarily pins the pushed shared execution-mode change
 for review. Merge its shared-crates PR first, then verify or refresh this pin
 to the merged shared revision before merging this Family.
 
+## C16/Plus4 tape-format prerequisite
+
+`c64-tape::ted::TedTape` reads and writes `C16-TAPE-RAW` version-2 half-wave
+recordings. It reuses the existing Commodore pulse decoder while keeping C16
+half-waves separate from C64 playback. Durations use the TED slow timer clock:
+886724 Hz PAL or 894886 Hz NTSC, independent of CPU speed.
+
+The new API rejects mismatched sizes, unsupported header fields, zero/oversized
+durations, truncated escapes and payloads above 32 MiB. Writing preserves exact
+duration/order without rounding or clipping; encoding is canonical, not a
+byte-identical copy of noncanonical input. It does not decode tape files or
+connect a C16/Plus4 Machine, and it performs no writeback. The legacy C64 API
+and its compatibility behavior are unchanged.
+
 ## Layout
 
 The directory layout is the same as in the original repository, because the tests find ROMs and

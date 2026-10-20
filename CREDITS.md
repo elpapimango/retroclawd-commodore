@@ -6,6 +6,22 @@ implementation of documented behavior, cited here because that behavior
 (file layouts, byte offsets, register constants) came from reading them,
 not from independent derivation.
 
+## C16/Plus4 TAP-v2 prerequisite (`c64-tape::ted`)
+
+The [VICE manual, section 17.1](https://vice-emu.sourceforge.io/vice_17.html)
+specifies the 20-byte header, `C16-TAPE-RAW` version-2 identity, platform/video
+fields, half-wave polarity/order and cycle encoding. VICE 3.10.0 revision
+`4d283a2e7dd59b7e378524878e81ecc7826b700c`, `vice/src/tape/tap.c`,
+independently confirms platform 2 and slow TED timer clocks (886724 PAL,
+894886 NTSC). That file's block-import helper joins half-wave pairs; this
+format API intentionally retains individual exact durations instead.
+
+Strict length checks, rejection of unknown/unsupported header values and
+zero durations, and the 32 MiB payload limit are local safety policy, not
+claims that VICE rejects the same inputs. Canonical writing has synthetic
+round-trip proof, not a VICE executable or real tape-load verification.
+No source code, firmware or software image was copied.
+
 ## Experimental VIC-20 (`vic-i`, `vic20`, `vic20-machine-plugin`)
 
 `vic20.intake.toml` records hardware facts and unresolved prerequisites.
@@ -813,7 +829,8 @@ mechanism's own entries above already established.
   project's own "error clearly, don't guess" convention already
   established for e.g. `UnsupportedHardwareMode`). **Version 2**
   ("half-wave", real but C16/Plus4-only per VICE's own source) is out of
-  scope for this C64-only crate. There is no separate "level" encoded
+  scope for the C64 parser; the separate `ted` API above handles it.
+  There is no separate "level" encoded
   anywhere in the file -- each pulse is a real half-wave toggle, confirmed
   via `datasette.c`'s own `fullwave[port] ^= 1`.
 - **`.t64` directory container layout** -- VICE's own real

@@ -37,7 +37,8 @@
 //! (`Error::ZeroByteInVersion0`) rather than inventing its own guess at
 //! that same constant. **Version 2** ("half-wave", real but only ever
 //! used for the C16/Plus4, per VICE's own source) is out of scope for
-//! this C64-only crate -- `Error::UnsupportedVersion`.
+//! the C64 parser -- `Error::UnsupportedVersion`. The separate [`ted`]
+//! API handles C16/Plus4 version-2 half-waves without changing C64 playback.
 //!
 //! There is no separate "level" encoded anywhere in the file -- each
 //! pulse is a real half-wave: the READ line toggles once per pulse,
@@ -74,6 +75,7 @@
 use std::fmt;
 
 pub mod rom_format;
+pub mod ted;
 
 const TAP_MAGIC: &[u8; 12] = b"C64-TAPE-RAW";
 const TAP_HEADER_SIZE: usize = 20;
@@ -189,23 +191,28 @@ pub fn parse_tap(bytes: &[u8]) -> Result<Tape, Error> {
         return Err(Error::UnsupportedVersion(version));
     }
 
+    Ok(Tape {
+        pulses: decode_tap_pulses(&bytes[TAP_HEADER_SIZE..], version)?,
+    })
+}
+
+fn decode_tap_pulses(bytes: &[u8], version: u8) -> Result<Vec<u32>, Error> {
     let mut pulses = Vec::new();
-    let mut i = TAP_HEADER_SIZE;
-    while i < bytes.len() {
-        let b = bytes[i];
-        i += 1;
+    let mut bytes = bytes.iter().copied();
+    while let Some(b) = bytes.next() {
         if b != 0 {
             pulses.push(b as u32 * 8);
         } else if version == 0 {
             return Err(Error::ZeroByteInVersion0);
         } else {
-            let ext = bytes.get(i..i + 3).ok_or(Error::UnexpectedEof)?;
-            let cycles = ext[0] as u32 | (ext[1] as u32) << 8 | (ext[2] as u32) << 16;
-            i += 3;
+            let low = bytes.next().ok_or(Error::UnexpectedEof)?;
+            let middle = bytes.next().ok_or(Error::UnexpectedEof)?;
+            let high = bytes.next().ok_or(Error::UnexpectedEof)?;
+            let cycles = u32::from_le_bytes([low, middle, high, 0]);
             pulses.push(cycles);
         }
     }
-    Ok(Tape { pulses })
+    Ok(pulses)
 }
 
 /// Real-time `.tap` playback, driven by the host's own real motor-control
