@@ -39,17 +39,26 @@ for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
 types `PRINT 12*34` -> `408` in both modes and regions; text output matches
 the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
-The VIC-20 manifest preserves S1-S7: 30 S1/S2/S3-program/S3-tape/S4/S5/S6 variants pass;
-three disk/cartridge/diagnostic gaps remain. The tools-built 55-byte Program
+The VIC-20 manifest preserves S1-S7: 38 S1/S2/S3-program/S3-tape/S3-disk/S4/S5/S6 variants pass;
+two cartridge/diagnostic gaps remain. The tools-built 55-byte Program
 matches VICE in both modes and regions. Audio uses the pinned nonlinear mixer
 calibration, not a fitted gain multiplier: single-voice RMS agrees within 1%
 at full volume in both regions and PAL volume 7.
 Read-only cassette playback reuses `c64-tape::TapePlayer` and its KERNAL encoder.
 `c64-tape::vic20` validates TAP v0/v1, platform 1, PAL/NTSC and exact length.
 VIA1 PA6 is SENSE, CA2 is the active-low motor; each full pulse delivers a
-falling READ edge on VIA2 CA1. No loader trap is used. State version 2 appends
-recording identity and strictly checked playback phase; tapeless version 1
-still loads. Tape recording and analogue motor/rising-edge timing are absent.
+falling READ edge on VIA2 CA1. No loader trap is used.
+`--true-drive` with the optional `rom_1541` File Option enables the existing
+1541/IEC `drive-link` at device 8, accepting writable D64 only. The Machine
+owns the Drive, so ordinary steps, accurate bus accesses and debugger steps
+advance it consistently. VIA1 PA7 and VIA2 CA2/CB2 are inverted onto IEC;
+high outputs assert physical lines low. Drive CPU stepping remains
+instruction-granular in both modes. State version 3 appends DOS/media identity
+and a complete GCR checkpoint: fractional clock debt, bus assertions, pending
+insertion, medium bytes, dirty track, write shifter and unsaved flag.
+Versions 1/2 still load without a Drive. The existing C64/C128 legacy Drive
+state API is unchanged. Wrong ROM/media/configuration and corrupt checkpoints
+fail before Machine mutation. Tape recording and analogue motor/rising-edge timing are absent.
 Uncaptured screen goldens are omitted rather than assigned placeholder
 hashes; this requires the matching `rc-scenarios` change described in
 `docs/vic20-gaps.md`. Firmware and goldens are never committed. Existing audio

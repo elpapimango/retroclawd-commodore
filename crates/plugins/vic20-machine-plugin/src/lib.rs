@@ -7,13 +7,13 @@ use machine::Machine;
 use plugin_api::{
     ABI_MAJOR_V1, ABI_MINOR_V1, AddressSpaceInfo, BitmapExplorerDefaults, BitmapPaletteColor,
     ChipSnapshot, CpuFamily, CpuInfo, DebugCommand, DebugResponse, DebugValue, DisassemblyLine,
-    ExecutionMode, ListProfilesRequest, ListProfilesResponse, MACHINE_PROFILE_CONTRACT_VERSION,
-    MachineCapability, MachineCommand, MachineCreateRequest, MachineCreateResponse,
-    MachineInstanceCallRequest, MachineInstanceCallResponse, MachineKeyInfo, MachineMetadata,
-    MachineOptionInfo, MachineOptionKind, MachinePluginVTableV1, MachineProfile, MachineResponse,
-    MediaKind, MediaSlot, MediaSnapshot, NamedValue, PluginDescriptorV1, PluginKind,
-    REQUIRED_MACHINE_DEBUG_CAPABILITIES, RcBuffer, RcCallResult, RcSlice, RcStatus, RegisterField,
-    RegisterSnapshot, StatusCode, StepResult, TapeStatus,
+    DiskStatus, ExecutionMode, ListProfilesRequest, ListProfilesResponse,
+    MACHINE_PROFILE_CONTRACT_VERSION, MachineCapability, MachineCommand, MachineCreateRequest,
+    MachineCreateResponse, MachineInstanceCallRequest, MachineInstanceCallResponse, MachineKeyInfo,
+    MachineMetadata, MachineOptionInfo, MachineOptionKind, MachinePluginVTableV1, MachineProfile,
+    MachineResponse, MediaKind, MediaSlot, MediaSnapshot, NamedValue, PluginDescriptorV1,
+    PluginKind, REQUIRED_MACHINE_DEBUG_CAPABILITIES, RcBuffer, RcCallResult, RcSlice, RcStatus,
+    RegisterField, RegisterSnapshot, StatusCode, StepResult, TapeStatus,
 };
 use serde::{Deserialize, Serialize};
 use vic20::{Expansion, Roms, Standard, Timing, Vic20};
@@ -114,13 +114,23 @@ fn profile() -> MachineProfile {
         cpu_family: CpuFamily::Mos6502, default_region: Some("pal".to_string()),
         contract_version: MACHINE_PROFILE_CONTRACT_VERSION,
         debug_capabilities: REQUIRED_MACHINE_DEBUG_CAPABILITIES.to_vec(),
-        capabilities: vec![MachineCapability::Video, MachineCapability::Audio, MachineCapability::Tape,
+        capabilities: vec![MachineCapability::Video, MachineCapability::Audio, MachineCapability::Tape, MachineCapability::Disk,
             MachineCapability::SaveState, MachineCapability::Debug],
-        media_kinds: vec![MediaKind::Program, MediaKind::Tape],
+        media_kinds: vec![MediaKind::Program, MediaKind::Tape, MediaKind::Disk],
         options: vec![
             file_option("basic", "rom-basic", "VIC-20 BASIC ROM (8192 bytes)"),
             file_option("kernal", "rom-kernal", "VIC-20 KERNAL ROM for the selected Region (8192 bytes)"),
             file_option("char", "rom-char", "VIC-20 character ROM (4096 bytes)"),
+            {
+                let mut option = file_option("rom_1541", "rom-1541", "1541 DOS ROM (16384 bytes); required with --true-drive");
+                option.required = false;
+                option
+            },
+            MachineOptionInfo {
+                key: "true_drive".to_string(), flag: "true-drive".to_string(), short: None,
+                kind: MachineOptionKind::Bool, default: Some(DebugValue::Bool(false)), required: false,
+                description: "Attach a real 1541 at IEC device 8 for D64 Media; Drive CPU steps at instruction granularity in both execution modes; no fast-load trap".to_string(),
+            },
             ExecutionMode::option("fast (default): instruction-batched Chips; accurate: Chips advance on each CPU bus cycle, including dummy accesses. VIC-I sub-clock effects and interlace remain unimplemented"),
             MachineOptionInfo {
                 key: "ram_expansion".to_string(), flag: "ram-expansion".to_string(), short: None,
@@ -176,6 +186,7 @@ impl Instance {
             ExecutionMode::Accurate => Timing::Accurate,
         };
         let mut expansion = Expansion::None;
+        let mut true_drive = false;
         let mut seen = BTreeSet::new();
         for option in &request.options {
             if !seen.insert(&option.key) {
@@ -183,6 +194,7 @@ impl Instance {
             }
             match (option.key.as_str(), &option.value) {
                 ("execution_mode", _) => {}
+                ("true_drive", DebugValue::Bool(value)) => true_drive = *value,
                 ("ram_expansion", DebugValue::Text(value)) => {
                     expansion = match value.as_str() {
                         "none" => Expansion::None,
@@ -205,18 +217,22 @@ impl Instance {
         }
         let mut roms = BTreeMap::new();
         for blob in request.roms {
-            if !["basic", "kernal", "char"].contains(&blob.key.as_str()) {
+            if !["basic", "kernal", "char", "rom_1541"].contains(&blob.key.as_str()) {
                 return Err(format!("unknown VIC-20 ROM {:?}", blob.key));
             }
             if roms.insert(blob.key.clone(), blob.bytes).is_some() {
                 return Err(format!("duplicate ROM {:?}", blob.key));
             }
         }
+        let drive_rom = roms.remove("rom_1541");
+        if !true_drive && drive_rom.is_some() {
+            return Err("VIC-20 --rom-1541 requires --true-drive".to_string());
+        }
         let mut take = |key| {
             roms.remove(key)
                 .ok_or_else(|| format!("missing required VIC-20 ROM {key:?}"))
         };
-        let machine = Vic20::new(
+        let mut machine = Vic20::new(
             Roms {
                 basic: take("basic")?,
                 kernal: take("kernal")?,
@@ -226,6 +242,11 @@ impl Instance {
             expansion,
             timing,
         )?;
+        if true_drive {
+            machine.enable_1541(
+                drive_rom.ok_or("VIC-20 --true-drive requires --rom-1541 (or --firmware auto)")?,
+            )?;
+        }
         Ok(Self {
             machine,
             paused: false,
@@ -370,6 +391,21 @@ impl Instance {
                 },
             ]);
         }
+        if let Some((_, track, motor)) = self.machine.disk_status() {
+            let overlay = chips.last_mut().expect("overlay added above");
+            overlay.fields.extend([
+                NamedValue {
+                    key: "disk_motor".to_string(),
+                    value: DebugValue::Bool(motor),
+                },
+                NamedValue {
+                    key: "fdc_phase".to_string(),
+                    value: DebugValue::Text(format!(
+                        "1541 IEC; track {track}; instruction-stepped"
+                    )),
+                },
+            ]);
+        }
         chips
     }
 
@@ -387,7 +423,20 @@ impl Instance {
                 cycles_until_next_edge: None,
                 spin_down_cycles: None,
             }),
-            disks: Vec::new(),
+            disks: self
+                .machine
+                .disk_status()
+                .map(|(attached, track, _)| DiskStatus {
+                    attached,
+                    image_id: None,
+                    drive: Some(0),
+                    head: Some(0),
+                    track: Some(track),
+                    sector: None,
+                    controller_phase: Some("1541 IEC; instruction-stepped".to_string()),
+                })
+                .into_iter()
+                .collect(),
             cartridge: None,
         }
     }
@@ -604,6 +653,36 @@ impl Instance {
                 };
                 check_address(address)?;
                 self.machine.load_program(address as u16, &bytes)?;
+                Ok(MachineResponse::Ack)
+            }
+            MachineCommand::AttachMedia {
+                slot: MediaSlot::Disk { drive },
+                kind: MediaKind::Disk,
+                name,
+                bytes,
+                options,
+            } => {
+                if drive != 0 {
+                    return Err(format!("VIC-20 Drive {drive} does not exist; only Drive 0 (IEC 8) is supported"));
+                }
+                if !options.is_empty() || !name.as_deref().is_some_and(|name| name.rsplit_once('.').is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("d64"))) {
+                    return Err("VIC-20 disk requires a .d64 filename and no Media Options".to_string());
+                }
+                self.machine.load_disk(&bytes)?;
+                Ok(MachineResponse::Ack)
+            }
+            MachineCommand::DetachMedia { slot: MediaSlot::Disk { drive: 0 } } => {
+                self.machine.eject_disk();
+                Ok(MachineResponse::Ack)
+            }
+            MachineCommand::ExportDisk { drive, only_if_modified } => {
+                if drive != 0 {
+                    return Err(format!("VIC-20 Drive {drive} does not exist; only Drive 0 is supported"));
+                }
+                Ok(MachineResponse::DiskImage(self.machine.disk_image(only_if_modified)))
+            }
+            MachineCommand::MarkDiskSaved { drive: 0 } => {
+                self.machine.mark_disk_saved();
                 Ok(MachineResponse::Ack)
             }
             MachineCommand::AttachMedia {
@@ -1180,13 +1259,113 @@ mod tests {
     }
 
     #[test]
+    fn disk_options_media_lifecycle_and_debug_steps_use_the_real_drive() {
+        let mut req = request();
+        req.options.push(NamedValue {
+            key: "true_drive".to_string(),
+            value: DebugValue::Bool(true),
+        });
+        assert!(
+            Instance::create(req.clone())
+                .err()
+                .unwrap()
+                .contains("--rom-1541")
+        );
+        req.roms.push(BinaryBlob {
+            key: "rom_1541".to_string(),
+            bytes: vec![0xea; 16_384],
+        });
+        let mut instance = Instance::create(req.clone()).unwrap();
+        req.options.clear();
+        assert!(
+            Instance::create(req)
+                .err()
+                .unwrap()
+                .contains("--true-drive")
+        );
+        let attach = |drive, name: &str, bytes| MachineCommand::AttachMedia {
+            slot: MediaSlot::Disk { drive },
+            kind: MediaKind::Disk,
+            name: Some(name.to_string()),
+            bytes,
+            options: Vec::new(),
+        };
+        let disk = vec![0; 174_848];
+        instance
+            .command(attach(0, "fixture.D64", disk.clone()))
+            .unwrap();
+        assert!(instance.media().disks[0].attached);
+        assert!(
+            instance
+                .chips()
+                .last()
+                .unwrap()
+                .fields
+                .iter()
+                .any(|field| field.key == "disk_motor")
+        );
+        let before = instance.machine.save_state();
+        for command in [
+            attach(1, "fixture.d64", disk.clone()),
+            attach(0, "fixture.d71", disk.clone()),
+            attach(0, "fixture.d64", vec![0; 20]),
+            MachineCommand::ExportDisk {
+                drive: 1,
+                only_if_modified: false,
+            },
+        ] {
+            assert!(instance.command(command).is_err());
+            assert_eq!(instance.machine.save_state(), before);
+        }
+        assert_eq!(
+            instance
+                .command(MachineCommand::ExportDisk {
+                    drive: 0,
+                    only_if_modified: false
+                })
+                .unwrap(),
+            MachineResponse::DiskImage(Some(disk)),
+        );
+        assert_eq!(
+            instance
+                .command(MachineCommand::ExportDisk {
+                    drive: 0,
+                    only_if_modified: true
+                })
+                .unwrap(),
+            MachineResponse::DiskImage(None),
+        );
+        instance
+            .command(MachineCommand::MarkDiskSaved { drive: 0 })
+            .unwrap();
+        instance.debug(DebugCommand::Pause).unwrap();
+        instance.debug(DebugCommand::StepInstruction).unwrap();
+        assert_ne!(instance.machine.save_state(), before);
+        let saved = instance.command(MachineCommand::SaveState).unwrap();
+        instance
+            .command(MachineCommand::DetachMedia {
+                slot: MediaSlot::Disk { drive: 0 },
+            })
+            .unwrap();
+        assert!(!instance.media().disks[0].attached);
+        let MachineResponse::StateBlob(bytes) = saved else {
+            panic!("state");
+        };
+        assert!(
+            instance
+                .command(MachineCommand::LoadState { bytes })
+                .is_err()
+        );
+    }
+
+    #[test]
     fn unsupported_media_fails_without_echoing_payload_or_mutating_state() {
         let mut instance = Instance::create(request()).unwrap();
         let before = instance.machine.save_state();
         let error = instance
             .command(MachineCommand::AttachMedia {
-                slot: MediaSlot::Disk { drive: 0 },
-                kind: MediaKind::Disk,
+                slot: MediaSlot::Cartridge { slot: 0 },
+                kind: MediaKind::Cartridge,
                 name: None,
                 bytes: vec![137; 100_000],
                 options: Vec::new(),

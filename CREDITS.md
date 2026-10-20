@@ -34,6 +34,14 @@ but full pulses and TED half-waves remain separate APIs.
 The installed VICE 3.9 was also run with `+virtualdev1`, real TAP playback
 and the same firmware; both regional cassette outputs match retroclawd.
 
+At the same source pin, `vic20/vic20iec.c` (`iec_pa_write`,
+`iec_pcr_write`, `resolve_bus_signals`) establishes the inverting IEC buffers:
+VIA1 PA7 and VIA2 CA2/CB2 high assert physical ATN/CLOCK/DATA low.
+The existing 1541 Core, GCR mechanism and `drive-link` are reused.
+Installed VICE 3.9 was run with `-drive8truedrive +virtualdev8`,
+the same hash-verified 1541 DOS and tools-built D64. Both regional disk LOADs
+produce the same glyph. No reference source or DOS ROM was copied.
+
 `vic20.intake.toml` records hardware facts and unresolved prerequisites.
 `docs/vic20-gaps.md` distinguishes implemented behavior from reference proof.
 References read for this implementation:

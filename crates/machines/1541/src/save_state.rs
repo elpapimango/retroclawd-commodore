@@ -31,6 +31,52 @@
 use crate::C1541;
 
 #[derive(serde::Serialize, serde::Deserialize)]
+struct CompleteState {
+    magic: [u8; 4],
+    machine: Vec<u8>,
+    disk: crate::disk::DiskMechanism,
+}
+
+impl C1541 {
+    /// Includes the mounted medium, dirty GCR track, write shifter and rotation cache.
+    /// The legacy Machine state format remains unchanged.
+    pub fn save_complete_state(&self) -> Vec<u8> {
+        bincode::serde::encode_to_vec(
+            CompleteState {
+                magic: *b"D154",
+                machine: encode(self),
+                disk: self.bus.disk.clone(),
+            },
+            bincode::config::standard(),
+        )
+        .expect("complete 1541 state is encodable")
+    }
+
+    pub fn load_complete_state(&mut self, bytes: &[u8]) -> Result<(), String> {
+        let (state, used): (CompleteState, usize) = bincode::serde::decode_from_slice(
+            bytes,
+            bincode::config::standard().with_limit::<2_097_152>(),
+        )
+        .map_err(|error| format!("invalid complete 1541 state: {error}"))?;
+        if state.magic != *b"D154" || used != bytes.len() {
+            return Err("invalid complete 1541 state header or trailing bytes".to_string());
+        }
+        state.disk.validate_complete_state()?;
+        let (machine, used): (SaveState, usize) = bincode::serde::decode_from_slice(
+            &state.machine,
+            bincode::config::standard().with_limit::<2_097_152>(),
+        )
+        .map_err(|error| format!("invalid complete 1541 CPU state: {error}"))?;
+        if used != state.machine.len() {
+            return Err("invalid complete 1541 CPU state trailing bytes".to_string());
+        }
+        apply(self, machine)?;
+        self.bus.disk = state.disk;
+        Ok(())
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 struct SaveState {
     cpu: mos6502::Cpu,
     ram: Vec<u8>,
@@ -69,7 +115,10 @@ pub(crate) fn decode(c1541: &mut C1541, bytes: &[u8]) -> Result<(), String> {
     let (state, _): (SaveState, usize) =
         bincode::serde::decode_from_slice(bytes, bincode::config::standard())
             .map_err(|e| format!("failed to decode 1541 save state: {e}"))?;
+    apply(c1541, state)
+}
 
+fn apply(c1541: &mut C1541, state: SaveState) -> Result<(), String> {
     if state.model != c1541.bus.model {
         return Err(format!(
             "the state was saved from a {}, this drive is a {}",

@@ -201,9 +201,74 @@ compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.185
 [[scenario]]
 id = "S3-disk"
 kind = "screen"
-frames = 900
-status = "known-gap"
-gap = { reason = "The IEC pins exist, but a drive and disk attachment are not wired into this Plugin.", evidence = "docs/vic20-gaps.md#s3-media" }
+frames = 1200
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin" }
+args = ["--true-drive", "--type-after", "150", "--type", "LOAD\"PATTERN\",8,1\n",
+    "--at", "1000:key_down=KeyS", "--at", "1003:key_up=KeyS",
+    "--at", "1006:key_down=KeyY", "--at", "1009:key_up=KeyY",
+    "--at", "1012:key_down=KeyS", "--at", "1015:key_up=KeyS",
+    "--at", "1018:key_down=Digit4", "--at", "1021:key_up=Digit4",
+    "--at", "1024:key_down=Digit6", "--at", "1027:key_up=Digit6",
+    "--at", "1030:key_down=Digit0", "--at", "1033:key_up=Digit0",
+    "--at", "1036:key_down=Digit8", "--at", "1039:key_up=Digit8",
+    "--at", "1042:key_down=Return", "--at", "1045:key_up=Return"]
+golden = "vic20/S3-disk-pal.png"
+golden_sha256 = "6958fc11522ee41d6e2686f75e5b7a2033b14a5472166a3605907de787893e47"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.1698943661971831, 0.24439102564102563, 0.19806338028169015, 0.27003205128205127], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Real KERNAL LOAD through 1541 DOS and IEC, then typed SYS4608. All 8x8 glyph pixels match VICE with drive8truedrive enabled and virtualdev8 disabled." }
+
+[[scenario]]
+id = "S3-disk-accurate"
+kind = "screen"
+frames = 1200
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin" }
+args = ["--execution-mode", "accurate", "--true-drive", "--type-after", "150", "--type", "LOAD\"PATTERN\",8,1\n",
+    "--at", "1000:key_down=KeyS", "--at", "1003:key_up=KeyS",
+    "--at", "1006:key_down=KeyY", "--at", "1009:key_up=KeyY",
+    "--at", "1012:key_down=KeyS", "--at", "1015:key_up=KeyS",
+    "--at", "1018:key_down=Digit4", "--at", "1021:key_up=Digit4",
+    "--at", "1024:key_down=Digit6", "--at", "1027:key_up=Digit6",
+    "--at", "1030:key_down=Digit0", "--at", "1033:key_up=Digit0",
+    "--at", "1036:key_down=Digit8", "--at", "1039:key_up=Digit8",
+    "--at", "1042:key_down=Return", "--at", "1045:key_up=Return"]
+golden = "vic20/S3-disk-pal.png"
+golden_sha256 = "6958fc11522ee41d6e2686f75e5b7a2033b14a5472166a3605907de787893e47"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.1698943661971831, 0.24439102564102563, 0.19806338028169015, 0.27003205128205127], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Real KERNAL LOAD through 1541 DOS and IEC, then typed SYS4608. All 8x8 glyph pixels match VICE with drive8truedrive enabled and virtualdev8 disabled." }
+
+[[scenario]]
+id = "S3-disk-ntsc"
+kind = "screen"
+frames = 1200
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin", rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+args = ["--region", "ntsc", "--true-drive", "--type-after", "150", "--type", "LOAD\"PATTERN\",8,1\n",
+    "--at", "1000:key_down=KeyS", "--at", "1003:key_up=KeyS",
+    "--at", "1006:key_down=KeyY", "--at", "1009:key_up=KeyY",
+    "--at", "1012:key_down=KeyS", "--at", "1015:key_up=KeyS",
+    "--at", "1018:key_down=Digit4", "--at", "1021:key_up=Digit4",
+    "--at", "1024:key_down=Digit6", "--at", "1027:key_up=Digit6",
+    "--at", "1030:key_down=Digit0", "--at", "1033:key_up=Digit0",
+    "--at", "1036:key_down=Digit8", "--at", "1039:key_up=Digit8",
+    "--at", "1042:key_down=Return", "--at", "1045:key_up=Return"]
+golden = "vic20/S3-disk-ntsc.png"
+golden_sha256 = "a4675ffc44baf9af77edd9ed9fe2d9b3cb4c817bfb06fe467c0bb8f66402910f"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.18557692307692308, 0.29103053435114506, 0.21634615384615385, 0.32156488549618323], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Real KERNAL LOAD through 1541 DOS and IEC, then typed SYS4608. All 8x8 glyph pixels match VICE with drive8truedrive enabled and virtualdev8 disabled." }
+
+[[scenario]]
+id = "S3-disk-ntsc-accurate"
+kind = "screen"
+frames = 1200
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin", rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+args = ["--region", "ntsc", "--execution-mode", "accurate", "--true-drive", "--type-after", "150", "--type", "LOAD\"PATTERN\",8,1\n",
+    "--at", "1000:key_down=KeyS", "--at", "1003:key_up=KeyS",
+    "--at", "1006:key_down=KeyY", "--at", "1009:key_up=KeyY",
+    "--at", "1012:key_down=KeyS", "--at", "1015:key_up=KeyS",
+    "--at", "1018:key_down=Digit4", "--at", "1021:key_up=Digit4",
+    "--at", "1024:key_down=Digit6", "--at", "1027:key_up=Digit6",
+    "--at", "1030:key_down=Digit0", "--at", "1033:key_up=Digit0",
+    "--at", "1036:key_down=Digit8", "--at", "1039:key_up=Digit8",
+    "--at", "1042:key_down=Return", "--at", "1045:key_up=Return"]
+golden = "vic20/S3-disk-ntsc.png"
+golden_sha256 = "a4675ffc44baf9af77edd9ed9fe2d9b3cb4c817bfb06fe467c0bb8f66402910f"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.18557692307692308, 0.29103053435114506, 0.21634615384615385, 0.32156488549618323], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Real KERNAL LOAD through 1541 DOS and IEC, then typed SYS4608. All 8x8 glyph pixels match VICE with drive8truedrive enabled and virtualdev8 disabled." }
 
 [[scenario]]
 id = "S3-cartridge"
@@ -291,6 +356,38 @@ kind = "timing"
 frames = 100
 cycles_per_frame = 22152
 cycles_tolerance = 8
+
+[[scenario]]
+id = "S5-disk"
+kind = "state"
+frames = 180
+more_frames = 50
+args = ["--true-drive"]
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin" }
+
+[[scenario]]
+id = "S5-disk-accurate"
+kind = "state"
+frames = 180
+more_frames = 50
+args = ["--true-drive", "--execution-mode", "accurate"]
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin" }
+
+[[scenario]]
+id = "S5-disk-ntsc"
+kind = "state"
+frames = 180
+more_frames = 50
+args = ["--true-drive", "--region", "ntsc"]
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin", rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+
+[[scenario]]
+id = "S5-disk-ntsc-accurate"
+kind = "state"
+frames = 180
+more_frames = 50
+args = ["--true-drive", "--region", "ntsc", "--execution-mode", "accurate"]
+files = { disk = "commodore/software/scenarios/vic20-pattern.d64", rom-1541 = "commodore/roms/1541/dos1541-325302-01+901229-05.bin", rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
 
 [[scenario]]
 id = "S6-accurate"

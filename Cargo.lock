@@ -255,12 +255,14 @@ dependencies = [
 name = "drive-link"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "c1541",
  "c64",
  "d64",
  "d71",
  "d81",
  "machine",
+ "serde",
 ]
 
 [[package]]
@@ -532,7 +534,10 @@ name = "vic20"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "c1541",
  "c64-tape",
+ "d64",
+ "drive-link",
  "machine",
  "mos6502",
  "serde",

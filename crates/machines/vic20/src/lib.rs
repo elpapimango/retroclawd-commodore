@@ -6,6 +6,7 @@
 
 use std::collections::VecDeque;
 
+use drive_link::{Disk, DriveKind, DriveLink, IecHost};
 use machine::{Addr, Bus, Clock, FrameRate, Machine, RunStats};
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
@@ -290,12 +291,16 @@ mod tests {
             trailing.push(0);
             assert!(m.load_state(&trailing).is_err());
             assert_eq!(m.save_state(), before);
-            let ((mut malformed, tape), _): ((State, Option<TapeState>), usize) =
-                bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
+            let ((mut malformed, tape, drive), _): (
+                (State, Option<TapeState>, Option<DriveState>),
+                usize,
+            ) = bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
             malformed.hardware.ram.pop();
-            let malformed =
-                bincode::serde::encode_to_vec((malformed, tape), bincode::config::standard())
-                    .unwrap();
+            let malformed = bincode::serde::encode_to_vec(
+                (malformed, tape, drive),
+                bincode::config::standard(),
+            )
+            .unwrap();
             assert!(
                 m.load_state(&malformed)
                     .unwrap_err()
@@ -410,8 +415,10 @@ mod tests {
                 m.step();
             }
             assert_eq!(m.save_state(), future);
-            let ((core, mut tape_state), _): ((State, Option<TapeState>), usize) =
-                bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
+            let ((core, mut tape_state, drive), _): (
+                (State, Option<TapeState>, Option<DriveState>),
+                usize,
+            ) = bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
             // Corrupt the serialized phase; TapePosition's fields are private.
             let bad_position = bincode::serde::encode_to_vec(
                 (0usize, 100_000u32, true, true, 3u32),
@@ -422,9 +429,11 @@ mod tests {
                 bincode::serde::decode_from_slice(&bad_position, bincode::config::standard())
                     .unwrap()
                     .0;
-            let corrupt =
-                bincode::serde::encode_to_vec((core, tape_state), bincode::config::standard())
-                    .unwrap();
+            let corrupt = bincode::serde::encode_to_vec(
+                (core, tape_state, drive),
+                bincode::config::standard(),
+            )
+            .unwrap();
             assert!(m.load_state(&corrupt).unwrap_err().contains("playback"));
             assert_eq!(m.save_state(), future);
             assert!(m.load_tape(&tape, 0).is_err());
@@ -446,7 +455,85 @@ mod tests {
     }
 
     #[test]
-    fn original_tapeless_state_version_still_loads() {
+    fn iec_buffers_invert_outputs_but_not_clock_and_data_inputs() {
+        let mut m = machine(Timing::Accurate);
+        m.bus.write(0x9113, 0x80);
+        m.bus.write(0x9111, 0);
+        m.bus.write(0x912c, 0xcc);
+        assert_eq!(m.iec_output(), (false, false, false));
+        m.bus.write(0x9111, 0x80);
+        m.bus.write(0x912c, 0xee);
+        assert_eq!(m.iec_output(), (true, true, true));
+        m.set_iec_input(false, true);
+        assert_eq!(m.read_memory(0x9111) & 3, 2);
+        m.set_iec_input(true, false);
+        assert_eq!(m.read_memory(0x9111) & 3, 1);
+    }
+
+    #[test]
+    fn drive_answers_iec_and_disk_checkpoints_continue_atomically_in_both_modes() {
+        let mut rom = vec![0xea; 16_384];
+        let code = [
+            0xa9, 0x1a, 0x8d, 0x02, 0x18, 0xa9, 0x00, 0x8d, 0x00, 0x18, 0xad, 0x00, 0x18, 0x30,
+            0xfb, 0xa9, 0x12, 0x8d, 0x00, 0x18, 0x4c, 0x14, 0xc0,
+        ];
+        rom[..code.len()].copy_from_slice(&code);
+        rom[0x3ffc..0x3ffe].copy_from_slice(&[0, 0xc0]);
+        let disk = vec![0; 174_848];
+        for timing in [Timing::Fast, Timing::Accurate] {
+            let mut m = machine(timing);
+            assert!(m.load_disk(&disk).unwrap_err().contains("--true-drive"));
+            m.enable_1541(rom.clone()).unwrap();
+            m.load_disk(&disk).unwrap();
+            m.bus.write(0x912c, 0xcc);
+            m.bus.write(0x9113, 0x80);
+            m.bus.write(0x9111, 0x80);
+            for _ in 0..2000 {
+                m.step();
+            }
+            assert_eq!(m.read_memory(0x9111) & 2, 0, "Drive answers DATA after ATN");
+            assert_eq!(m.disk_image(false), Some(disk.clone()));
+            m.load_disk(&disk).unwrap();
+            let saved = m.save_state();
+            for _ in 0..2000 {
+                m.step();
+            }
+            let future = m.save_state();
+            m.load_state(&saved).unwrap();
+            for _ in 0..2000 {
+                m.step();
+            }
+            assert_eq!(m.save_state(), future);
+            let ((core, tape, mut drive), _): (
+                (State, Option<TapeState>, Option<DriveState>),
+                usize,
+            ) = bincode::serde::decode_from_slice(&saved, bincode::config::standard()).unwrap();
+            drive.as_mut().unwrap().checkpoint.pop();
+            let corrupt =
+                bincode::serde::encode_to_vec((core, tape, drive), bincode::config::standard())
+                    .unwrap();
+            assert!(m.load_state(&corrupt).is_err());
+            assert_eq!(m.save_state(), future);
+            let mut other = disk.clone();
+            other[0] = 1;
+            m.load_disk(&other).unwrap();
+            let before = m.save_state();
+            assert!(
+                m.load_state(&saved)
+                    .unwrap_err()
+                    .contains("attachment differs")
+            );
+            assert_eq!(m.save_state(), before);
+            m.reset();
+            assert!(m.disk_status().unwrap().0);
+            m.eject_disk();
+            assert!(!m.disk_status().unwrap().0);
+            assert!(m.disk_image(false).is_none());
+        }
+    }
+
+    #[test]
+    fn old_state_versions_load_without_a_drive_including_version2_tape_phase() {
         let mut m = machine(Timing::Accurate);
         let bytes = m.save_state();
         let (mut state, _): (State, usize) =
@@ -456,6 +543,35 @@ mod tests {
         m.step();
         m.load_state(&legacy).unwrap();
         assert_eq!(m.save_state(), bytes);
+        let (mut state, _): (State, usize) =
+            bincode::serde::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+        state.version = 2;
+        let legacy =
+            bincode::serde::encode_to_vec((state, None::<TapeState>), bincode::config::standard())
+                .unwrap();
+        m.step();
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.save_state(), bytes);
+        let recording = c64_tape::vic20::write(
+            c64_tape::vic20::VideoStandard::Pal,
+            &c64_tape::Tape::from_pulses(vec![1000, 1200]),
+        )
+        .unwrap();
+        m.load_tape(&recording, 1).unwrap();
+        for _ in 0..20 {
+            m.step();
+        }
+        let with_tape = m.save_state();
+        let ((mut state, tape, _drive), _): (
+            (State, Option<TapeState>, Option<DriveState>),
+            usize,
+        ) = bincode::serde::decode_from_slice(&with_tape, bincode::config::standard()).unwrap();
+        state.version = 2;
+        let legacy =
+            bincode::serde::encode_to_vec((state, tape), bincode::config::standard()).unwrap();
+        m.step();
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.save_state(), with_tape);
     }
 }
 
@@ -531,6 +647,44 @@ struct VicBus {
     audio_dropped: u64,
     tape: Option<c64_tape::TapePlayer>,
     tape_id: Option<[u8; 20]>,
+    drive: Option<Drive>,
+}
+
+struct Drive {
+    link: DriveLink,
+    rom: Vec<u8>,
+    source: Option<Vec<u8>>,
+}
+
+impl Drive {
+    fn new(rom: Vec<u8>) -> Result<Self, String> {
+        Ok(Self {
+            link: DriveLink::new(DriveKind::C1541, rom.clone(), 8)?,
+            rom,
+            source: None,
+        })
+    }
+}
+
+impl IecHost for VicBus {
+    fn iec_output(&self) -> (bool, bool, bool) {
+        let h = &self.hardware;
+        (
+            h.via1.effective_port_a() & 0x80 != 0,
+            h.via2.ca2_output_level().unwrap_or(true),
+            h.via2.cb2_output_level().unwrap_or(true),
+        )
+    }
+
+    fn set_iec_input(&mut self, clock: bool, data: bool) {
+        self.hardware.iec_clock = clock;
+        self.hardware.iec_data = data;
+        self.update_inputs();
+    }
+
+    fn clock_hz(&self) -> u64 {
+        u64::from(self.hardware.vic.standard().clock_hz())
+    }
 }
 
 impl VicBus {
@@ -562,6 +716,7 @@ impl VicBus {
             audio_dropped: 0,
             tape: None,
             tape_id: None,
+            drive: None,
         };
         bus.update_inputs();
         bus
@@ -650,6 +805,10 @@ impl VicBus {
         h.nmi_edge |= nmi && !h.nmi_level;
         h.nmi_level = nmi;
         h.cycles = h.cycles.wrapping_add(1);
+        if let Some(mut drive) = self.drive.take() {
+            drive.link.after_host_step(self, 1);
+            self.drive = Some(drive);
+        }
     }
 
     fn access_clock(&mut self) {
@@ -859,17 +1018,62 @@ impl Vic20 {
     }
 
     pub fn iec_output(&self) -> (bool, bool, bool) {
-        let h = &self.bus.hardware;
-        let atn = h.via1.effective_port_a() & 0x80 == 0;
-        let clock = h.via2.ca2_output_level().is_none_or(|level| !level);
-        let data = h.via2.cb2_output_level().is_none_or(|level| !level);
-        (atn, clock, data)
+        self.bus.iec_output()
     }
 
     pub fn set_iec_input(&mut self, clock: bool, data: bool) {
-        self.bus.hardware.iec_clock = clock;
-        self.bus.hardware.iec_data = data;
-        self.bus.update_inputs();
+        self.bus.set_iec_input(clock, data);
+    }
+
+    pub fn enable_1541(&mut self, rom: Vec<u8>) -> Result<(), String> {
+        if self.bus.drive.is_some() {
+            return Err("VIC-20 already has a 1541 Drive".to_string());
+        }
+        self.bus.drive = Some(Drive::new(rom)?);
+        Ok(())
+    }
+
+    pub fn load_disk(&mut self, bytes: &[u8]) -> Result<(), String> {
+        let drive = self
+            .bus
+            .drive
+            .as_mut()
+            .ok_or("VIC-20 disks require --true-drive and --rom-1541")?;
+        let disk =
+            d64::D64::parse(bytes).map_err(|error| format!("invalid VIC-20 D64: {error}"))?;
+        drive
+            .link
+            .attach_disk(Disk::Gcr(c1541::Medium::D64(disk)))?;
+        drive.source = Some(bytes.to_vec());
+        Ok(())
+    }
+
+    pub fn eject_disk(&mut self) {
+        if let Some(drive) = &mut self.bus.drive {
+            drive.link.detach_disk();
+            drive.source = None;
+        }
+    }
+
+    pub fn disk_image(&mut self, only_if_modified: bool) -> Option<Vec<u8>> {
+        let drive = self.bus.drive.as_mut()?;
+        if only_if_modified {
+            drive.link.take_modified_disk_image()
+        } else {
+            drive.link.disk_image().or_else(|| drive.source.clone())
+        }
+    }
+
+    pub fn mark_disk_saved(&mut self) {
+        if let Some(drive) = &mut self.bus.drive {
+            drive.link.mark_disk_saved();
+        }
+    }
+
+    pub fn disk_status(&self) -> Option<(bool, u16, bool)> {
+        let drive = self.bus.drive.as_ref()?;
+        let (track, motor) = drive.link.gcr_status().expect("VIC-20 has a GCR Drive");
+        Some((drive.source.is_some(), u16::from(track), motor))
     }
 
     /// Attaches a read-only recording with PLAY pressed. The VIA controls its motor.
@@ -926,6 +1130,13 @@ struct State {
 struct TapeState {
     fingerprint: [u8; 20],
     position: c64_tape::TapePosition,
+}
+
+#[derive(Serialize, Deserialize)]
+struct DriveState {
+    rom: [u8; 20],
+    media: Option<[u8; 20]>,
+    checkpoint: Vec<u8>,
 }
 
 impl Machine for Vic20 {
@@ -1013,6 +1224,9 @@ impl Machine for Vic20 {
         self.bus.audio.drain(..).collect()
     }
     fn reset(&mut self) {
+        if let Some(drive) = &mut self.bus.drive {
+            drive.link.reset();
+        }
         let h = &mut self.bus.hardware;
         h.via1 = Via::new();
         h.via2 = Via::new();
@@ -1032,7 +1246,7 @@ impl Machine for Vic20 {
             (
                 State {
                     magic: *b"VIC1",
-                    version: 2,
+                    version: 3,
                     roms: self.bus.roms.fingerprint(),
                     timing: self.bus.timing,
                     expansion: self.bus.expansion,
@@ -1042,6 +1256,17 @@ impl Machine for Vic20 {
                 self.bus.tape.as_ref().map(|tape| TapeState {
                     fingerprint: self.bus.tape_id.expect("attached tape has an identity"),
                     position: tape.dump_state(),
+                }),
+                self.bus.drive.as_ref().map(|drive| DriveState {
+                    rom: Sha1::digest(&drive.rom).into(),
+                    media: drive
+                        .source
+                        .as_ref()
+                        .map(|bytes| Sha1::digest(bytes).into()),
+                    checkpoint: drive
+                        .link
+                        .save_gcr_checkpoint()
+                        .expect("VIC-20 has a GCR Drive"),
                 }),
             ),
             bincode::config::standard(),
@@ -1057,18 +1282,28 @@ impl Machine for Vic20 {
             bincode::config::standard().with_limit::<1_048_576>(),
         )
         .map_err(|error| format!("invalid VIC-20 state: {error}"))?;
-        let tape_state = match state.version {
-            1 if used == bytes.len() => None,
-            2 => {
+        let (tape_state, drive_state) = match state.version {
+            1 if used == bytes.len() => (None, None),
+            2 | 3 => {
                 let (tape, count): (Option<TapeState>, usize) = bincode::serde::decode_from_slice(
                     &bytes[used..],
                     bincode::config::standard().with_limit::<1_048_576>(),
                 )
                 .map_err(|error| format!("invalid VIC-20 tape state: {error}"))?;
-                if used + count != bytes.len() {
+                let end = used + count;
+                let (drive, count) = if state.version == 3 {
+                    bincode::serde::decode_from_slice::<Option<DriveState>, _>(
+                        &bytes[end..],
+                        bincode::config::standard().with_limit::<1_048_576>(),
+                    )
+                    .map_err(|error| format!("invalid VIC-20 Drive state: {error}"))?
+                } else {
+                    (None, 0)
+                };
+                if end + count != bytes.len() {
                     return Err("invalid VIC-20 state trailing bytes".to_string());
                 }
-                tape
+                (tape, drive)
             }
             _ => return Err("invalid VIC-20 state version or trailing bytes".to_string()),
         };
@@ -1100,10 +1335,28 @@ impl Machine for Vic20 {
             (None, None) => {}
             _ => return Err("VIC-20 state tape attachment or recording differs".to_string()),
         }
+        let drive = match (&self.bus.drive, drive_state) {
+            (None, None) => None,
+            (Some(current), Some(saved))
+                if saved.rom == <[u8; 20]>::from(Sha1::digest(&current.rom))
+                    && saved.media
+                        == current
+                            .source
+                            .as_ref()
+                            .map(|bytes| Sha1::digest(bytes).into()) =>
+            {
+                let mut restored = Drive::new(current.rom.clone())?;
+                restored.source = current.source.clone();
+                restored.link.load_gcr_checkpoint(&saved.checkpoint)?;
+                Some(restored)
+            }
+            _ => return Err("VIC-20 state Drive, DOS ROM or disk attachment differs".to_string()),
+        };
         if let (Some(tape), Some(saved)) = (&mut self.bus.tape, tape_state) {
             tape.restore_state(saved.position);
         }
         self.cpu = state.cpu;
+        self.bus.drive = drive;
         self.bus.hardware = state.hardware;
         self.bus.audio.clear();
         Ok(())

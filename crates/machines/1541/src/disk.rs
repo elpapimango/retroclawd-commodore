@@ -84,10 +84,41 @@ const MAX_HALF_TRACK: u16 = 82;
 
 /// A disk image in the drive: the 1541's `.d64`, or the 1571's
 /// double-sided `.d71`.
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(try_from = "MediumBytes", into = "MediumBytes")]
 pub enum Medium {
     D64(d64::D64),
     D71(d71::D71),
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+enum MediumBytes {
+    D64(Vec<u8>),
+    D71(Vec<u8>),
+}
+
+impl From<Medium> for MediumBytes {
+    fn from(medium: Medium) -> Self {
+        match medium {
+            Medium::D64(disk) => Self::D64(disk.to_bytes()),
+            Medium::D71(disk) => Self::D71(disk.to_bytes()),
+        }
+    }
+}
+
+impl TryFrom<MediumBytes> for Medium {
+    type Error = String;
+
+    fn try_from(bytes: MediumBytes) -> Result<Self, String> {
+        match bytes {
+            MediumBytes::D64(bytes) => d64::D64::parse(&bytes)
+                .map(Self::D64)
+                .map_err(|error| format!("invalid saved D64: {error}")),
+            MediumBytes::D71(bytes) => d71::D71::parse(&bytes)
+                .map(Self::D71)
+                .map_err(|error| format!("invalid saved D71: {error}")),
+        }
+    }
 }
 
 impl Medium {
@@ -149,7 +180,7 @@ impl gcr::SectorSource for Medium {
 /// any) and the current track's synthesized GCR bitstream (`crate::gcr::
 /// build_track_gcr`), rebuilt lazily whenever the head actually moves to a
 /// different track.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DiskMechanism {
     disk: Option<Medium>,
     /// Which side of a double-sided (1571) disk the head is on, VIA1 Port A
@@ -231,6 +262,24 @@ pub(crate) struct DiskMechanismState {
 }
 
 impl DiskMechanism {
+    pub(crate) fn validate_complete_state(&self) -> Result<(), String> {
+        if self.half_track > MAX_HALF_TRACK
+            || self.stepper_phase > 3
+            || self.density > 3
+            || self.side > 1
+            || self.cpu_mhz > 2
+            || !self.bit_accumulator.is_finite()
+            || !(0.0..8.0).contains(&self.bit_accumulator)
+            || self.consecutive_ones > SYNC_MIN_ONES
+            || self.bits_since_byte > 7
+            || self.track_gcr.len() > 16_384
+            || (!self.track_gcr.is_empty() && self.bit_position >= self.track_gcr.len() * 8)
+        {
+            return Err("invalid complete 1541 disk mechanism state".to_string());
+        }
+        Ok(())
+    }
+
     pub(crate) fn attach(&mut self, disk: Medium) {
         self.commit_track();
         self.disk = Some(disk);
@@ -563,6 +612,40 @@ impl DiskMechanism {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn complete_drive_checkpoint_preserves_a_dirty_track_and_active_write_shifter() {
+        let mut drive = crate::C1541::new(vec![0xea; crate::ROM_SIZE], 8).unwrap();
+        drive
+            .bus
+            .disk
+            .attach(Medium::D64(blank_disk_with_id(0x56, 0x32)));
+        drive.bus.disk.set_motor_on(true);
+        drive.bus.disk.set_write(true, 0x55);
+        for _ in 0..75 {
+            drive.bus.disk.tick(1);
+        }
+        assert!(drive.bus.disk.track_dirty);
+        drive.bus.disk.disk_modified = true;
+        let saved = drive.save_complete_state();
+        for _ in 0..150 {
+            drive.bus.disk.tick(1);
+        }
+        let future = drive.save_complete_state();
+        drive.load_complete_state(&saved).unwrap();
+        assert!(drive.bus.disk.write_mode);
+        assert!(drive.bus.disk.track_dirty);
+        for _ in 0..150 {
+            drive.bus.disk.tick(1);
+        }
+        assert_eq!(drive.save_complete_state(), future);
+        drive.bus.disk.set_write(false, 0);
+        assert!(drive.disk_modified());
+        let modified = drive.save_complete_state();
+        drive.mark_disk_saved();
+        drive.load_complete_state(&modified).unwrap();
+        assert!(drive.disk_modified());
+    }
 
     fn blank_disk_with_id(id1: u8, id2: u8) -> d64::D64 {
         let mut bytes = vec![0u8; 683 * d64::SECTOR_SIZE];

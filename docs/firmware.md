@@ -10,7 +10,7 @@ Spectrum ROM is not silently loaded into a ZX81).
 ## Commodore VIC-20 (experimental)
 
 `vic20` requires three separate images. Supply lawful local dumps; no VIC-20
-firmware is bundled, and no real firmware boot has yet been verified.
+firmware is bundled. Hash-verified PAL/NTSC boots are recorded in `docs/vic20-gaps.md`.
 `firmware.toml` contains identity hashes, not download URLs or permission grants.
 
 | Option | Configuration key | Part | Size |
@@ -29,8 +29,12 @@ retroclawd vic20 --rom-basic basic.bin --rom-kernal kernal-pal.bin \
   --headless --frames 180 --dump-screen vic20.png
 ```
 
-This is a validation command for user-supplied firmware, not a verified boot
-claim. See `vic20.manifest.toml` and `docs/vic20-gaps.md`.
+For a real 1541 at IEC device 8, add `--true-drive --disk game.d64`.
+Its optional File Option is `--rom-1541` / configuration key `rom_1541`,
+requiring a 16384-byte 1541 DOS ROM. `--firmware auto` resolves the existing
+1541 DOS hashes when `true_drive` is enabled. Without that Option, the Drive
+is absent and its ROM is not fetched. Other Drive models and disk formats
+are not advertised for the VIC-20. See `vic20.manifest.toml` and `docs/vic20-gaps.md`.
 
 ## Commodore 64
 

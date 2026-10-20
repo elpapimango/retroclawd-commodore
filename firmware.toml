@@ -28,6 +28,17 @@ option = "char"
 label = "VIC-20 character ROM (901460-03)"
 sha1 = ["4fd85ab6647ee2ac7ba40f729323f2472d35b9b4"]
 
+[[rom]]
+machines = ["vic20"]
+option = "rom_1541"
+label = "1541 DOS for the VIC-20 IEC Drive"
+when = { true_drive = "true" }
+sha1 = [
+  "ab16f56989b27d89babe5f89c5a8cb3da71a82f0",
+  "d3b78c3dbac55f5199f33f3fe0036439811f7fb3",
+  "38a7a489c7bbc8661cf63476bf1eb07b38b1c704",
+]
+
 # ---- C64: the US/EU revision 3 set first, older revisions after it.
 
 [[rom]]

@@ -17,14 +17,18 @@ The ROM files and how to call each machine: `docs/firmware.md`.
 
 `vic20` is experimental: NMOS 6502, VIC-I video/sound, two VIAs, PAL/NTSC,
 keyboard, joystick, selectable RAM expansion, raw/PRG programs, read-only VIC-20
-TAP-v0/v1 playback and deterministic
+TAP-v0/v1 playback, a real 1541 for writable D64 Media and deterministic
 save states. It reuses `mos6502` and `via6522`, not VIC-II or SID. Real PAL/NTSC
 boots, BASIC typing, tone pitch, state continuation and frame budgets pass in
-both execution modes: 30 scenarios pass, with boot/input/program/cassette output
-compared against hash-pinned VICE 3.9 captures. Three gaps remain: disk,
+both execution modes: 38 scenarios pass, with boot/input/program/cassette/disk output
+compared against hash-pinned VICE 3.9 captures. Two gaps remain:
 cartridge and external diagnostics. Tape headers must declare platform 1 and
 the machine's PAL/NTSC region. Attach presses PLAY; VIA1 controls the motor.
-Recording, cartridge and disk attachment are unsupported and fail explicitly.
+Use `--true-drive --disk game.d64`; supply `--rom-1541` or use `--firmware auto`.
+The existing 1541/IEC implementation runs the real DOS, without a fast-load trap.
+Drive stepping remains instruction-granular in both execution modes.
+Disk export, writeback, swapping, reset and complete Drive states are wired.
+Other disk formats, other Drive models, recording and cartridges are unsupported.
 Calibrated single-voice audio RMS agrees within 1%; full hardware fidelity is not claimed.
 See `vic20.intake.toml`, `vic20.manifest.toml` and `docs/vic20-gaps.md`.
 

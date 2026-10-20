@@ -4,7 +4,7 @@ Status: experimental, 2026-10-20. **Real PAL/NTSC firmware boots, BASIC typing,
 tone pitch, state continuation and frame budgets pass in fast and accurate
 modes.** Boot/input images match the installed VICE 3.9 reference after
 palette and framing normalization. Tools-built PRG output also matches.
-The manifest reports **30 passed, 0 failed, 3 known gaps**.
+The manifest reports **38 passed, 0 failed, 2 known gaps**.
 This is not completion of the additional-machine request.
 
 ## Implemented and checked
@@ -36,6 +36,12 @@ PRG/P00 headers, so no duplicate file parser was introduced.
 
 Validation executed:
 
+- Disk increment: `cargo test --release -p c1541 -p drive-link -p vic20
+  -p vic20-machine-plugin -p c64 -p c128` passed 169 tests, with 25 explicit
+  real-firmware ignores. Focused release Clippy with `-D warnings`, formatting,
+  the dynamic Plugin build and all 38 real-firmware manifest cases passed.
+  Additional real 1541 LOAD, dirty-media writeback and mid-transfer continuation
+  checks cover both Regions and execution modes; details appear below.
 - Cassette increment: `cargo test --release -p c64-tape -p vic20 -p vic20-machine-plugin -p c64`
   passed 129 tests, with 10 explicit real-drive ignores. The unchanged C64
   real-KERNAL cassette-load/save cases passed. Targeted release Clippy with
@@ -44,7 +50,7 @@ Validation executed:
   structure validation, exact-pulse normalization and overwrite/input refusal.
   Its existing Spectrum firmware-dependent bodies remained fixture-gated;
   those runner passes are not new Spectrum execution proof.
-  The complete real-ROM VIC-20 manifest reports 30 passes and 3 known gaps.
+  That cassette-stage real-ROM VIC-20 manifest reported 30 passes and 3 known gaps.
 - `cargo test --release -p vic-i -p vic20 -p vic20-machine-plugin`: 21 tests
   passed (8 Chip, 7 Machine, 6 Plugin), including the new reference-RMS
   regression, state continuation, malformed-state
@@ -93,9 +99,9 @@ The installed GTK3 Win64 `xvic.exe` identifies itself in its logfile as
 This is the identity of the executable actually used, not a claim that its
 build was independently reproduced from the separately pinned 3.10 sources.
 
-`vic20.manifest.toml` retains all standard scenarios. S1/S2/S3-program/S3-tape/S4/S5/S6
+`vic20.manifest.toml` retains all standard scenarios. S1/S2/S3-program/S3-tape/S3-disk/S4/S5/S6
 cover PAL/NTSC and fast/accurate; S4 also checks PAL volume 7 in both modes.
-Disk, cartridge and S7 remain explicit known gaps.
+Cartridge and S7 remain explicit known gaps.
 An uncaptured screen omits its golden and hash instead of inventing either.
 The matching `rc-scenarios` change reports these as **not run**, never passed.
 The initial real-ROM manifest run correctly rejected the now-passing S4/S5/S6
@@ -104,7 +110,8 @@ gap markers; the updated manifest passes without unexpected closed gaps.
 ### Reference capture recipe
 
 Use the command in the manifest with the matching BASIC, regional KERNAL and
-character ROM. All four drive types are disabled. `-limitcycles` deliberately
+character ROM. Boot, input, Program, tape and audio captures disable all four
+Drives; disk captures enable a real 1541 as described below. `-limitcycles` deliberately
 returns exit code 1; accept a capture only when its logfile identifies VICE
 3.9 and says `cycle limit reached.`, and the requested screenshot exists.
 
@@ -272,8 +279,9 @@ Crop and deduplicate exactly as for S3-program. The resulting cassette golden
 hashes happen to equal the corresponding program hashes because the same glyph
 and palette result; each was derived from its actual cassette capture.
 
-State version 2 appends a SHA-1 recording identity and playback position without
-changing the old hardware prefix. Tapeless version-1 states still load.
+State version 2 introduced a SHA-1 recording identity and playback position without
+changing the old hardware prefix. Current version 3 retains both fields and
+adds the Drive checkpoint. Versions 1/2 still load without a Drive.
 Wrong/missing recordings and corrupt positions fail before mutation.
 All four real-KERNAL mid-load saves at frame 600 followed by 1600 frames
 produce byte-identical states to uninterrupted 2200-frame runs.
@@ -284,9 +292,76 @@ fast-forward for faster wall-clock loading. Motor inertia and physical
 rising-edge phase are not modeled: READ returns high immediately after each
 falling edge. Recording and tape export remain unsupported.
 
-Cartridge and disk attachment remain unsupported. IEC pin accessors alone are not a drive.
-No HDD interface is invented. Tape recording, media export/writeback and
-external snapshot formats are likewise not implemented.
+### 1541 disk
+
+`--true-drive` enables the existing `drive-link` and 1541 Core at IEC device 8.
+Supply its 16 KiB DOS through `--rom-1541`, or let `--firmware auto` select
+the existing hash metadata. The default remains no Drive; the Plugin refuses
+disk attachment without it and refuses an unused DOS ROM without the Option.
+Only D64 and Drive 0 are advertised; D71/D81/G64 and other Drive models are
+not silently accepted.
+
+The Machine owns the Drive and advances the link for each elapsed clock, so
+debugger stepping and both CPU execution engines reach the same peripheral
+path. The Drive CPU itself still steps whole instructions, with fractional
+clock-ratio debt; this is not cycle-synchronous Drive emulation.
+VICE's pinned `vic20iec.c` establishes the physical output inversion.
+The original pin accessors incorrectly inverted all three assertion values;
+a failing-then-passing regression checks high VIA outputs assert ATN/CLOCK/DATA
+low and PA0/PA1 read the resulting physical input levels.
+
+Build the D64 with existing tools and the safe `$1200` cassette payload:
+
+```
+rcdisk create software/scenarios/vic20-pattern.d64 --name VIC20 --id V2
+rcdisk add software/scenarios/vic20-pattern.d64 software/scenarios/vic20-tape.prg --name PATTERN
+retroclawd vic20 --firmware auto --true-drive --disk software/scenarios/vic20-pattern.d64
+```
+
+The Host types `LOAD"PATTERN",8,1` from frame 150 and `SYS4608` from
+frames 1000-1045. After 1200 frames all 55 payload bytes match, PC is `$1234`,
+and all 64 glyph foreground pixels match VICE in PAL/NTSC and fast/accurate.
+No KERNAL or DOS loader trap is used. The disk goldens were independently
+captured; their canonical hashes equal the corresponding Program/tape hashes.
+The existing 0.01 similarity bound and crop conversion are unchanged.
+
+For the reference command replace `-drive8type 0` with `-drive8type 1541`,
+keep Drives 9-11 disabled, and add:
+
+```
+-dos1541 DOS -drive8truedrive +virtualdev8 -8 vic20-pattern.d64
+-keybuf 'load"pattern",8,1\nsys4608\n'
+```
+
+Use 26582400 PAL or 20358000 NTSC cycles. Installed VICE 3.9 uses the
+per-Drive `-drive8truedrive` switch, not the rejected global `-truedrive`.
+Its DOS is the same hash-verified
+`ab16f56989b27d89babe5f89c5a8cb3da71a82f0` used by retroclawd.
+Accept only actual screenshot output plus the version and cycle-limit log
+markers. Crop raw `[96, 48, 112, 56)` and deduplicate columns as above.
+
+Attach/eject, the existing 0.3-second swap gap, runtime/debug disk status,
+track/motor overlay, reset, disk export, mark-saved and Host writeback are
+wired. Real DOS serial writes were checked in all four Region/mode cases:
+`OPEN1,8,1,"WRITE,S,W":PRINT#1,"VIC20":CLOSE1` followed by `--disk-save`.
+Existing `rcdisk extract` recovered exactly `VIC20` plus carriage return.
+Restoring each dirty Save state with the original mounted D64 exported a
+byte-identical modified D64, proving both medium bytes and unsaved flags survive.
+
+Version 3 validates DOS and original-media identity before restoring a staged
+Drive, then commits the Machine only after every check passes.
+The new complete GCR checkpoint preserves the IEC bus, fractional clock debt,
+pending insertion and countdown, mounted medium, GCR cache, dirty track, write
+shifter, mechanism phase and unsaved flag. Legacy C64/C128 Drive state APIs
+and layouts are unchanged. Unit regressions cover pending swaps, active writes,
+both execution modes and atomic failure. Real mid-transfer saves at frame 350
+(payload still unloaded) plus 850 frames equal direct 1200-frame states byte
+for byte in all four cases. Four S5-disk cases also check mounted-Drive
+continuation in the manifest.
+
+Cartridge attachment, HDD interfaces, tape recording/export and external
+snapshot formats remain unimplemented. Native desktop disk dialogs were not
+manually exercised in this increment; they use the existing Host media path.
 
 ## S4 audio
 

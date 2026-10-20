@@ -32,7 +32,7 @@
 
 /// One open-collector bus line's current state: who (of the 2 real
 /// participants this crate models) is actively pulling it low right now.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 struct IecLine {
     computer_asserts: bool,
     drive_asserts: bool,
@@ -49,7 +49,7 @@ impl IecLine {
 /// The 3-line IEC serial bus connecting a Commodore computer to a disk
 /// drive -- see this module's own doc comment for the full citation and
 /// scope.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]
 pub struct IecBus {
     atn: IecLine,
     clock: IecLine,
