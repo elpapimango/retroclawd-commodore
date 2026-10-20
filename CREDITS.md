@@ -6,10 +6,11 @@ implementation of documented behavior, cited here because that behavior
 (file layouts, byte offsets, register constants) came from reading them,
 not from independent derivation.
 
-## VIC-20 intake (not an implemented Machine)
+## Experimental VIC-20 (`vic-i`, `vic20`, `vic20-machine-plugin`)
 
-`vic20.intake.toml` records hardware facts and unresolved prerequisites, not
-passing scenarios or support claims. References read for this intake:
+`vic20.intake.toml` records hardware facts and unresolved prerequisites.
+`docs/vic20-gaps.md` distinguishes implemented behavior from reference proof.
+References read for this implementation:
 
 - Commodore, *VIC-20 Programmer's Reference Guide*, etext 1.1, archived at
   <https://www.zimmers.net/anonftp/pub/cbm/manuals/vic20/vic20-programmers-reference-guide-1.1.txt>.
@@ -21,11 +22,18 @@ passing scenarios or support claims. References read for this intake:
   `vice/src/vic20/vic20.h`, for PAL and NTSC timing, including the partial
   first/last NTSC raster lines. VICE revision
   `d928b850b7ef4c1b1826a6efd175d8eaa80344d8`, `vic20mem.c`, `vic20via1.c`,
-  and `vic20via2.c`, for open bus, keyboard matrix, and VIA wiring.
+  `vic20via2.c`, and `data/VIC20/gtk3_sym.vkm`, for open bus, keyboard
+  matrix, shifted legends and VIA wiring. The diagram's row/column comment
+  must be read together with `rev_keyarr` and the keymap, not in isolation.
+  At the 3.10.0 revision, `vic/vic-mem.c` and `vic20/vic20sound.c` inform
+  register behavior, divider/shift-register sound, noise taps and filtering.
+  The palette uses VICE's original VIC-I RGB calibration, not VIC-II colors;
+  the mixer remains linear rather than copying the measured voltage table.
   <https://github.com/VICE-Team/svn-mirror> (GPL-2.0-or-later).
 - MAME revision `848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605`,
   `src/mame/commodore/vic20.cpp`, for independent address-decode checks and
-  firmware SHA-1/size metadata.
+  firmware SHA-1/size metadata. Its `COL` inputs and `via2_pa_r` independently
+  establish the Port B selection / Port A input orientation used here.
   <https://github.com/mamedev/mame> (driver: BSD-3-Clause).
 
 No emulator source or firmware bytes were copied. Firmware hashes establish
@@ -1225,4 +1233,3 @@ kernal, character ROM halves) was confirmed by running the ROMs. The C128 Progra
 Reference Guide gives the MMU register table. `roms/c128/` is user-supplied (from the VICE data set). The
 C64-mode mapping reuses the C64 PLA behaviour documented above. Everything was then checked by running the
 real ROMs (`crates/machines/c128/tests/{boot,drive}.rs`), not by comparing with VICE output.
-

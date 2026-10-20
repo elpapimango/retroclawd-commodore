@@ -4,7 +4,7 @@ Guidance for Claude Code (claude.ai/code) working in this repo.
 
 ## What this repository is
 
-The Commodore (C64, C128, drives) machine family of retroclawd, split out of the main repository (`elpapimango/retroclawd`, the application, referred to as "the host"). Everything here builds into `*_machine_plugin` shared libraries that the host application loads at run time. Shared crates (`machine`, `plugin-api`, `z80`, `mos6502`, `ay-3-8910`, `nec765`, `dsk`, `zx-tape`) come from `elpapimango/retroclawd-crates` as a git dependency pinned to a commit (`rev`); changing that rev means checking `docs/plugin-abi.md` in that repository. Directory layout is the same as in the host (tests find ROMs/software at `CARGO_MANIFEST_DIR/../../../roms|software`).
+The Commodore (experimental VIC-20, C64, C128, drives) machine family of retroclawd, split out of the main repository (`elpapimango/retroclawd`, the application, referred to as "the host"). Everything here builds into `*_machine_plugin` shared libraries that the host application loads at run time. Shared crates (`machine`, `plugin-api`, `z80`, `mos6502`, `ay-3-8910`, `nec765`, `dsk`, `zx-tape`) come from `elpapimango/retroclawd-crates` as a git dependency pinned to a commit (`rev`); changing that rev means checking `docs/plugin-abi.md` in that repository. Directory layout is the same as in the host (tests find ROMs/software at `CARGO_MANIFEST_DIR/../../../roms|software`).
 
 ## Commands
 
@@ -21,6 +21,21 @@ environment). The test media come from `scenarios/c64/hello.asm`, the combined C
 not committed. Known gaps are `status = "known-gap"` entries with a note under `docs/`; none is open. Closed 2026-10-19: the fast loader's missing SEARCHING/LOADING lines (the trap now returns through the KERNAL's own message routines, `docs/c64-load-messages-gap.md`) and the dead test's clock (the CIA TOD clock honours CRA `TODIN`: mains pulses divided by 5 or 6, `docs/c64-deadtest-clock-gap.md`). S6 (frame length) was closed 2026-10-19: `Machine::frame_rate` of the C64 and C128 is the clock over one raster frame (`docs/c64-timing-gap.md`).
 
 ## Crate notes
+
+`vic-i` and `vic20` implement an experimental MOS 6560/6561 Machine with the
+existing NMOS `mos6502` Core and two `via6522` Chips. `vic20-machine-plugin`
+owns its Options, matrix-derived keys, shifted combos, debug contract and C ABI;
+`plugin-dlls/vic20` only exports its entry. Fast clocks Chips after an instruction,
+accurate on every CPU bus cycle, including dummy accesses. See `docs/vic20-gaps.md`
+for proof and missing hardware. No real VIC-20 boot or reference capture is
+verified. Do not treat synthetic firmware as a passing boot scenario.
+
+The VIC-20 manifest preserves S1-S7 as known gaps. Uncaptured screen goldens are
+omitted rather than assigned placeholder hashes; this requires the matching
+`rc-scenarios` change described in `docs/vic20-gaps.md`. There are no tolerance
+changes or committed firmware/goldens. Program attachment accepts raw bytes plus
+`org`, validates the complete mapped RAM range before mutation, and does not jump
+or patch BASIC pointers. PRG/P00 header parsing stays in the existing Host.
 
 The notes below were written in the host repository before the split and refer to it in places (`retroclawd`'s GUI, `HostedMachine`, `emu_thread`, the CLI flags): those parts are host code and are documented in the host's CLAUDE.md.
 

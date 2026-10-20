@@ -1,0 +1,90 @@
+machine = "vic20"
+# These are open acceptance scenarios, not passing support claims.
+# Uncaptured screen goldens require the matching rc-scenarios feature change.
+
+[reference]
+emulator = "VICE xvic"
+version = "3.10.0; source 4d283a2e7dd59b7e378524878e81ecc7826b700c; executable not installed"
+command = "Not run: install and identify xvic, supply lawful firmware, then record capture commands and real golden hashes."
+
+[files]
+rom-basic = "commodore/roms/vic20/basic-901486-01.bin"
+rom-kernal = "commodore/roms/vic20/kernal-901486-07.bin"
+rom-char = "commodore/roms/vic20/chargen-901460-03.bin"
+
+[[scenario]]
+id = "S1"
+kind = "screen"
+frames = 180
+status = "known-gap"
+gap = { reason = "Real VIC-20 firmware boot and xvic capture have not been verified; no golden exists.", evidence = "docs/vic20-gaps.md#s1-boot" }
+
+[[scenario]]
+id = "S2"
+kind = "screen"
+frames = 500
+args = ["--type-after", "150", "--type", "PRINT 12*34\n"]
+status = "known-gap"
+gap = { reason = "Synthetic matrix checks are not proof of typing through the real KERNAL; no reference capture exists.", evidence = "docs/vic20-gaps.md#s2-input" }
+
+[[scenario]]
+id = "S3-program"
+kind = "screen"
+frames = 180
+files = { program = "commodore/software/scenarios/vic20-pattern.prg" }
+status = "known-gap"
+gap = { reason = "Raw/PRG loading is implemented, but a reference run of the tools-built program has not been captured.", evidence = "docs/vic20-gaps.md#s3-media" }
+
+[[scenario]]
+id = "S3-tape"
+kind = "screen"
+frames = 900
+status = "known-gap"
+gap = { reason = "Datasette wiring and VIC-20 TAP validation are not implemented; no reference capture exists.", evidence = "docs/vic20-gaps.md#s3-media" }
+
+[[scenario]]
+id = "S3-disk"
+kind = "screen"
+frames = 900
+status = "known-gap"
+gap = { reason = "The IEC pins exist, but a drive and disk attachment are not wired into this Plugin.", evidence = "docs/vic20-gaps.md#s3-media" }
+
+[[scenario]]
+id = "S3-cartridge"
+kind = "screen"
+frames = 180
+status = "known-gap"
+gap = { reason = "VIC-20 cartridge formats, mapping and attachment are not implemented; C64 CRT support is not advertised.", evidence = "docs/vic20-gaps.md#s3-media" }
+
+[[scenario]]
+id = "S4"
+kind = "audio"
+frames = 1000
+args = ["--type-after", "150", "--type", "POKE36878,15:POKE36874,224\n"]
+audio = { from_s = 17.0, to_s = 19.0, tone_hz = 139.67, tone_tolerance_pct = 1.0, min_amplitude = 0.01 }
+status = "known-gap"
+gap = { reason = "The VIC-I divider predicts 1108405/(31*16*16) Hz; real firmware typing and reference pitch/amplitude have not been verified.", evidence = "docs/vic20-gaps.md#s4-audio" }
+
+[[scenario]]
+id = "S5"
+kind = "state"
+frames = 180
+more_frames = 50
+status = "known-gap"
+gap = { reason = "State/reset unit tests and synthetic Host continuation pass, but this firmware-backed scenario has not run.", evidence = "docs/vic20-gaps.md#s5-state-and-reset" }
+
+[[scenario]]
+id = "S6"
+kind = "timing"
+frames = 100
+cycles_per_frame = 22152
+cycles_tolerance = 8
+status = "known-gap"
+gap = { reason = "PAL timing matches pinned reference-source numbers in Chip tests; the firmware-backed Host scenario has not run.", evidence = "docs/vic20-gaps.md#s6-timing" }
+
+[[scenario]]
+id = "S7"
+kind = "screen"
+frames = 2000
+status = "known-gap"
+gap = { reason = "A third-party VIC-20 hardware diagnostic has not been selected, license-verified or run.", evidence = "docs/vic20-gaps.md#s7-diagnostics" }

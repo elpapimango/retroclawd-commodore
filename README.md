@@ -1,8 +1,8 @@
 # retroclawd-commodore
 
-Commodore (C64, C128 and the 1541/1570/1571/1581 drives) emulation for [retroclawd](https://github.com/elpapimango/retroclawd), split out of the main repository.
+Commodore (experimental VIC-20, C64, C128 and the 1541/1570/1571/1581 drives) emulation for [retroclawd](https://github.com/elpapimango/retroclawd), split out of the main repository.
 The machine logic lives here; the retroclawd application links none of it. It loads the
-shared libraries this workspace builds (`c64_machine_plugin`, `c128_machine_plugin`) at run time.
+shared libraries this workspace builds (`vic20_machine_plugin`, `c64_machine_plugin`, `c128_machine_plugin`) at run time.
 
 ## Machines
 
@@ -15,13 +15,16 @@ shared libraries this workspace builds (`c64_machine_plugin`, `c128_machine_plug
 
 The ROM files and how to call each machine: `docs/firmware.md`.
 
-`vic20.intake.toml` records primary-source research for the VIC-20. It does not
-add a Machine or Plugin; VIC-20 boot, media, and reference scenarios remain
-unimplemented and unverified.
+`vic20` is experimental: NMOS 6502, VIC-I video/sound, two VIAs, PAL/NTSC,
+keyboard, joystick, selectable RAM expansion, raw/PRG programs and deterministic
+save states. It reuses `mos6502` and `via6522`, not VIC-II or SID. No real
+VIC-20 firmware boot or reference comparison has been verified. Cassette,
+cartridge and disk attachment remain unsupported and fail explicitly.
+See `vic20.intake.toml`, `vic20.manifest.toml` and `docs/vic20-gaps.md`.
 
 ## Execution modes
 
-Both Plugins accept `--execution-mode fast|accurate` (configuration key
+The C64 and C128 Plugins accept `--execution-mode fast|accurate` (configuration key
 `execution_mode`). Fast is the default and uses the existing line engine:
 CPU instructions batch raster and peripheral advancement, including approximate
 bad-line cycle stealing. Accurate selects the existing cycle engine: each
@@ -50,6 +53,15 @@ The Plugin tests compare the new and legacy engines, deterministic continuation
 after state restoration, cross-mode rejection, and invalid or conflicting
 Options. Existing Machine cycle tests cover raster timing and BA behavior.
 No relative performance measurements have been collected for these aliases.
+
+The VIC-20 uses the same Option. Fast advances Chips after each instruction;
+accurate advances them on each CPU read, write and dummy cycle. A timer-read
+regression demonstrates different bus-visible results with identical elapsed
+clocks. Both modes work on PAL and NTSC. Neither models sub-clock VIC-I fetch
+phases, interlace, analogue paddles or light-pen latching. The sound mixer is
+linear with RC filters, not a measured analogue transfer function. Save states
+reject different firmware, Region, RAM expansion or execution mode. No controlled
+relative-performance benchmark or real-game compatibility run has been performed.
 
 ## Build
 
@@ -86,12 +98,15 @@ The directory layout is the same as in the original repository, because the test
 software relative to `CARGO_MANIFEST_DIR/../../../`.
 
 - `crates/machines/c64`
+- `crates/machines/vic20`
 - `crates/machines/c128`
 - `crates/machines/1541`
 - `crates/machines/drive-link`
 - `crates/plugins/c64-machine-plugin`
+- `crates/plugins/vic20-machine-plugin`
 - `crates/plugins/c128-machine-plugin`
 - `crates/plugin-dlls/c64`
+- `crates/plugin-dlls/vic20`
 - `crates/plugin-dlls/c128`
 - `crates/formats/c64-tape`
 - `crates/formats/c64-cartridge`
@@ -102,6 +117,7 @@ software relative to `CARGO_MANIFEST_DIR/../../../`.
 - `crates/formats/cbm-dos`
 - `crates/chips/sid`
 - `crates/chips/vic-ii`
+- `crates/chips/vic-i`
 - `crates/chips/via-6522`
 - `crates/chips/wd1770`
 - `crates/chips/cia-6526`

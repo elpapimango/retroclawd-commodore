@@ -7,6 +7,31 @@ ROM images are copyrighted and are **not** part of this repository. Put your own
 ROMs; supply your own dumps. The application checks the size of every ROM and refuses a mismatch (a
 Spectrum ROM is not silently loaded into a ZX81).
 
+## Commodore VIC-20 (experimental)
+
+`vic20` requires three separate images. Supply lawful local dumps; no VIC-20
+firmware is bundled, and no real firmware boot has yet been verified.
+`firmware.toml` contains identity hashes, not download URLs or permission grants.
+
+| Option | Configuration key | Part | Size |
+|---|---|---|---|
+| `--rom-basic` | `basic` | 901486-01 | 8192 bytes |
+| `--rom-kernal` | `kernal` | 901486-07 (PAL), 901486-06 (NTSC) | 8192 bytes |
+| `--rom-char` | `char` | 901460-03 | 4096 bytes |
+
+Select the matching `--region pal|ntsc`. The Plugin validates each image's size;
+it does not infer its Region from contents. Automatic hash lookup selects the
+KERNAL by Region. Japan is unsupported and rejected.
+
+```
+retroclawd vic20 --rom-basic basic.bin --rom-kernal kernal-pal.bin \
+  --rom-char characters.bin --region pal --execution-mode accurate \
+  --headless --frames 180 --dump-screen vic20.png
+```
+
+This is a validation command for user-supplied firmware, not a verified boot
+claim. See `vic20.manifest.toml` and `docs/vic20-gaps.md`.
+
 ## Commodore 64
 
 `c64` needs three separate images (a real C64 has no single boot ROM) under `c64/`; the known-good set is the

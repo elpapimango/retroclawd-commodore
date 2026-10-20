@@ -1,0 +1,21 @@
+[package]
+name = "vic20-machine-plugin"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[lib]
+name = "vic20_machine_plugin_impl"
+
+[dependencies]
+build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
+vic20 = { path = "../../machines/vic20" }
+vic-i = { path = "../../chips/vic-i" }
+serde = { version = "1", features = ["derive"] }
+bincode = { version = "2", features = ["serde"] }
+
+[build-dependencies]
+build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }

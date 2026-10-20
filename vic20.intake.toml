@@ -4,9 +4,9 @@ family = "commodore"
 default_region = "pal"
 
 [implementation]
-status = "intake-only"
+status = "experimental"
 boot_verified = false
-note = "No VIC-20 Machine, VIC-I Chip, or Plugin is implemented yet. This file records researched inputs, not supported hardware or passing scenarios."
+note = "VIC-I Chip, VIC-20 Machine and dynamic Plugin are implemented and tested with synthetic firmware. No real firmware boot, reference execution, hardware diagnostic or golden comparison has been verified. See docs/vic20-gaps.md."
 
 [core]
 reuse = "mos6502"
@@ -72,16 +72,16 @@ via2_cb1 = "IEC SRQ in"
 via2_cb2 = "IEC data out"
 
 [keyboard]
-note = "Each matrix entry lists Port A bits 0-7 for the selected Port B bit. This is not the C64 keyboard matrix. Host-facing aliases and shifted combinations still need implementation."
+note = "Each entry lists Port A bits 0-7 for a selected Port B bit, following MAME's actual via2_pa_r and COL inputs. The earlier intake transposed this wiring by reading the VICE diagram's row/column comment literally. MAME's input path and the VICE keymap/rev_keyarr path agree with the matrix below. Aliases and shifted combinations are implemented."
 matrix = [
-  ["Digit1", "LeftArrow", "Control", "RunStop", "Space", "Commodore", "KeyQ", "Digit2"],
-  ["Digit3", "KeyW", "KeyA", "ShiftLeft", "KeyZ", "KeyS", "KeyE", "Digit4"],
-  ["Digit5", "KeyR", "KeyD", "KeyX", "KeyC", "KeyF", "KeyT", "Digit6"],
-  ["Digit7", "KeyY", "KeyG", "KeyV", "KeyB", "KeyH", "KeyU", "Digit8"],
-  ["Digit9", "KeyI", "KeyJ", "KeyN", "KeyM", "KeyK", "KeyO", "Digit0"],
-  ["Plus", "KeyP", "KeyL", "Comma", "Period", "Colon", "At", "Minus"],
-  ["Pound", "Asterisk", "Semicolon", "Slash", "ShiftRight", "Equals", "UpArrow", "Home"],
-  ["Delete", "Return", "CursorLeftRight", "CursorUpDown", "F1", "F3", "F5", "F7"],
+  ["Digit1", "Digit3", "Digit5", "Digit7", "Digit9", "Plus", "Pound", "Delete"],
+  ["LeftArrow", "KeyW", "KeyR", "KeyY", "KeyI", "KeyP", "Asterisk", "Return"],
+  ["Control", "KeyA", "KeyD", "KeyG", "KeyJ", "KeyL", "Semicolon", "CursorLeftRight"],
+  ["RunStop", "ShiftLeft", "KeyX", "KeyV", "KeyN", "Comma", "Slash", "CursorUpDown"],
+  ["Space", "KeyZ", "KeyC", "KeyB", "KeyM", "Period", "ShiftRight", "F1"],
+  ["Commodore", "KeyS", "KeyF", "KeyH", "KeyK", "Colon", "Equals", "F3"],
+  ["KeyQ", "KeyE", "KeyT", "KeyU", "KeyO", "At", "UpArrow", "F5"],
+  ["Digit2", "Digit4", "Digit6", "Digit8", "Digit0", "Minus", "Home", "F7"],
 ]
 
 [video_audio]
@@ -92,7 +92,7 @@ open_questions = ["PAL/NTSC display crop and pixel aspect", "exact fetch phases 
 
 [media]
 candidate_reuse = ["Commodore TAP pulse Format", "PRG load-address convention", "D64 Format", "1541 and drive-link"]
-supported = []
+supported = ["raw programs through --program/--org", "PRG/P00 headers through the existing Host parser"]
 note = "Reuse is conditional on wiring the VIC-20 datasette and IEC bus. A shared Format or drive implementation does not itself provide Machine media support. Verify cartridge image conventions separately; do not advertise C64 CRT cartridges."
 
 [[firmware]]
@@ -136,7 +136,7 @@ optional = ["S8 instruction trace"]
 removed = []
 overrides = []
 hardware_diagnostics = "Not yet selected and license-verified."
-status = "Not run; no Machine implementation, legal local firmware, reference executable, or goldens are available."
+status = "Standard scenarios remain known gaps: real VIC-20 firmware, reference executable and captures are unavailable. Synthetic unit and dynamic-Host checks pass in both modes and regions; they are not reference proof."
 note = "Do not create passing manifest entries or weaken tolerances from this intake. Preserve all standard scenarios."
 
 [[source]]
@@ -157,7 +157,7 @@ kind = "reference source"
 title = "VICE VIC-20 memory, keyboard, and VIA wiring"
 revision = "d928b850b7ef4c1b1826a6efd175d8eaa80344d8"
 url = "https://github.com/VICE-Team/svn-mirror/tree/d928b850b7ef4c1b1826a6efd175d8eaa80344d8/vice/src/vic20"
-files = ["vic20mem.c", "vic20via1.c", "vic20via2.c"]
+files = ["vic20mem.c", "vic20via1.c", "vic20via2.c", "../../data/VIC20/gtk3_sym.vkm"]
 license = "GPL-2.0-or-later"
 
 [[source]]

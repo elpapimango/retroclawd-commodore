@@ -1,0 +1,14 @@
+[package]
+name = "vic20"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
+vic-i = { path = "../../chips/vic-i" }
+via6522 = { path = "../../chips/via-6522" }
+serde = { version = "1", features = ["derive"] }
+bincode = { version = "2", features = ["serde"] }
+sha1 = "0.10"
