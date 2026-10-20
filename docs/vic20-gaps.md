@@ -4,7 +4,7 @@ Status: experimental, 2026-10-20. **Real PAL/NTSC firmware boots, BASIC typing,
 tone pitch, state continuation and frame budgets pass in fast and accurate
 modes.** Boot/input images match the installed VICE 3.9 reference after
 palette and framing normalization. Tools-built PRG output also matches.
-The manifest reports **26 passed, 0 failed, 4 known gaps**.
+The manifest reports **30 passed, 0 failed, 3 known gaps**.
 This is not completion of the additional-machine request.
 
 ## Implemented and checked
@@ -36,6 +36,15 @@ PRG/P00 headers, so no duplicate file parser was introduced.
 
 Validation executed:
 
+- Cassette increment: `cargo test --release -p c64-tape -p vic20 -p vic20-machine-plugin -p c64`
+  passed 129 tests, with 10 explicit real-drive ignores. The unchanged C64
+  real-KERNAL cassette-load/save cases passed. Targeted release Clippy with
+  `-D warnings`, format check and dynamic Plugin build passed.
+- `rctape` passed 14 tests, including new PAL/NTSC PRG encoding, metadata,
+  structure validation, exact-pulse normalization and overwrite/input refusal.
+  Its existing Spectrum firmware-dependent bodies remained fixture-gated;
+  those runner passes are not new Spectrum execution proof.
+  The complete real-ROM VIC-20 manifest reports 30 passes and 3 known gaps.
 - `cargo test --release -p vic-i -p vic20 -p vic20-machine-plugin`: 21 tests
   passed (8 Chip, 7 Machine, 6 Plugin), including the new reference-RMS
   regression, state continuation, malformed-state
@@ -84,9 +93,9 @@ The installed GTK3 Win64 `xvic.exe` identifies itself in its logfile as
 This is the identity of the executable actually used, not a claim that its
 build was independently reproduced from the separately pinned 3.10 sources.
 
-`vic20.manifest.toml` retains all standard scenarios. S1/S2/S3-program/S4/S5/S6
+`vic20.manifest.toml` retains all standard scenarios. S1/S2/S3-program/S3-tape/S4/S5/S6
 cover PAL/NTSC and fast/accurate; S4 also checks PAL volume 7 in both modes.
-Cassette, disk, cartridge and S7 remain explicit known gaps.
+Disk, cartridge and S7 remain explicit known gaps.
 An uncaptured screen omits its golden and hash instead of inventing either.
 The matching `rc-scenarios` change reports these as **not run**, never passed.
 The initial real-ROM manifest run correctly rejected the now-passing S4/S5/S6
@@ -209,9 +218,73 @@ Crop raw VICE `[96, 48, 112, 56)` and remove duplicated columns to make an
 final width 8. The Host crop is `[48, 76, 56, 84)` in either region.
 All 64 foreground-mask pixels match independently in each mode and region.
 
-Cassette, cartridge and disk attachment remain unsupported. The existing
-Commodore TAP/drive crates are reuse candidates, but sharing a Format does not
-prove VIC-20 timing or device wiring. IEC pin accessors alone are not a drive.
+### Cassette playback
+
+Read-only TAP-v0/v1 playback now passes all four region/mode cases through
+the real KERNAL, without a loader trap. `c64-tape::vic20` validates platform 1,
+PAL/NTSC, reserved byte, exact payload size, complete escapes and positive
+24-bit durations, with a 32 MiB payload limit. Platform-0 legacy recordings
+and region mismatches are refused rather than silently assigned another clock.
+The legacy C64 parser/player behavior is unchanged.
+
+Attach presses PLAY: VIA1 PA6 SENSE goes low, VIA1 CA2 controls the active-low
+motor, and each completed full pulse delivers one falling READ edge to VIA2
+CA1. Alternating the generic player's legacy phase would discard every second
+falling edge; both existing C64 wiring and the new VIC wiring use pulse counts.
+Motor-off preserves pulse phase; eject releases SENSE. The runtime/debug media
+snapshot and overlay report tape position, total pulses and motor state.
+Reset preserves tape phase and restores idle-high READ on the recreated VIA.
+The reset regression first failed because VIA reset left CA1 low, losing the
+next falling edge; it passes after restoring the connected tape's idle level.
+
+Build the cassette with the existing tools:
+
+```
+rcasm scenarios/vic20/tape.asm -f prg -o software/scenarios/vic20-tape.prg
+rctape from-prg software/scenarios/vic20-tape.prg software/scenarios/vic20-pattern-pal.tap --region pal --name PATTERN
+rctape from-prg software/scenarios/vic20-tape.prg software/scenarios/vic20-pattern-ntsc.tap --region ntsc --name PATTERN
+```
+
+The 55-byte machine-code payload lives at `$1200-$1236`, leaving the empty
+BASIC program at `$1001` intact. An initial cassette using the raw-program
+fixture at `$1000` was rejected: BASIC relinked its loaded bytes after LOAD.
+Both fixtures now include one shared assembly body; the original `$1000`
+PRG was verified byte-identical after that extraction.
+The KERNAL encoder reuses the existing Commodore header, duplicate blocks,
+parity and checksums, converting standard pulse durations to VIC timer clocks.
+
+The Host types `LOAD"PATTERN",1,1` from frame 150, then `SYS4608` through
+scripted key presses from frames 1900-1945. At frame 2200 every payload byte
+matches and PC is `$1234`, the expected loop. Both modes and regions match all
+64 foreground pixels of independently captured VICE glyphs; no tolerance changed.
+
+For VICE use the same bounded command, with 48734400 PAL or 37323000 NTSC
+cycles, and add `+virtualdev1 -1 TAPE -initbreak ready -moncommands cassette.mon`
+and `-keybuf 'load"pattern",1,1\nsys4608\n'`. `+virtualdev1` disables the
+fast tape mechanism. `cassette.mon` contains:
+
+```
+tapectrl 1
+g
+```
+
+Crop and deduplicate exactly as for S3-program. The resulting cassette golden
+hashes happen to equal the corresponding program hashes because the same glyph
+and palette result; each was derived from its actual cassette capture.
+
+State version 2 appends a SHA-1 recording identity and playback position without
+changing the old hardware prefix. Tapeless version-1 states still load.
+Wrong/missing recordings and corrupt positions fail before mutation.
+All four real-KERNAL mid-load saves at frame 600 followed by 1600 frames
+produce byte-identical states to uninterrupted 2200-frame runs.
+
+Only speed 1 is firmware-verified. `tape_speed` scales pulse durations against
+CPU time; it is not a transparent stock-ROM loading accelerator. Use Host
+fast-forward for faster wall-clock loading. Motor inertia and physical
+rising-edge phase are not modeled: READ returns high immediately after each
+falling edge. Recording and tape export remain unsupported.
+
+Cartridge and disk attachment remain unsupported. IEC pin accessors alone are not a drive.
 No HDD interface is invented. Tape recording, media export/writeback and
 external snapshot formats are likewise not implemented.
 

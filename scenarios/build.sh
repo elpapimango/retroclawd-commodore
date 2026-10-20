@@ -9,6 +9,12 @@ mkdir -p "$out"
 for ext in prg d64; do
   "$tools/rcld" build "$here/c64/hello.toml" -o "$out/c64-hello.$ext" --force
 done
+# VIC-20 raw-program and real KERNAL cassette scenarios.
+"$tools/rcasm" "$here/vic20/pattern.asm" -f prg -o "$out/vic20-pattern.prg" --force
+"$tools/rcasm" "$here/vic20/tape.asm" -f prg -o "$out/vic20-tape.prg" --force
+for region in pal ntsc; do
+  "$tools/rctape" from-prg "$out/vic20-tape.prg" "$out/vic20-pattern-$region.tap" --region "$region" --name PATTERN --force
+done
 # The C128 BASIC option wants the two 16K halves as one 32K image.
 cat "$here/../roms/c128/basiclo-318018-04.bin" "$here/../roms/c128/basichi-318019-04.bin" > "$out/c128-basic-32k.rom"
 # The unified diagnostic cartridge as a .crt of retroclawd's own type (needs software/diagnostics/unified_32k.bin).

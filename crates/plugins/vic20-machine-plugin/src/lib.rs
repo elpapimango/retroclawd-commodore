@@ -13,7 +13,7 @@ use plugin_api::{
     MachineOptionInfo, MachineOptionKind, MachinePluginVTableV1, MachineProfile, MachineResponse,
     MediaKind, MediaSlot, MediaSnapshot, NamedValue, PluginDescriptorV1, PluginKind,
     REQUIRED_MACHINE_DEBUG_CAPABILITIES, RcBuffer, RcCallResult, RcSlice, RcStatus, RegisterField,
-    RegisterSnapshot, StatusCode, StepResult,
+    RegisterSnapshot, StatusCode, StepResult, TapeStatus,
 };
 use serde::{Deserialize, Serialize};
 use vic20::{Expansion, Roms, Standard, Timing, Vic20};
@@ -114,9 +114,9 @@ fn profile() -> MachineProfile {
         cpu_family: CpuFamily::Mos6502, default_region: Some("pal".to_string()),
         contract_version: MACHINE_PROFILE_CONTRACT_VERSION,
         debug_capabilities: REQUIRED_MACHINE_DEBUG_CAPABILITIES.to_vec(),
-        capabilities: vec![MachineCapability::Video, MachineCapability::Audio,
+        capabilities: vec![MachineCapability::Video, MachineCapability::Audio, MachineCapability::Tape,
             MachineCapability::SaveState, MachineCapability::Debug],
-        media_kinds: vec![MediaKind::Program],
+        media_kinds: vec![MediaKind::Program, MediaKind::Tape],
         options: vec![
             file_option("basic", "rom-basic", "VIC-20 BASIC ROM (8192 bytes)"),
             file_option("kernal", "rom-kernal", "VIC-20 KERNAL ROM for the selected Region (8192 bytes)"),
@@ -353,7 +353,43 @@ impl Instance {
             ],
             blobs: Vec::new(),
         });
+        if let Some((tape, motor)) = self.machine.tape_status() {
+            let overlay = chips.last_mut().expect("overlay added above");
+            overlay.fields.extend([
+                NamedValue {
+                    key: "tape_motor".to_string(),
+                    value: DebugValue::Bool(motor),
+                },
+                NamedValue {
+                    key: "tape_position".to_string(),
+                    value: DebugValue::U64(tape.position as u64),
+                },
+                NamedValue {
+                    key: "tape_total".to_string(),
+                    value: DebugValue::U64(tape.pulses as u64),
+                },
+            ]);
+        }
         chips
+    }
+
+    fn media(&self) -> MediaSnapshot {
+        MediaSnapshot {
+            tape: self.machine.tape_status().map(|(tape, motor)| TapeStatus {
+                attached: true,
+                playing: tape.playing,
+                finished: tape.finished,
+                speed_multiplier: tape.speed_multiplier,
+                position: Some(tape.position as u64),
+                total: Some(tape.pulses as u64),
+                motor_on: Some(motor),
+                ear_bit: Some(true),
+                cycles_until_next_edge: None,
+                spin_down_cycles: None,
+            }),
+            disks: Vec::new(),
+            cartridge: None,
+        }
     }
 
     fn debug(&mut self, mut command: DebugCommand) -> Result<DebugResponse, String> {
@@ -508,7 +544,7 @@ impl Instance {
                 }
                 Ok(DebugResponse::Disassembly(out))
             }
-            DebugCommand::GetMediaSnapshot => Ok(DebugResponse::MediaSnapshot(empty_media())),
+            DebugCommand::GetMediaSnapshot => Ok(DebugResponse::MediaSnapshot(self.media())),
             DebugCommand::GetChipSnapshots => Ok(DebugResponse::ChipSnapshots(self.chips())),
             DebugCommand::GetMachineMetadata => Ok(DebugResponse::MachineMetadata(self.metadata())),
             DebugCommand::OnCpu { .. } => unreachable!("CPU selector removed above"),
@@ -570,6 +606,31 @@ impl Instance {
                 self.machine.load_program(address as u16, &bytes)?;
                 Ok(MachineResponse::Ack)
             }
+            MachineCommand::AttachMedia {
+                slot: MediaSlot::Tape,
+                kind: MediaKind::Tape,
+                name,
+                bytes,
+                options,
+            } => {
+                if !name.as_deref().is_some_and(|name| name.rsplit_once('.').is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("tap"))) {
+                    return Err("VIC-20 tape requires a .tap filename".to_string());
+                }
+                let speed = match options.as_slice() {
+                    [] => 1,
+                    [NamedValue { key, value: DebugValue::U64(speed) }] if key == "tape_speed" => {
+                        u32::try_from(*speed).ok().filter(|&n| n > 0)
+                            .ok_or("VIC-20 tape_speed must be in 1..=4294967295")?
+                    }
+                    _ => return Err("VIC-20 tape accepts only one unsigned tape_speed Option".to_string()),
+                };
+                self.machine.load_tape(&bytes, speed)?;
+                Ok(MachineResponse::Ack)
+            }
+            MachineCommand::DetachMedia { slot: MediaSlot::Tape } => {
+                self.machine.eject_tape();
+                Ok(MachineResponse::Ack)
+            }
             MachineCommand::SetPc { address } => {
                 check_address(address)?;
                 self.machine.set_pc(address);
@@ -612,7 +673,7 @@ impl Instance {
                 self.held = state.held;
                 Ok(MachineResponse::Ack)
             }
-            MachineCommand::GetMediaSnapshot => Ok(MachineResponse::MediaSnapshot(empty_media())),
+            MachineCommand::GetMediaSnapshot => Ok(MachineResponse::MediaSnapshot(self.media())),
             MachineCommand::SetBorder { enabled } => {
                 self.machine.set_border(enabled);
                 Ok(MachineResponse::Ack)
@@ -636,7 +697,7 @@ impl Instance {
             MachineCommand::WriteIo { .. } | MachineCommand::SetPortWatches { .. } => Err(
                 "unsupported: VIC-20 has memory-mapped I/O, not a separate port space".to_string(),
             ),
-            _ => Err("unsupported VIC-20 operation: cassette, disk, cartridge, Snapshot, printer, mouse, and axis support is not implemented".to_string()),
+            _ => Err("unsupported VIC-20 operation: recording, disk, cartridge, Snapshot, printer, mouse, and axis support is not implemented".to_string()),
         }
     }
 }
@@ -648,13 +709,6 @@ struct InputState {
     held: BTreeSet<String>,
 }
 
-fn empty_media() -> MediaSnapshot {
-    MediaSnapshot {
-        tape: None,
-        disks: Vec::new(),
-        cartridge: None,
-    }
-}
 fn check_address(address: u64) -> Result<(), String> {
     if address > 0xffff {
         Err(format!("VIC-20 address {address:#x} exceeds 16 bits"))
@@ -1058,13 +1112,81 @@ mod tests {
     }
 
     #[test]
+    fn tape_attachment_status_ejection_and_validation_use_the_same_media_path() {
+        let mut instance = Instance::create(request()).unwrap();
+        let bytes = [b"C64-TAPE-RAW".as_slice(), &[1, 1, 0, 0, 2, 0, 0, 0, 1, 2]].concat();
+        let attach = |name: &str, bytes: Vec<u8>, options| MachineCommand::AttachMedia {
+            slot: MediaSlot::Tape,
+            kind: MediaKind::Tape,
+            name: Some(name.to_string()),
+            bytes,
+            options,
+        };
+        instance
+            .command(attach(
+                "test.TAP",
+                bytes.clone(),
+                vec![NamedValue {
+                    key: "tape_speed".to_string(),
+                    value: DebugValue::U64(2),
+                }],
+            ))
+            .unwrap();
+        let media = instance.media();
+        let tape = media.tape.as_ref().unwrap();
+        assert!(tape.attached && !tape.finished);
+        assert_eq!(
+            (tape.total, tape.position, tape.speed_multiplier),
+            (Some(2), Some(0), 2)
+        );
+        assert_eq!(
+            instance.debug(DebugCommand::GetMediaSnapshot).unwrap(),
+            DebugResponse::MediaSnapshot(media.clone()),
+        );
+        assert_eq!(
+            instance.command(MachineCommand::GetMediaSnapshot).unwrap(),
+            MachineResponse::MediaSnapshot(media),
+        );
+        let before = instance.machine.save_state();
+        for command in [
+            attach("bad.t64", bytes.clone(), Vec::new()),
+            attach("bad.tap", vec![0; 20], Vec::new()),
+            attach(
+                "bad.tap",
+                bytes.clone(),
+                vec![NamedValue {
+                    key: "tape_speed".to_string(),
+                    value: DebugValue::U64(0),
+                }],
+            ),
+            attach(
+                "bad.tap",
+                bytes,
+                vec![NamedValue {
+                    key: "unknown".to_string(),
+                    value: DebugValue::Bool(true),
+                }],
+            ),
+        ] {
+            assert!(instance.command(command).is_err());
+            assert_eq!(instance.machine.save_state(), before);
+        }
+        instance
+            .command(MachineCommand::DetachMedia {
+                slot: MediaSlot::Tape,
+            })
+            .unwrap();
+        assert!(instance.media().tape.is_none());
+    }
+
+    #[test]
     fn unsupported_media_fails_without_echoing_payload_or_mutating_state() {
         let mut instance = Instance::create(request()).unwrap();
         let before = instance.machine.save_state();
         let error = instance
             .command(MachineCommand::AttachMedia {
-                slot: MediaSlot::Tape,
-                kind: MediaKind::Tape,
+                slot: MediaSlot::Disk { drive: 0 },
+                kind: MediaKind::Disk,
                 name: None,
                 bytes: vec![137; 100_000],
                 options: Vec::new(),

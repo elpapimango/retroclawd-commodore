@@ -40,12 +40,12 @@
 //! the C64 parser -- `Error::UnsupportedVersion`. The separate [`ted`]
 //! API handles C16/Plus4 version-2 half-waves without changing C64 playback.
 //!
-//! There is no separate "level" encoded anywhere in the file -- each
-//! pulse is a real half-wave: the READ line toggles once per pulse,
-//! starting from a fixed level, confirmed against `datasette.c`'s own
-//! `fullwave[port] ^= 1` toggle. `Tape`/`TapePlayer` therefore store only
-//! pulse *lengths*; `TapePlayer::read_bit`'s current level is derived
-//! from parity of how many pulses have completed, not stored per-pulse.
+//! TAP v0/v1 durations span consecutive falling READ edges, not half-waves.
+//! Machine buses must deliver one falling edge per completed pulse. The
+//! player's alternating `read_bit` phase is retained for compatibility;
+//! feeding that phase directly into an edge-triggered chip loses every
+//! second falling edge. Version-2 half-waves are handled only by [`ted`].
+//! The strict [`vic20`] API validates platform, region and declared size.
 //!
 //! **`.t64` is not a real bitstream at all** -- a directory-based
 //! container (invented by the C64S emulator for convenience) that a real
@@ -76,9 +76,21 @@ use std::fmt;
 
 pub mod rom_format;
 pub mod ted;
+pub mod vic20;
 
 const TAP_MAGIC: &[u8; 12] = b"C64-TAPE-RAW";
 const TAP_HEADER_SIZE: usize = 20;
+
+fn append_exact_pulses(out: &mut Vec<u8>, pulses: &[u32]) {
+    for &cycles in pulses {
+        if cycles.is_multiple_of(8) && (8..=2040).contains(&cycles) {
+            out.push((cycles / 8) as u8);
+        } else {
+            out.push(0);
+            out.extend_from_slice(&cycles.to_le_bytes()[..3]);
+        }
+    }
+}
 
 const T64_HEADER_SIZE: usize = 64;
 const T64_HDR_NUMENTRIES_OFFSET: usize = 34;
@@ -108,6 +120,13 @@ pub enum Error {
     /// of guessing at VICE's own internal fallback constant.
     ZeroByteInVersion0,
     UnexpectedEof,
+    UnsupportedPlatform(u8),
+    UnsupportedVideo(u8),
+    ReservedByte(u8),
+    SizeMismatch,
+    DataTooLarge,
+    InvalidDuration(u32),
+    InvalidProgram,
 }
 
 impl fmt::Display for Error {
@@ -123,6 +142,23 @@ impl fmt::Display for Error {
                 "a 0x00 pulse byte in a version-0 .tap file has no real, defined meaning"
             ),
             Error::UnexpectedEof => write!(f, "unexpected end of file mid-pulse"),
+            Error::UnsupportedPlatform(n) => {
+                write!(f, "unsupported TAP platform {n}; expected VIC-20 (1)")
+            }
+            Error::UnsupportedVideo(n) => write!(
+                f,
+                "unsupported TAP video standard {n}; expected PAL (0) or NTSC (1)"
+            ),
+            Error::ReservedByte(n) => write!(f, "unsupported TAP reserved byte {n}"),
+            Error::SizeMismatch => write!(f, "TAP declared payload size differs from file length"),
+            Error::DataTooLarge => write!(f, "TAP payload exceeds 32 MiB"),
+            Error::InvalidDuration(n) => {
+                write!(f, "TAP pulse duration {n} is outside 1..=16777215")
+            }
+            Error::InvalidProgram => write!(
+                f,
+                "KERNAL tape needs a nonempty program ending at or below 65535 and a 1..=16-byte name"
+            ),
         }
     }
 }
@@ -225,9 +261,7 @@ pub struct TapePlayer {
     tape: Tape,
     position: usize,
     cycles_into_current: u32,
-    /// The READ line's current level -- starts `true`, toggles once per
-    /// completed pulse (real hardware fact, see this module's own doc
-    /// comment on `fullwave`).
+    /// Legacy alternating phase marker, not the TAP-v0/v1 falling-edge signal.
     level: bool,
     playing: bool,
     speed_multiplier: u32,
@@ -237,7 +271,7 @@ pub struct TapePlayer {
 /// excludes the tape's own data (`TapePlayer::tape`), which stays
 /// externally supplied, exactly like `--rom`/`--tape` already are for
 /// snapshots (same shape `zx_tape::TapePosition` already established).
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TapePosition {
     position: usize,
     cycles_into_current: u32,
@@ -290,6 +324,21 @@ impl TapePlayer {
         self.speed_multiplier = state.speed_multiplier.max(1);
     }
 
+    /// Checks an externally decoded position without clamping or mutating it.
+    pub fn validate_state(&self, state: &TapePosition) -> Result<(), &'static str> {
+        if state.position > self.tape.pulses.len()
+            || state.speed_multiplier == 0
+            || state.level != state.position.is_multiple_of(2)
+            || match self.tape.pulses.get(state.position) {
+                Some(&cycles) => state.cycles_into_current >= cycles,
+                None => state.cycles_into_current != 0,
+            }
+        {
+            return Err("invalid tape playback position, phase, level, or speed");
+        }
+        Ok(())
+    }
+
     /// Turbo mode: the *same* real pulse protocol, sped up -- not a
     /// different mechanism. `n` of `0` is treated as `1` (real time).
     pub fn set_speed_multiplier(&mut self, n: u32) {
@@ -330,28 +379,16 @@ impl TapePlayer {
         }
     }
 
-    /// The READ line's current level -- simply the last real level
-    /// reached, whether or not the motor is currently running (real
-    /// hardware fact: a stopped tape's read head just keeps presenting
-    /// whatever level it last settled on; no real software ever polls
-    /// this line while the motor is off in the first place, since the
-    /// real mechanism is edge-triggered via `Cia::set_flag`, not polled,
-    /// so there's no real "idle" convention to approximate here the way
-    /// `zx_tape::TapePlayer::ear_bit`'s idle-high default has).
+    /// Legacy alternating phase marker. TAP-v0/v1 machine buses must use
+    /// `tick`'s pulse count to deliver a falling edge for every pulse.
     pub fn read_bit(&self) -> bool {
         self.level
     }
 
     /// Advances playback by `cycles` real CPU cycles (scaled by the speed
     /// multiplier). A no-op while not playing or already finished.
-    /// Returns how many real READ-line transitions occurred -- almost
-    /// always `0` or `1` at real CPU-step granularity, but a loop rather
-    /// than a single before/after level comparison specifically so an
-    /// extreme turbo multiplier spanning multiple short pulses within one
-    /// call can never silently collapse two real edges into one (the
-    /// host reconstructs each intermediate level by toggling from the
-    /// level it read before calling this, see `crate::c64`'s own
-    /// `tick_tape`).
+    /// Returns completed pulses. Each requires a falling READ edge on
+    /// the machine's CIA FLAG or VIA CA1 input, including at turbo speed.
     pub fn tick(&mut self, cycles: u32) -> u32 {
         if !self.playing || self.finished() {
             return 0;

@@ -6,7 +6,7 @@ default_region = "pal"
 [implementation]
 status = "experimental"
 boot_verified = true
-note = "Real PAL/NTSC boots, BASIC input, tools-built PRG, calibrated audio, state continuation and frame budgets pass in fast and accurate modes. VICE 3.9 boot/input/program goldens are hash-pinned. Cassette, disk, cartridge, diagnostics and additional fidelity work remain open. See docs/vic20-gaps.md."
+note = "Real PAL/NTSC boots, BASIC input, tools-built PRG and cassette LOAD, calibrated audio, state continuation and frame budgets pass in fast and accurate modes. VICE 3.9 boot/input/program/cassette goldens are hash-pinned. Disk, cartridge, diagnostics and additional fidelity work remain open. See docs/vic20-gaps.md."
 
 [core]
 reuse = "mos6502"
@@ -93,8 +93,8 @@ open_questions = ["full-border geometry, PAL/NTSC palette and pixel aspect", "ex
 
 [media]
 candidate_reuse = ["Commodore TAP pulse Format", "PRG load-address convention", "D64 Format", "1541 and drive-link"]
-supported = ["raw programs through --program/--org", "PRG/P00 headers through the existing Host parser"]
-note = "Reuse is conditional on wiring the VIC-20 datasette and IEC bus. A shared Format or drive implementation does not itself provide Machine media support. Verify cartridge image conventions separately; do not advertise C64 CRT cartridges."
+supported = ["raw programs through --program/--org", "PRG/P00 headers through the existing Host parser", "read-only VIC-20 TAP v0/v1, platform 1, matching PAL/NTSC"]
+note = "Datasette PLAY is pressed on attach; VIA1 PA6 sense, active-low CA2 motor, VIA2 CA1 falling READ edge per full pulse. Shared TapePlayer and KERNAL encoder are reused. No recording, motor inertia, or physical rising-edge phase. IEC is not connected to a drive. Do not advertise C64 CRT cartridges."
 
 [[firmware]]
 option = "basic"
@@ -137,7 +137,7 @@ optional = ["S8 instruction trace"]
 removed = []
 overrides = []
 hardware_diagnostics = "Not yet selected and license-verified."
-status = "26 passed, 0 failed, 4 known gaps: S1/S2/S3-program/S4/S5/S6 cover both modes and regions with real firmware; PAL volume-7 cases also pass. Tape, disk, cartridge and S7 diagnostics remain open."
+status = "30 passed, 0 failed, 3 known gaps: S1/S2/S3-program/S3-tape/S4/S5/S6 cover both modes and regions with real firmware; PAL volume-7 cases also pass. Disk, cartridge and S7 diagnostics remain open."
 note = "Do not create passing manifest entries or weaken tolerances from this intake. Preserve all standard scenarios."
 
 [[source]]

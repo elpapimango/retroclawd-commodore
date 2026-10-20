@@ -9,6 +9,7 @@ machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30b
 mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
 vic-i = { path = "../../chips/vic-i" }
 via6522 = { path = "../../chips/via-6522" }
+c64-tape = { path = "../../formats/c64-tape" }
 serde = { version = "1", features = ["derive"] }
 bincode = { version = "2", features = ["serde"] }
 sha1 = "0.10"

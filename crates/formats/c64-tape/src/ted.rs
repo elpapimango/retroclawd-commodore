@@ -161,14 +161,7 @@ impl TedTape {
             0,
         ]);
         out.extend_from_slice(&(size as u32).to_le_bytes());
-        for &cycles in &self.halfwaves {
-            if cycles.is_multiple_of(8) && (8..=2040).contains(&cycles) {
-                out.push((cycles / 8) as u8);
-            } else {
-                out.push(0);
-                out.extend_from_slice(&cycles.to_le_bytes()[..3]);
-            }
-        }
+        super::append_exact_pulses(&mut out, &self.halfwaves);
         Ok(out)
     }
 }

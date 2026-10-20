@@ -39,11 +39,17 @@ for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
 types `PRINT 12*34` -> `408` in both modes and regions; text output matches
 the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
-The VIC-20 manifest preserves S1-S7: 26 S1/S2/S3-program/S4/S5/S6 variants pass;
-four cassette/disk/cartridge/diagnostic gaps remain. The tools-built 55-byte Program
+The VIC-20 manifest preserves S1-S7: 30 S1/S2/S3-program/S3-tape/S4/S5/S6 variants pass;
+three disk/cartridge/diagnostic gaps remain. The tools-built 55-byte Program
 matches VICE in both modes and regions. Audio uses the pinned nonlinear mixer
 calibration, not a fitted gain multiplier: single-voice RMS agrees within 1%
-at full volume in both regions and PAL volume 7. State layout is unchanged.
+at full volume in both regions and PAL volume 7.
+Read-only cassette playback reuses `c64-tape::TapePlayer` and its KERNAL encoder.
+`c64-tape::vic20` validates TAP v0/v1, platform 1, PAL/NTSC and exact length.
+VIA1 PA6 is SENSE, CA2 is the active-low motor; each full pulse delivers a
+falling READ edge on VIA2 CA1. No loader trap is used. State version 2 appends
+recording identity and strictly checked playback phase; tapeless version 1
+still loads. Tape recording and analogue motor/rising-edge timing are absent.
 Uncaptured screen goldens are omitted rather than assigned placeholder
 hashes; this requires the matching `rc-scenarios` change described in
 `docs/vic20-gaps.md`. Firmware and goldens are never committed. Existing audio

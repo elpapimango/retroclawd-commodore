@@ -532,6 +532,7 @@ name = "vic20"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "c64-tape",
  "machine",
  "mos6502",
  "serde",

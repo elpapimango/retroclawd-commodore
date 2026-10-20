@@ -24,6 +24,16 @@ No source code, firmware or software image was copied.
 
 ## Experimental VIC-20 (`vic-i`, `vic20`, `vic20-machine-plugin`)
 
+The VICE raw-tape specification (manual section 17.1) establishes VIC-20
+platform 1, PAL/NTSC timer clocks and TAP-v0/v1 pulse encoding.
+At the pinned 3.10.0 revision below, `vic20/vic20via1.c` confirms PA6
+SENSE and active-low CA2 motor control; `vic20/vic20via2.c` confirms the
+cassette wiring. Playback reuses this family's existing full-pulse player
+and Commodore KERNAL encoder. Exact-duration writing is shared with TED,
+but full pulses and TED half-waves remain separate APIs.
+The installed VICE 3.9 was also run with `+virtualdev1`, real TAP playback
+and the same firmware; both regional cassette outputs match retroclawd.
+
 `vic20.intake.toml` records hardware facts and unresolved prerequisites.
 `docs/vic20-gaps.md` distinguishes implemented behavior from reference proof.
 References read for this implementation:

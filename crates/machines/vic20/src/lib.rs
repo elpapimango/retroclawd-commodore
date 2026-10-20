@@ -290,12 +290,17 @@ mod tests {
             trailing.push(0);
             assert!(m.load_state(&trailing).is_err());
             assert_eq!(m.save_state(), before);
-            let (mut malformed, _): (State, usize) =
+            let ((mut malformed, tape), _): ((State, Option<TapeState>), usize) =
                 bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
             malformed.hardware.ram.pop();
             let malformed =
-                bincode::serde::encode_to_vec(malformed, bincode::config::standard()).unwrap();
-            assert!(m.load_state(&malformed).is_err());
+                bincode::serde::encode_to_vec((malformed, tape), bincode::config::standard())
+                    .unwrap();
+            assert!(
+                m.load_state(&malformed)
+                    .unwrap_err()
+                    .contains("memory or input")
+            );
             assert_eq!(m.save_state(), before);
             let other = if timing == Timing::Fast {
                 Timing::Accurate
@@ -316,6 +321,141 @@ mod tests {
             assert_eq!(m.read_memory(0x20), 0x5a);
             assert_eq!(m.pc(), 0xe000);
         }
+    }
+
+    #[test]
+    fn cassette_motor_sense_and_every_read_edge_follow_vias() {
+        let tape = c64_tape::vic20::write(
+            c64_tape::vic20::VideoStandard::Pal,
+            &c64_tape::Tape::from_pulses(vec![8, 8, 8]),
+        )
+        .unwrap();
+        for timing in [Timing::Fast, Timing::Accurate] {
+            let mut m = machine(timing);
+            m.bus.write(0x911c, 0x0e);
+            assert_ne!(m.read_memory(0x9111) & 0x40, 0);
+            m.load_tape(&tape, 1).unwrap();
+            assert_eq!(m.read_memory(0x9111) & 0x40, 0);
+            for _ in 0..10 {
+                m.bus.tick();
+            }
+            assert_eq!(m.tape_status().unwrap().0.position, 0);
+            m.bus.write(0x911c, 0x0c);
+            for position in 1..=3 {
+                m.bus.read(0x9121);
+                assert_eq!(m.read_memory(0x912d) & 2, 0);
+                for _ in 0..8 {
+                    m.bus.tick();
+                }
+                assert_ne!(m.read_memory(0x912d) & 2, 0, "READ edge {position}");
+                assert_eq!(m.tape_status().unwrap().0.position, position);
+            }
+            assert!(m.tape_status().unwrap().0.finished);
+            m.load_tape(&tape, 1).unwrap();
+            for _ in 0..3 {
+                m.bus.tick();
+            }
+            let phase = m.bus.tape.as_ref().unwrap().dump_state();
+            m.reset();
+            assert_eq!(m.bus.tape.as_ref().unwrap().dump_state(), phase);
+            for _ in 0..5 {
+                m.bus.tick();
+            }
+            assert_ne!(m.read_memory(0x912d) & 2, 0, "first READ edge after reset");
+            m.eject_tape();
+            assert_ne!(m.read_memory(0x9111) & 0x40, 0);
+            assert!(m.tape_status().is_none());
+        }
+    }
+
+    #[test]
+    fn cassette_phase_speed_and_state_continue_exactly_and_reject_wrong_media() {
+        use c64_tape::vic20::{VideoStandard, write};
+        let tape = write(
+            VideoStandard::Pal,
+            &c64_tape::Tape::from_pulses(vec![100_000; 10]),
+        )
+        .unwrap();
+        for timing in [Timing::Fast, Timing::Accurate] {
+            let mut m = machine(timing);
+            m.bus.write(0x911c, 0x0c);
+            m.load_tape(&tape, 3).unwrap();
+            let start = m.cycles();
+            for _ in 0..50 {
+                m.step();
+            }
+            let mut expected = c64_tape::TapePlayer::new(c64_tape::vic20::parse(&tape).unwrap().1);
+            expected.set_speed_multiplier(3);
+            expected.play();
+            expected.tick((m.cycles() - start) as u32);
+            assert_eq!(
+                m.bus.tape.as_ref().unwrap().dump_state(),
+                expected.dump_state()
+            );
+            m.bus.write(0x911c, 0x0e);
+            m.step();
+            let paused = m.bus.tape.as_ref().unwrap().dump_state();
+            for _ in 0..20 {
+                m.step();
+            }
+            assert_eq!(m.bus.tape.as_ref().unwrap().dump_state(), paused);
+            m.bus.write(0x911c, 0x0c);
+            let state = m.save_state();
+            for _ in 0..100 {
+                m.step();
+            }
+            let future = m.save_state();
+            m.load_state(&state).unwrap();
+            for _ in 0..100 {
+                m.step();
+            }
+            assert_eq!(m.save_state(), future);
+            let ((core, mut tape_state), _): ((State, Option<TapeState>), usize) =
+                bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
+            // Corrupt the serialized phase; TapePosition's fields are private.
+            let bad_position = bincode::serde::encode_to_vec(
+                (0usize, 100_000u32, true, true, 3u32),
+                bincode::config::standard(),
+            )
+            .unwrap();
+            tape_state.as_mut().unwrap().position =
+                bincode::serde::decode_from_slice(&bad_position, bincode::config::standard())
+                    .unwrap()
+                    .0;
+            let corrupt =
+                bincode::serde::encode_to_vec((core, tape_state), bincode::config::standard())
+                    .unwrap();
+            assert!(m.load_state(&corrupt).unwrap_err().contains("playback"));
+            assert_eq!(m.save_state(), future);
+            assert!(m.load_tape(&tape, 0).is_err());
+            let other = write(VideoStandard::Pal, &c64_tape::Tape::from_pulses(vec![20])).unwrap();
+            m.load_tape(&other, 1).unwrap();
+            let before = m.save_state();
+            assert!(
+                m.load_state(&state)
+                    .unwrap_err()
+                    .contains("recording differs")
+            );
+            assert_eq!(m.save_state(), before);
+            let ntsc = write(VideoStandard::Ntsc, &c64_tape::Tape::from_pulses(vec![8])).unwrap();
+            assert!(m.load_tape(&ntsc, 1).is_err());
+            assert_eq!(m.save_state(), before);
+            m.eject_tape();
+            assert!(m.load_state(&state).is_err());
+        }
+    }
+
+    #[test]
+    fn original_tapeless_state_version_still_loads() {
+        let mut m = machine(Timing::Accurate);
+        let bytes = m.save_state();
+        let (mut state, _): (State, usize) =
+            bincode::serde::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+        state.version = 1;
+        let legacy = bincode::serde::encode_to_vec(state, bincode::config::standard()).unwrap();
+        m.step();
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.save_state(), bytes);
     }
 }
 
@@ -389,6 +529,8 @@ struct VicBus {
     in_cpu: bool,
     audio: VecDeque<f32>,
     audio_dropped: u64,
+    tape: Option<c64_tape::TapePlayer>,
+    tape_id: Option<[u8; 20]>,
 }
 
 impl VicBus {
@@ -418,6 +560,8 @@ impl VicBus {
             in_cpu: false,
             audio: VecDeque::with_capacity(1024),
             audio_dropped: 0,
+            tape: None,
+            tape_id: None,
         };
         bus.update_inputs();
         bus
@@ -430,6 +574,9 @@ impl VicBus {
     fn update_inputs(&mut self) {
         let h = &mut self.hardware;
         let mut via1_a = 0x7f & !(h.joystick & 0x3c);
+        if self.tape.is_some() {
+            via1_a &= !0x40;
+        }
         if !h.iec_clock {
             via1_a &= !1;
         }
@@ -487,6 +634,18 @@ impl VicBus {
         }
         h.via1.tick(1);
         h.via2.tick(1);
+        if let Some(tape) = &mut self.tape {
+            if !h.via1.ca2_output_level().unwrap_or(false) {
+                tape.play();
+                // TAP v0/v1 durations end at falling READ edges, not alternating half-waves.
+                for _ in 0..tape.tick(1) {
+                    h.via2.set_ca1(false);
+                    h.via2.set_ca1(true);
+                }
+            } else {
+                tape.pause();
+            }
+        }
         let nmi = h.via1.peek(13) & 0x80 != 0;
         h.nmi_edge |= nmi && !h.nmi_level;
         h.nmi_level = nmi;
@@ -712,6 +871,44 @@ impl Vic20 {
         self.bus.hardware.iec_data = data;
         self.bus.update_inputs();
     }
+
+    /// Attaches a read-only recording with PLAY pressed. The VIA controls its motor.
+    pub fn load_tape(&mut self, bytes: &[u8], speed: u32) -> Result<(), String> {
+        if speed == 0 {
+            return Err("VIC-20 tape speed must be positive".to_string());
+        }
+        let (video, tape) = c64_tape::vic20::parse(bytes)
+            .map_err(|error| format!("invalid VIC-20 TAP: {error}"))?;
+        if video.clock_hz() != self.vic().standard().clock_hz() {
+            return Err(
+                "VIC-20 tape Region differs from the machine; convert the recording first"
+                    .to_string(),
+            );
+        }
+        let mut player = c64_tape::TapePlayer::new(tape);
+        player.set_speed_multiplier(speed);
+        self.bus.tape = Some(player);
+        self.bus.tape_id = Some(Sha1::digest(bytes).into());
+        self.bus.hardware.via2.set_ca1(true);
+        self.bus.update_inputs();
+        Ok(())
+    }
+
+    pub fn eject_tape(&mut self) {
+        self.bus.tape = None;
+        self.bus.tape_id = None;
+        self.bus.hardware.via2.set_ca1(true);
+        self.bus.update_inputs();
+    }
+
+    pub fn tape_status(&self) -> Option<(c64_tape::TapePlaybackState, bool)> {
+        self.bus.tape.as_ref().map(|tape| {
+            let motor = !self.bus.hardware.via1.ca2_output_level().unwrap_or(false);
+            let mut status = tape.playback_state();
+            status.playing = motor && !status.finished;
+            (status, motor)
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -723,6 +920,12 @@ struct State {
     expansion: Expansion,
     cpu: mos6502::Cpu,
     hardware: Hardware,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TapeState {
+    fingerprint: [u8; 20],
+    position: c64_tape::TapePosition,
 }
 
 impl Machine for Vic20 {
@@ -813,6 +1016,9 @@ impl Machine for Vic20 {
         let h = &mut self.bus.hardware;
         h.via1 = Via::new();
         h.via2 = Via::new();
+        if self.bus.tape.is_some() {
+            h.via2.set_ca1(true);
+        }
         h.via1.set_external_port_b(0xff);
         h.vic.reset();
         h.nmi_level = false;
@@ -823,15 +1029,21 @@ impl Machine for Vic20 {
     }
     fn save_state(&self) -> Vec<u8> {
         bincode::serde::encode_to_vec(
-            State {
-                magic: *b"VIC1",
-                version: 1,
-                roms: self.bus.roms.fingerprint(),
-                timing: self.bus.timing,
-                expansion: self.bus.expansion,
-                cpu: self.cpu,
-                hardware: self.bus.hardware.clone(),
-            },
+            (
+                State {
+                    magic: *b"VIC1",
+                    version: 2,
+                    roms: self.bus.roms.fingerprint(),
+                    timing: self.bus.timing,
+                    expansion: self.bus.expansion,
+                    cpu: self.cpu,
+                    hardware: self.bus.hardware.clone(),
+                },
+                self.bus.tape.as_ref().map(|tape| TapeState {
+                    fingerprint: self.bus.tape_id.expect("attached tape has an identity"),
+                    position: tape.dump_state(),
+                }),
+            ),
             bincode::config::standard(),
         )
         .expect("VIC-20 state is encodable")
@@ -845,7 +1057,22 @@ impl Machine for Vic20 {
             bincode::config::standard().with_limit::<1_048_576>(),
         )
         .map_err(|error| format!("invalid VIC-20 state: {error}"))?;
-        if used != bytes.len() || state.magic != *b"VIC1" || state.version != 1 {
+        let tape_state = match state.version {
+            1 if used == bytes.len() => None,
+            2 => {
+                let (tape, count): (Option<TapeState>, usize) = bincode::serde::decode_from_slice(
+                    &bytes[used..],
+                    bincode::config::standard().with_limit::<1_048_576>(),
+                )
+                .map_err(|error| format!("invalid VIC-20 tape state: {error}"))?;
+                if used + count != bytes.len() {
+                    return Err("invalid VIC-20 state trailing bytes".to_string());
+                }
+                tape
+            }
+            _ => return Err("invalid VIC-20 state version or trailing bytes".to_string()),
+        };
+        if state.magic != *b"VIC1" {
             return Err("invalid VIC-20 state header or trailing bytes".to_string());
         }
         if state.roms != self.bus.roms.fingerprint()
@@ -865,6 +1092,17 @@ impl Machine for Vic20 {
             return Err("invalid VIC-20 memory or input state".to_string());
         }
         state.hardware.vic.validate()?;
+        match (&self.bus.tape, &tape_state) {
+            (Some(tape), Some(saved)) if self.bus.tape_id == Some(saved.fingerprint) => {
+                tape.validate_state(&saved.position)
+                    .map_err(|error| format!("invalid VIC-20 tape state: {error}"))?;
+            }
+            (None, None) => {}
+            _ => return Err("VIC-20 state tape attachment or recording differs".to_string()),
+        }
+        if let (Some(tape), Some(saved)) = (&mut self.bus.tape, tape_state) {
+            tape.restore_state(saved.position);
+        }
         self.cpu = state.cpu;
         self.bus.hardware = state.hardware;
         self.bus.audio.clear();

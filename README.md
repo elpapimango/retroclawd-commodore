@@ -16,12 +16,15 @@ shared libraries this workspace builds (`vic20_machine_plugin`, `c64_machine_plu
 The ROM files and how to call each machine: `docs/firmware.md`.
 
 `vic20` is experimental: NMOS 6502, VIC-I video/sound, two VIAs, PAL/NTSC,
-keyboard, joystick, selectable RAM expansion, raw/PRG programs and deterministic
+keyboard, joystick, selectable RAM expansion, raw/PRG programs, read-only VIC-20
+TAP-v0/v1 playback and deterministic
 save states. It reuses `mos6502` and `via6522`, not VIC-II or SID. Real PAL/NTSC
 boots, BASIC typing, tone pitch, state continuation and frame budgets pass in
-both execution modes: 26 scenarios pass, with boot/input/program output compared
-against hash-pinned VICE 3.9 captures. Four media/diagnostic gaps remain.
-Cassette, cartridge and disk attachment are unsupported and fail explicitly.
+both execution modes: 30 scenarios pass, with boot/input/program/cassette output
+compared against hash-pinned VICE 3.9 captures. Three gaps remain: disk,
+cartridge and external diagnostics. Tape headers must declare platform 1 and
+the machine's PAL/NTSC region. Attach presses PLAY; VIA1 controls the motor.
+Recording, cartridge and disk attachment are unsupported and fail explicitly.
 Calibrated single-voice audio RMS agrees within 1%; full hardware fidelity is not claimed.
 See `vic20.intake.toml`, `vic20.manifest.toml` and `docs/vic20-gaps.md`.
 
