@@ -10,12 +10,13 @@ use machine::{AUDIO_SAMPLE_RATE, Machine, Region};
 use plugin_api::{
     ABI_MAJOR_V1, ABI_MINOR_V1, AddressSpaceInfo, BinaryBlob, BitmapExplorerDefaults,
     BitmapPaletteColor, ChipSnapshot, CodecError, CpuFamily, DebugCommand, DebugResponse,
-    DebugValue, DisassemblyLine, MACHINE_PROFILE_CONTRACT_VERSION, MachineCapability,
-    MachineCommand, MachineCreateRequest, MachineCreateResponse, MachineInstanceCallRequest,
-    MachineInstanceCallResponse, MachineInstanceHandle, MachineMetadata, MachineOptionInfo,
-    MachineOptionKind, MachinePluginVTableV1, MachineProfile, MachineResponse, MediaKind,
-    MediaSnapshot, NamedValue, PluginDescriptorV1, PluginKind, REQUIRED_MACHINE_DEBUG_CAPABILITIES,
-    RcBuffer, RcCallResult, RcSlice, RcStatus, RegisterField, RegisterSnapshot, StatusCode,
+    DebugValue, DisassemblyLine, ExecutionMode, MACHINE_PROFILE_CONTRACT_VERSION,
+    MachineCapability, MachineCommand, MachineCreateRequest, MachineCreateResponse,
+    MachineInstanceCallRequest, MachineInstanceCallResponse, MachineInstanceHandle,
+    MachineMetadata, MachineOptionInfo, MachineOptionKind, MachinePluginVTableV1, MachineProfile,
+    MachineResponse, MediaKind, MediaSnapshot, NamedValue, PluginDescriptorV1, PluginKind,
+    REQUIRED_MACHINE_DEBUG_CAPABILITIES, RcBuffer, RcCallResult, RcSlice, RcStatus, RegisterField,
+    RegisterSnapshot, StatusCode,
 };
 
 const PLUGIN_ID: &[u8] = b"retroclawd.c128.machine";
@@ -301,6 +302,12 @@ fn machine_profile() -> MachineProfile {
                     columns (VDC); like the real 40/80 DISPLAY key, it is read at reset"
                     .to_string(),
             },
+            ExecutionMode::option(
+                "Execution policy: fast (default; instruction-batched raster and DMA) or \
+                 accurate (per-bus-cycle VIC-IIe raster and BA stalls on the 1 MHz 8502; \
+                 PAL only). Z80 and 2 MHz CPU timing remains instruction-batched; \
+                 drive emulation is independent",
+            ),
             MachineOptionInfo {
                 key: "vic_accuracy".to_string(),
                 flag: "vic-accuracy".to_string(),
@@ -308,7 +315,7 @@ fn machine_profile() -> MachineProfile {
                 kind: MachineOptionKind::Enum {
                     choices: vec!["line".to_string(), "cycle".to_string()],
                 },
-                default: Some(DebugValue::Text("line".to_string())),
+                default: None,
                 required: false,
                 description: "VIC-IIe model: line (default; raster and bad-line steal advance \
                     per CPU instruction, fast) or cycle (the real per-cycle schedule: every \
@@ -525,15 +532,27 @@ fn create_machine(req: MachineCreateRequest) -> Result<MachineCreateResponse, St
     };
     let mut machine = C128::new(roms)?;
     machine.set_region(region);
-    match option_text(&req.options, "vic_accuracy")?.as_deref() {
-        None | Some("line") => {}
-        Some("cycle") => machine.set_vic_accuracy(VicAccuracy::Cycle)?,
-        Some(other) => {
-            return Err(format!(
+    let legacy_mode = option_text(&req.options, "vic_accuracy")?
+        .map(|accuracy| match accuracy.as_str() {
+            "line" => Ok(ExecutionMode::Fast),
+            "cycle" => Ok(ExecutionMode::Accurate),
+            other => Err(format!(
                 "option \"vic_accuracy\" must be line or cycle, not \"{other}\""
-            ));
-        }
+            )),
+        })
+        .transpose()?;
+    let mode = ExecutionMode::from_options(&req.options)?;
+    if let (Some(mode), Some(legacy)) = (mode, legacy_mode)
+        && mode != legacy
+    {
+        return Err(
+            "options \"execution_mode\" and \"vic_accuracy\" contradict each other".to_string(),
+        );
     }
+    machine.set_vic_accuracy(match mode.or(legacy_mode).unwrap_or_default() {
+        ExecutionMode::Fast => VicAccuracy::Line,
+        ExecutionMode::Accurate => VicAccuracy::Cycle,
+    })?;
     match option_text(&req.options, "display")?.as_deref() {
         None | Some("40") => {}
         Some("80") => machine.set_80_columns(true),
@@ -1596,6 +1615,99 @@ mod tests {
     fn vic_accuracy_option() {
         vic_accuracy_cycle_creates_a_machine_that_steps_with_bus_cycles();
         vic_accuracy_cycle_on_ntsc_and_unknown_values_are_refused();
+    }
+
+    #[test]
+    fn execution_modes_select_the_legacy_engines_and_restore_deterministically() {
+        for (mode, legacy, expected) in [
+            (None, "line", VicAccuracy::Line),
+            (Some("fast"), "line", VicAccuracy::Line),
+            (Some("accurate"), "cycle", VicAccuracy::Cycle),
+        ] {
+            let mut req = request();
+            if let Some(mode) = mode {
+                req.options.push(NamedValue {
+                    key: "execution_mode".to_string(),
+                    value: DebugValue::Text(mode.to_string()),
+                });
+            }
+            let selected = create_machine(req).unwrap().instance;
+            let alias = create_machine(accuracy_request("pal", legacy))
+                .unwrap()
+                .instance;
+            {
+                let mut state = state().lock().unwrap();
+                let machine = &mut state.instances.get_mut(&selected).unwrap().machine;
+                assert_eq!(machine.vic_accuracy(), expected);
+                for _ in 0..100 {
+                    machine.step();
+                }
+                let saved = machine.save_state();
+                for _ in 0..100 {
+                    machine.step();
+                }
+                let advanced = machine.save_state();
+                machine.load_state(&saved).unwrap();
+                for _ in 0..100 {
+                    machine.step();
+                }
+                assert_eq!(machine.save_state(), advanced);
+                let machine = &mut state.instances.get_mut(&alias).unwrap().machine;
+                for _ in 0..200 {
+                    machine.step();
+                }
+                assert_eq!(machine.save_state(), advanced);
+                machine
+                    .set_vic_accuracy(if expected == VicAccuracy::Line {
+                        VicAccuracy::Cycle
+                    } else {
+                        VicAccuracy::Line
+                    })
+                    .unwrap();
+                assert!(
+                    machine
+                        .load_state(&saved)
+                        .unwrap_err()
+                        .contains("vic_accuracy")
+                );
+            }
+            // SAFETY: both handles came from successful creation above.
+            assert!(unsafe { plugin_destroy_instance_v1(selected) }.is_ok());
+            assert!(unsafe { plugin_destroy_instance_v1(alias) }.is_ok());
+        }
+    }
+
+    #[test]
+    fn execution_mode_rejects_invalid_and_contradictory_options() {
+        for (mode, region, legacy, message) in [
+            ("slow", "pal", None, "fast or accurate"),
+            ("accurate", "ntsc", None, "PAL"),
+            ("fast", "pal", Some("cycle"), "contradict"),
+            ("accurate", "pal", Some("line"), "contradict"),
+        ] {
+            let mut req = request();
+            req.region = Some(region.to_string());
+            req.options.push(NamedValue {
+                key: "execution_mode".to_string(),
+                value: DebugValue::Text(mode.to_string()),
+            });
+            if let Some(legacy) = legacy {
+                req.options.push(NamedValue {
+                    key: "vic_accuracy".to_string(),
+                    value: DebugValue::Text(legacy.to_string()),
+                });
+            }
+            let error = create_machine(req).unwrap_err();
+            assert!(error.contains(message), "{error}");
+        }
+        let mut req = accuracy_request("pal", "cycle");
+        req.options.push(NamedValue {
+            key: "execution_mode".to_string(),
+            value: DebugValue::Text("accurate".to_string()),
+        });
+        let instance = create_machine(req).unwrap().instance;
+        // SAFETY: handle came from successful creation above.
+        assert!(unsafe { plugin_destroy_instance_v1(instance) }.is_ok());
     }
 
     fn a_missing_or_wrong_sized_rom_is_a_clear_error() {

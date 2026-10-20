@@ -15,6 +15,38 @@ shared libraries this workspace builds (`c64_machine_plugin`, `c128_machine_plug
 
 The ROM files and how to call each machine: `docs/firmware.md`.
 
+## Execution modes
+
+Both Plugins accept `--execution-mode fast|accurate` (configuration key
+`execution_mode`). Fast is the default and uses the existing line engine:
+CPU instructions batch raster and peripheral advancement, including approximate
+bad-line cycle stealing. Accurate selects the existing cycle engine: each
+1 MHz 6510/8502 bus access advances the VIC-II/VIC-IIe schedule, including
+mid-line register effects and BA read stalls for bad lines and sprite DMA.
+This changes hardware behavior, not Host pacing. Accurate remains PAL-only;
+requesting it on NTSC is an error.
+
+The C128 Z80 and 2 MHz 8502 paths remain instruction-batched and are not stalled
+by BA. The VDC path does not gain additional fidelity from this Option.
+Tape fast loading and drive emulation remain independent Options, unchanged
+for compatibility. On the C64, disable `fast_tape_load` in configuration and
+use `--true-drive` with the corresponding drive firmware for real-time media.
+Accurate does not claim that every peripheral is cycle-exact.
+
+The older `--vic-accuracy line|cycle` Option remains supported. It selects the
+same engines (`line` = `fast`, `cycle` = `accurate`). With neither Option set,
+the Plugin selects fast/line; neither schema injects an implicit wire value
+that could mask the other. Contradictory explicit selections are errors,
+including selections from different configuration layers: precedence applies
+per Option key, not across aliases. Prefer one key in a layered configuration.
+
+Save states already record and validate the engine; a state made in one mode
+cannot load in the other. No state format, ABI, or protocol change is needed.
+The Plugin tests compare the new and legacy engines, deterministic continuation
+after state restoration, cross-mode rejection, and invalid or conflicting
+Options. Existing Machine cycle tests cover raster timing and BA behavior.
+No relative performance measurements have been collected for these aliases.
+
 ## Build
 
 ```
@@ -31,7 +63,7 @@ Put them in the `plugins/` folder next to the `retroclawd` executable (or point
 Everything that is not specific to this family -- `machine`, `plugin-api`, the `z80`/`mos6502` cores and the
 chips/formats several families use -- comes from
 [`retroclawd-crates`](https://github.com/elpapimango/retroclawd-crates) as a git dependency pinned to the commit
-`4291f5dbe8` (the `git = ..., rev = ...` entries in each crate's `Cargo.toml`). To move to a newer commit, run
+`30bbca84f53177148c6ed4ae2b37597747dec654` (the `git = ..., rev = ...` entries in each crate's `Cargo.toml`). To move to a newer commit, run
 `tools/bump_pin.sh` in the application repository (it rewrites the pins, runs the tests and records the result), or
 by hand: change the rev in every manifest, run `cargo update`, and check the plugin ABI policy in
 `retroclawd-crates/docs/plugin-abi.md` (a plugin must be built with the same ABI major, and a protocol version the
@@ -39,6 +71,10 @@ application speaks).
 
 The shared crates come from the public repository `retroclawd-crates`, pinned by commit (`rev = ...` in the
 `Cargo.toml` files); `tools/bump_pin.sh` in the host repository moves the pin.
+
+This feature branch temporarily pins the pushed shared execution-mode change
+for review. Merge its shared-crates PR first, then verify or refresh this pin
+to the merged shared revision before merging this Family.
 
 ## Layout
 
