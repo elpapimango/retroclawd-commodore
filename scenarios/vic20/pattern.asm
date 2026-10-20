@@ -1,9 +1,11 @@
         .cpu 6502
         .org $1000
         sei
-        lda #0
+        lda #12
         sta $9000
+        lda #38
         sta $9001
+        lda #0
         sta $9005
         lda #1
         sta $9002

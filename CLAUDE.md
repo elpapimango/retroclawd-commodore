@@ -39,9 +39,12 @@ for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
 types `PRINT 12*34` -> `408` in both modes and regions; text output matches
 the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
-The VIC-20 manifest preserves S1-S7: 20 S1/S2/S4/S5/S6 variants pass; five S3/S7
-reference/media/diagnostic gaps remain. Tone pitch matches, but audio gain does
-not. Uncaptured screen goldens are omitted rather than assigned placeholder
+The VIC-20 manifest preserves S1-S7: 26 S1/S2/S3-program/S4/S5/S6 variants pass;
+four cassette/disk/cartridge/diagnostic gaps remain. The tools-built 55-byte PRG
+matches VICE in both modes and regions. Audio uses the pinned nonlinear mixer
+calibration, not a fitted gain multiplier: single-voice RMS agrees within 1%
+at full volume in both regions and PAL volume 7. State layout is unchanged.
+Uncaptured screen goldens are omitted rather than assigned placeholder
 hashes; this requires the matching `rc-scenarios` change described in
 `docs/vic20-gaps.md`. Firmware and goldens are never committed. Existing audio
 and timing tolerances are unchanged. Program attachment accepts raw bytes plus

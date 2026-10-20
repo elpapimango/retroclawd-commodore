@@ -19,10 +19,10 @@ The ROM files and how to call each machine: `docs/firmware.md`.
 keyboard, joystick, selectable RAM expansion, raw/PRG programs and deterministic
 save states. It reuses `mos6502` and `via6522`, not VIC-II or SID. Real PAL/NTSC
 boots, BASIC typing, tone pitch, state continuation and frame budgets pass in
-both execution modes: 20 scenarios pass, with boot/input compared against
-hash-pinned VICE 3.9 captures. Five reference/media/diagnostic gaps remain.
+both execution modes: 26 scenarios pass, with boot/input/program output compared
+against hash-pinned VICE 3.9 captures. Four media/diagnostic gaps remain.
 Cassette, cartridge and disk attachment are unsupported and fail explicitly.
-Audio gain differs from VICE; full hardware fidelity is not claimed.
+Calibrated single-voice audio RMS agrees within 1%; full hardware fidelity is not claimed.
 See `vic20.intake.toml`, `vic20.manifest.toml` and `docs/vic20-gaps.md`.
 
 ## Execution modes
@@ -61,8 +61,8 @@ The VIC-20 uses the same Option. Fast advances Chips after each instruction;
 accurate advances them on each CPU read, write and dummy cycle. A timer-read
 regression demonstrates different bus-visible results with identical elapsed
 clocks. Both modes work on PAL and NTSC. Neither models sub-clock VIC-I fetch
-phases, interlace, analogue paddles or light-pen latching. The sound mixer is
-linear with RC filters, not a measured analogue transfer function. Save states
+phases, interlace, analogue paddles or light-pen latching. The sound mixer uses
+VICE's nonlinear voltage calibration with RC filters. Save states
 reject different firmware, Region, RAM expansion or execution mode. No controlled
 relative-performance benchmark or real-game compatibility run has been performed.
 

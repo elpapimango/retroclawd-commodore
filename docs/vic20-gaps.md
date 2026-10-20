@@ -3,8 +3,9 @@
 Status: experimental, 2026-10-20. **Real PAL/NTSC firmware boots, BASIC typing,
 tone pitch, state continuation and frame budgets pass in fast and accurate
 modes.** Boot/input images match the installed VICE 3.9 reference after
-palette and framing normalization. The manifest reports **20 passed, 0 failed,
-5 known gaps**. This is not completion of the additional-machine request.
+palette and framing normalization. Tools-built PRG output also matches.
+The manifest reports **26 passed, 0 failed, 4 known gaps**.
+This is not completion of the additional-machine request.
 
 ## Implemented and checked
 
@@ -35,17 +36,21 @@ PRG/P00 headers, so no duplicate file parser was introduced.
 
 Validation executed:
 
-- `cargo test -p vic-i -p vic20 -p vic20-machine-plugin`: 20 tests passed
-  (7 Chip, 7 Machine, 6 Plugin), including state continuation, malformed-state
+- `cargo test --release -p vic-i -p vic20 -p vic20-machine-plugin`: 21 tests
+  passed (8 Chip, 7 Machine, 6 Plugin), including the new reference-RMS
+  regression, state continuation, malformed-state
   rejection, memory decode, timer visibility, interrupt routing, key combos,
   debugger execution, bounded requests and ABI-owned buffers.
-- `cargo fmt --all -- --check`,
+- Earlier full-workspace `cargo fmt --all -- --check`,
   `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --release --workspace` and
   `cargo build --release --workspace`: passed. The workspace run reported
   325 tests passed and 25 ignored, including the subsequent C16 TAP tests.
   Firmware/software-gated bodies still skip
   if their particular input is absent.
+- After the mixer fix, format check, targeted release Clippy with `-D warnings`
+  and the release VIC-20 Plugin build passed. No shared Core, Host source,
+  state layout or ABI change was required.
 - `cargo test --release -p c64 -p c128 -- --ignored`: C128 boot/cycle/drive
   groups passed (7 + 4 + 4). Two C64 drive cases initially lacked their local
   software files. After making the existing ignored software folder available,
@@ -79,8 +84,9 @@ The installed GTK3 Win64 `xvic.exe` identifies itself in its logfile as
 This is the identity of the executable actually used, not a claim that its
 build was independently reproduced from the separately pinned 3.10 sources.
 
-`vic20.manifest.toml` retains all standard scenarios. S1/S2/S4/S5/S6 each
-cover PAL/NTSC and fast/accurate. S3 and S7 remain explicit known gaps.
+`vic20.manifest.toml` retains all standard scenarios. S1/S2/S3-program/S4/S5/S6
+cover PAL/NTSC and fast/accurate; S4 also checks PAL volume 7 in both modes.
+Cassette, disk, cartridge and S7 remain explicit known gaps.
 An uncaptured screen omits its golden and hash instead of inventing either.
 The matching `rc-scenarios` change reports these as **not run**, never passed.
 The initial real-ROM manifest run correctly rejected the now-passing S4/S5/S6
@@ -179,6 +185,29 @@ rcasm scenarios/vic20/pattern.asm -f prg -o software/scenarios/vic20-pattern.prg
 Create the ignored output folder first. The program initializes its own
 display; this is not a firmware-booted BASIC program or a loader trap.
 
+The current tools-built PRG is 55 bytes at `$1000-$1036`. It sets a visible
+origin at CPU picture `(48, 76)` in both regions, draws character 1 in red
+on white, enables a tone and loops. All four S3-program cases match the
+reference's full 8x8 glyph after palette normalization.
+
+For VICE, put the PRG in the capture working folder and add
+`-initbreak ready -moncommands program.mon` to the bounded S1 command:
+
+```
+load "vic20-pattern.prg" 0
+g 1000
+```
+
+`-initbreak ready` matters: the default startup monitor runs before the
+KERNAL reset routine, which overwrote the first attempted PRG capture with
+the BASIC screen. That capture was rejected. The corrected captures show the
+program's red glyph, not the boot banner. This startup behavior is documented
+in <https://vice-emu.sourceforge.io/vice_6.html>, section 6.17.2.
+Crop raw VICE `[96, 48, 112, 56)` and remove duplicated columns to make an
+8x8 golden. Use the earlier PNG conversion with height 8, raw width 16 and
+final width 8. The Host crop is `[48, 76, 56, 84)` in either region.
+All 64 foreground-mask pixels match independently in each mode and region.
+
 Cassette, cartridge and disk attachment remain unsupported. The existing
 Commodore TAP/drive crates are reuse candidates, but sharing a Format does not
 prove VIC-20 timing or device wiring. IEC pin accessors alone are not a drive.
@@ -198,12 +227,36 @@ and enables voice 1 at volume 15. The divider predicts PAL
 | PAL, 17-19 s | 139.667808 Hz | 139.668161 Hz | 0.155869 | 0.085344 |
 | NTSC, 13-15 s | 128.871849 Hz | 128.872164 Hz | 0.151126 | 0.082637 |
 
+The Host column above records the **original linear-mixer regression**, not
+the corrected output. The cause was the missing nonlinear voltage transfer
+and filter update order, not Host volume, resampling or an arbitrary gain.
+The source calibration and filter order predict an RMS ratio of 1.8287,
+against observed ratios of 1.8264 PAL and 1.8288 NTSC.
+
+The fix applies the calibrated transfer to the cycle-integrated voice/volume
+level and updates the RC filter state in the reference order. Thirty-nine
+knots reproduce all 436 pinned calibration entries with maximum checked f32
+error 0.008516 PCM16 units. The weighted accumulator and serialized layout
+keep their existing meaning. No state-format or ABI bump is involved.
+
+| Region/volume | VICE DC-free RMS | Corrected Host RMS, both modes | Relative error |
+|---|---:|---:|---:|
+| PAL, 15 | 0.155869 | 0.156080 | 0.135% |
+| NTSC, 15 | 0.151126 | 0.151131 | 0.004% |
+| PAL, 7 | 0.075602 | 0.075613 | 0.015% |
+
+The new focused regression failed on the old mixer (PAL RMS 0.085455).
+It now checks RMS within 1% against these independently recorded reference
+features, including lower volume to reject a simple fitted gain multiplier.
+Actual release Host recordings meet the same bound in all six runs.
+
 Pitch is measured over rising zero crossings after removing the window mean.
-All four S4 cases pass the existing 1% pitch and 0.01 minimum-amplitude gates;
+All six S4 cases pass the existing 1% pitch and 0.01 minimum-amplitude gates;
 the NTSC window ends before its shorter 1000-frame run finishes.
-These are tone-presence/pitch checks, **not amplitude fidelity**: Host gain is
-lower than VICE. The mixer remains linear with RC filters. Nonlinear analogue
-response, the volume curve, noise fidelity and sample-exact output remain open.
+The manifest gates tone presence/pitch; the focused regression and separate
+recordings establish RMS agreement. Polyphonic phase, noise fidelity,
+analogue variation beyond the reference calibration and sample-exact output
+are not claimed.
 
 ## S5 state and reset
 

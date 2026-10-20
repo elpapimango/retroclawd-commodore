@@ -44,7 +44,11 @@ References read for this implementation:
   At the 3.10.0 revision, `vic/vic-mem.c` and `vic20/vic20sound.c` inform
   register behavior, divider/shift-register sound, noise taps and filtering.
   The palette uses VICE's original VIC-I RGB calibration, not VIC-II colors;
-  the mixer remains linear rather than copying the measured voltage table.
+  the nonlinear mixer now uses 39 interpolation knots derived from its 436
+  published voltage-calibration entries. Maximum checked f32 reconstruction
+  error is 0.008516 PCM16 units. Calibration attribution: Rami Rasanen and
+  Ville-Matias Heikkila, GPL-2.0-or-later, compatible with this repository's
+  GPL-3.0-or-later license. Filter update order follows the same RC network.
   <https://github.com/VICE-Team/svn-mirror> (GPL-2.0-or-later).
 - MAME revision `848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605`,
   `src/mame/commodore/vic20.cpp`, for independent address-decode checks and
@@ -52,7 +56,8 @@ References read for this implementation:
   establish the Port B selection / Port A input orientation used here.
   <https://github.com/mamedev/mame> (driver: BSD-3-Clause).
 
-No emulator source, firmware or generated reference images are committed.
+Firmware and generated reference images are not committed. The calibration
+data above are reused with attribution; no reference emulator algorithm was copied.
 Firmware hashes establish identity only; firmware redistribution permission
 has not been established. The configured RomM supplied the four hash-verified
 VIC-20 images for private execution in both retroclawd and VICE.
@@ -61,7 +66,7 @@ GTK3 Win64 `xvic.exe`, SHA-256
 `a385207b21df29459f5304bf6ed1da90c974512ead3a7ce1e340c46b01d3134f`.
 This executable identity is separate from the 3.10.0 hardware-source pin above.
 `docs/vic20-gaps.md` records capture commands, logical-pixel conversion,
-measured pitch/gain differences and remaining gaps. Golden hashes, not images,
+measured pitch/RMS, the original gain regression and remaining gaps. Golden hashes, not images,
 are stored in the manifest.
 
 ## Commodore 64 hardware (`crates/machines/c64`, `crates/chips/vic-ii`)

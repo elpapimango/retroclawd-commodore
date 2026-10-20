@@ -8,12 +8,67 @@
 //! handles character addressing, color, and raster-visible writes, but not
 //! VIC-I's sub-clock register delays or display flip-flop tricks. Interlace,
 //! light-pen latching and analogue paddle conversion are not implemented.
-//! Sound uses the documented divider/shift-register circuits with a linear
-//! mixer and RC filters, not VICE's measured nonlinear output-voltage table.
+//! Sound uses the documented divider/shift-register circuits, VICE's measured
+//! nonlinear output-voltage calibration and RC filters.
 
 use serde::{Deserialize, Serialize};
 
 pub const SAMPLE_RATE: u32 = 44_100;
+
+// Breakpoints of VICE 3.10.0's VIC-I voltage calibration (GPL-2.0-or-later;
+// Rami Rasanen and Ville-Matias Heikkila). Linear interpolation reproduces
+// all 436 published entries within 0.02 PCM16 units. See CREDITS.md.
+const MIXER_CURVE: [(f32, f32); 39] = [
+    (0.0, 0.0),
+    (2.0, 296.55),
+    (3.0, 735.97),
+    (4.0, 914.88),
+    (5.0, 1126.89),
+    (6.0, 1321.86),
+    (7.0, 1503.07),
+    (8.0, 1603.50),
+    (9.0, 1758.00),
+    (10.0, 1913.98),
+    (11.0, 2070.94),
+    (12.0, 2220.36),
+    (13.0, 2342.91),
+    (14.0, 2488.07),
+    (15.0, 3188.98),
+    (24.0, 4059.96),
+    (30.0, 5188.81),
+    (32.0, 5197.00),
+    (40.0, 6329.14),
+    (45.0, 7729.97),
+    (56.0, 8603.24),
+    (60.0, 9814.02),
+    (72.0, 10040.12),
+    (75.0, 12281.45),
+    (88.0, 12327.32),
+    (90.0, 13898.78),
+    (104.0, 14064.03),
+    (105.0, 16926.31),
+    (120.0, 17837.26),
+    (132.0, 20288.31),
+    (135.0, 20676.61),
+    (150.0, 22141.34),
+    (165.0, 23_206.3),
+    (174.0, 23648.67),
+    (180.0, 24369.56),
+    (195.0, 25604.92),
+    (210.0, 26414.28),
+    (225.0, 27718.45),
+    (435.0, 29_491.2),
+];
+
+fn mixer_voltage(position: f32) -> f32 {
+    let upper = MIXER_CURVE.partition_point(|&(index, _)| index < position);
+    if upper == 0 {
+        return 0.0;
+    }
+    let (left, low) = MIXER_CURVE[upper - 1];
+    let (right, high) = MIXER_CURVE[upper];
+    low + (high - low) * (position - left) / (right - left)
+}
 
 /// VICE's original VIC-I RGB calibration, not the C64 VIC-II palette.
 pub const PALETTE: [[u8; 3]; 16] = [
@@ -269,13 +324,16 @@ impl Vic {
             return None;
         }
         self.sample_phase -= self.standard.clock_hz();
-        let level = self.sample_sum as f32 / self.sample_clocks as f32 / 60.0;
+        let position = 7.0 * self.sample_sum as f32 / self.sample_clocks as f32
+            + f32::from(self.registers[14] & 15);
+        let level = mixer_voltage(position) / 32767.0;
         self.sample_sum = 0;
         self.sample_clocks = 0;
         let dt = 1.0 / SAMPLE_RATE as f32;
-        self.low_pass += dt / (dt + 0.0001) * (level - self.low_pass);
+        let sample = self.low_pass - self.high_pass;
         self.high_pass += dt / (dt + 0.001) * (self.low_pass - self.high_pass);
-        Some(self.low_pass - self.high_pass)
+        self.low_pass += dt / (dt + 0.0001) * (level - self.low_pass);
+        Some(sample)
     }
 
     pub fn frame_rgb(&self) -> (u32, u32, Vec<u8>) {
@@ -446,6 +504,31 @@ mod tests {
         assert_eq!(vic.sample_sum, 150);
         vic.write(14, 0);
         let sample = (0..6).find_map(|_| vic.clock_sound()).unwrap();
+        assert_eq!(sample, 0.0);
+        let sample = (0..26).find_map(|_| vic.clock_sound()).unwrap();
         assert!(sample > 0.0);
+    }
+
+    #[test]
+    fn tone_volume_curve_matches_reference_rms() {
+        for (standard, volume, expected) in [
+            (Standard::Pal, 15, 0.155869),
+            (Standard::Ntsc, 15, 0.151126),
+            (Standard::Pal, 7, 0.075602),
+        ] {
+            let mut vic = Vic::new(standard);
+            vic.write(10, 0xe0);
+            vic.write(14, volume);
+            let samples = clock(&mut vic, standard.clock_hz() / 2);
+            let settled = &samples[SAMPLE_RATE as usize / 10..];
+            let mean = settled.iter().map(|&v| f64::from(v)).sum::<f64>() / settled.len() as f64;
+            let rms = (settled
+                .iter()
+                .map(|&v| (f64::from(v) - mean).powi(2))
+                .sum::<f64>()
+                / settled.len() as f64)
+                .sqrt();
+            assert!((rms / expected - 1.0).abs() < 0.01, "{standard:?}: {rms}");
+        }
     }
 }
