@@ -17,9 +17,12 @@ The ROM files and how to call each machine: `docs/firmware.md`.
 
 `vic20` is experimental: NMOS 6502, VIC-I video/sound, two VIAs, PAL/NTSC,
 keyboard, joystick, selectable RAM expansion, raw/PRG programs and deterministic
-save states. It reuses `mos6502` and `via6522`, not VIC-II or SID. No real
-VIC-20 firmware boot or reference comparison has been verified. Cassette,
-cartridge and disk attachment remain unsupported and fail explicitly.
+save states. It reuses `mos6502` and `via6522`, not VIC-II or SID. Real PAL/NTSC
+boots, BASIC typing, tone pitch, state continuation and frame budgets pass in
+both execution modes: 20 scenarios pass, with boot/input compared against
+hash-pinned VICE 3.9 captures. Five reference/media/diagnostic gaps remain.
+Cassette, cartridge and disk attachment are unsupported and fail explicitly.
+Audio gain differs from VICE; full hardware fidelity is not claimed.
 See `vic20.intake.toml`, `vic20.manifest.toml` and `docs/vic20-gaps.md`.
 
 ## Execution modes

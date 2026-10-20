@@ -1,11 +1,11 @@
 machine = "vic20"
-# These are open acceptance scenarios, not passing support claims.
-# Uncaptured screen goldens require the matching rc-scenarios feature change.
+# Firmware and reference-derived goldens are supplied separately, never committed.
+# Uncaptured S3/S7 goldens require the matching rc-scenarios feature change.
 
 [reference]
 emulator = "VICE xvic"
-version = "3.10.0; source 4d283a2e7dd59b7e378524878e81ecc7826b700c; executable not installed"
-command = "Not run: install and identify xvic, supply lawful firmware, then record capture commands and real golden hashes."
+version = "3.9 GTK3 Win64; xvic.exe SHA256 a385207b21df29459f5304bf6ed1da90c974512ead3a7ce1e340c46b01d3134f"
+command = "xvic -default -console -pal|-ntsc -basic BASIC -kernal KERNAL -chargen CHAR -drive8type 0 -drive9type 0 -drive10type 0 -drive11type 0 +sound -warp -limitcycles CYCLES -exitscreenshot OUTPUT.png -logfile OUTPUT.log; S2 adds -keybuf 'print 12*34\\n'. See docs/vic20-gaps.md for cycles, logical-pixel goldens and audio commands."
 
 [files]
 rom-basic = "commodore/roms/vic20/basic-901486-01.bin"
@@ -16,16 +16,76 @@ rom-char = "commodore/roms/vic20/chargen-901460-03.bin"
 id = "S1"
 kind = "screen"
 frames = 180
-status = "known-gap"
-gap = { reason = "Real VIC-20 firmware boot and xvic capture have not been verified; no golden exists.", evidence = "docs/vic20-gaps.md#s1-boot" }
+golden = "vic20/S1-pal.png"
+golden_sha256 = "710eca06818570ea59d9e06f6b58b58622c784dcb21d4c806a37db724003578b"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.1698943661971831, 0.24439102564102563, 0.789612676056338, 0.8341346153846154], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
+
+[[scenario]]
+id = "S1-accurate"
+kind = "screen"
+frames = 180
+args = ["--execution-mode", "accurate"]
+golden = "vic20/S1-pal.png"
+golden_sha256 = "710eca06818570ea59d9e06f6b58b58622c784dcb21d4c806a37db724003578b"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.1698943661971831, 0.24439102564102563, 0.789612676056338, 0.8341346153846154], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
+
+[[scenario]]
+id = "S1-ntsc"
+kind = "screen"
+frames = 180
+args = ["--region", "ntsc"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+golden = "vic20/S1-ntsc.png"
+golden_sha256 = "58106ebe2b8143503d512b02870584dc9a9a5ceaa5c5d3b849bee2e327f1270e"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.07788461538461539, 0.191793893129771, 0.7548076923076923, 0.8940839694656488], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
+
+[[scenario]]
+id = "S1-ntsc-accurate"
+kind = "screen"
+frames = 180
+args = ["--region", "ntsc", "--execution-mode", "accurate"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+golden = "vic20/S1-ntsc.png"
+golden_sha256 = "58106ebe2b8143503d512b02870584dc9a9a5ceaa5c5d3b849bee2e327f1270e"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.07788461538461539, 0.191793893129771, 0.7548076923076923, 0.8940839694656488], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
 
 [[scenario]]
 id = "S2"
 kind = "screen"
 frames = 500
 args = ["--type-after", "150", "--type", "PRINT 12*34\n"]
-status = "known-gap"
-gap = { reason = "Synthetic matrix checks are not proof of typing through the real KERNAL; no reference capture exists.", evidence = "docs/vic20-gaps.md#s2-input" }
+golden = "vic20/S2-pal.png"
+golden_sha256 = "c408d359adf6efb9be76194faad56834a6456576f792aad144e1ad065fbeff85"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.1698943661971831, 0.24439102564102563, 0.789612676056338, 0.8341346153846154], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
+
+[[scenario]]
+id = "S2-accurate"
+kind = "screen"
+frames = 500
+args = ["--execution-mode", "accurate", "--type-after", "150", "--type", "PRINT 12*34\n"]
+golden = "vic20/S2-pal.png"
+golden_sha256 = "c408d359adf6efb9be76194faad56834a6456576f792aad144e1ad065fbeff85"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.1698943661971831, 0.24439102564102563, 0.789612676056338, 0.8341346153846154], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
+
+[[scenario]]
+id = "S2-ntsc"
+kind = "screen"
+frames = 500
+args = ["--region", "ntsc", "--type-after", "150", "--type", "PRINT 12*34\n"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+golden = "vic20/S2-ntsc.png"
+golden_sha256 = "8049945857bc41d960ddb583d1b5365f93213c611ebbe6bc39a2673890870bab"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.07788461538461539, 0.191793893129771, 0.7548076923076923, 0.8940839694656488], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
+
+[[scenario]]
+id = "S2-ntsc-accurate"
+kind = "screen"
+frames = 500
+args = ["--region", "ntsc", "--execution-mode", "accurate", "--type-after", "150", "--type", "PRINT 12*34\n"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+golden = "vic20/S2-ntsc.png"
+golden_sha256 = "8049945857bc41d960ddb583d1b5365f93213c611ebbe6bc39a2673890870bab"
+compare = { mode = "similarity", max_mad = 0.01, normalize = true, crop = [0.07788461538461539, 0.191793893129771, 0.7548076923076923, 0.8940839694656488], golden_crop = [0.0, 0.0, 1.0, 1.0], reason = "Compare the full 176x184 text area. The golden removes VICE's duplicated columns and border; normalize palettes, not glyphs." }
 
 [[scenario]]
 id = "S3-program"
@@ -62,16 +122,58 @@ kind = "audio"
 frames = 1000
 args = ["--type-after", "150", "--type", "POKE36878,15:POKE36874,224\n"]
 audio = { from_s = 17.0, to_s = 19.0, tone_hz = 139.67, tone_tolerance_pct = 1.0, min_amplitude = 0.01 }
-status = "known-gap"
-gap = { reason = "The VIC-I divider predicts 1108405/(31*16*16) Hz; real firmware typing and reference pitch/amplitude have not been verified.", evidence = "docs/vic20-gaps.md#s4-audio" }
+
+[[scenario]]
+id = "S4-accurate"
+kind = "audio"
+frames = 1000
+args = ["--execution-mode", "accurate", "--type-after", "150", "--type", "POKE36878,15:POKE36874,224\n"]
+audio = { from_s = 17.0, to_s = 19.0, tone_hz = 139.67, tone_tolerance_pct = 1.0, min_amplitude = 0.01 }
+
+[[scenario]]
+id = "S4-ntsc"
+kind = "audio"
+frames = 1000
+args = ["--region", "ntsc", "--type-after", "150", "--type", "POKE36878,15:POKE36874,224\n"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+audio = { from_s = 13.0, to_s = 15.0, tone_hz = 128.87185, tone_tolerance_pct = 1.0, min_amplitude = 0.01 }
+
+[[scenario]]
+id = "S4-ntsc-accurate"
+kind = "audio"
+frames = 1000
+args = ["--region", "ntsc", "--execution-mode", "accurate", "--type-after", "150", "--type", "POKE36878,15:POKE36874,224\n"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+audio = { from_s = 13.0, to_s = 15.0, tone_hz = 128.87185, tone_tolerance_pct = 1.0, min_amplitude = 0.01 }
 
 [[scenario]]
 id = "S5"
 kind = "state"
 frames = 180
 more_frames = 50
-status = "known-gap"
-gap = { reason = "State/reset unit tests and synthetic Host continuation pass, but this firmware-backed scenario has not run.", evidence = "docs/vic20-gaps.md#s5-state-and-reset" }
+
+[[scenario]]
+id = "S5-accurate"
+kind = "state"
+frames = 180
+more_frames = 50
+args = ["--execution-mode", "accurate"]
+
+[[scenario]]
+id = "S5-ntsc"
+kind = "state"
+frames = 180
+more_frames = 50
+args = ["--region", "ntsc"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+
+[[scenario]]
+id = "S5-ntsc-accurate"
+kind = "state"
+frames = 180
+more_frames = 50
+args = ["--region", "ntsc", "--execution-mode", "accurate"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
 
 [[scenario]]
 id = "S6"
@@ -79,8 +181,32 @@ kind = "timing"
 frames = 100
 cycles_per_frame = 22152
 cycles_tolerance = 8
-status = "known-gap"
-gap = { reason = "PAL timing matches pinned reference-source numbers in Chip tests; the firmware-backed Host scenario has not run.", evidence = "docs/vic20-gaps.md#s6-timing" }
+
+[[scenario]]
+id = "S6-accurate"
+kind = "timing"
+frames = 100
+args = ["--execution-mode", "accurate"]
+cycles_per_frame = 22152
+cycles_tolerance = 8
+
+[[scenario]]
+id = "S6-ntsc"
+kind = "timing"
+frames = 100
+args = ["--region", "ntsc"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+cycles_per_frame = 16965
+cycles_tolerance = 8
+
+[[scenario]]
+id = "S6-ntsc-accurate"
+kind = "timing"
+frames = 100
+args = ["--region", "ntsc", "--execution-mode", "accurate"]
+files = { rom-kernal = "commodore/roms/vic20/kernal-901486-06.bin" }
+cycles_per_frame = 16965
+cycles_tolerance = 8
 
 [[scenario]]
 id = "S7"

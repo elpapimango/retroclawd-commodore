@@ -52,9 +52,17 @@ References read for this implementation:
   establish the Port B selection / Port A input orientation used here.
   <https://github.com/mamedev/mame> (driver: BSD-3-Clause).
 
-No emulator source or firmware bytes were copied. Firmware hashes establish
-identity only; firmware redistribution permission has not been established.
-No VIC-20 firmware was downloaded, and no reference executable was run.
+No emulator source, firmware or generated reference images are committed.
+Firmware hashes establish identity only; firmware redistribution permission
+has not been established. The configured RomM supplied the four hash-verified
+VIC-20 images for private execution in both retroclawd and VICE.
+Boot/input captures and tone recordings were made with the installed VICE 3.9
+GTK3 Win64 `xvic.exe`, SHA-256
+`a385207b21df29459f5304bf6ed1da90c974512ead3a7ce1e340c46b01d3134f`.
+This executable identity is separate from the 3.10.0 hardware-source pin above.
+`docs/vic20-gaps.md` records capture commands, logical-pixel conversion,
+measured pitch/gain differences and remaining gaps. Golden hashes, not images,
+are stored in the manifest.
 
 ## Commodore 64 hardware (`crates/machines/c64`, `crates/chips/vic-ii`)
 

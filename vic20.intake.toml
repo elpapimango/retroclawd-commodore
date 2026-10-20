@@ -5,8 +5,8 @@ default_region = "pal"
 
 [implementation]
 status = "experimental"
-boot_verified = false
-note = "VIC-I Chip, VIC-20 Machine and dynamic Plugin are implemented and tested with synthetic firmware. No real firmware boot, reference execution, hardware diagnostic or golden comparison has been verified. See docs/vic20-gaps.md."
+boot_verified = true
+note = "Real PAL/NTSC firmware boots, BASIC input, tone pitch, state continuation and frame budgets pass in fast and accurate modes. VICE 3.9 boot/input goldens are hash-pinned. Media reference checks, hardware diagnostics and additional fidelity work remain open. See docs/vic20-gaps.md."
 
 [core]
 reuse = "mos6502"
@@ -21,12 +21,13 @@ via_limit = "The existing VIA shift-register implementation documents simplified
 
 [reference]
 emulator = "VICE"
-version = "3.10.0"
+version = "3.9 GTK3 Win64"
 executable = "xvic"
-source_revision = "4d283a2e7dd59b7e378524878e81ecc7826b700c"
-installed = false
-goldens_captured = false
-note = "Pin the executable/build identity and capture commands when the reference is available; no reference execution has been claimed."
+binary_sha256 = "a385207b21df29459f5304bf6ed1da90c974512ead3a7ce1e340c46b01d3134f"
+hardware_source_revision = "4d283a2e7dd59b7e378524878e81ecc7826b700c"
+installed = true
+goldens_captured = true
+note = "The installed executable identifies itself as VICE 3.9; its build is not independently reproduced. The separate hardware-source pin is VICE 3.10.0. Commands, crop conversion and measured audio differences are recorded in docs/vic20-gaps.md."
 
 [timing.pal]
 clock_hz = 1108405
@@ -88,7 +89,7 @@ matrix = [
 register_range = "9000-900f"
 features = ["programmable screen origin and dimensions", "8x8 and 8x16 characters", "monochrome and multicolor characters", "16 colors", "border and background", "raster readback", "three tone generators", "noise generator", "shared volume", "paddle conversion", "light pen"]
 note = "The primary guide says VIC-I refresh does not insert CPU wait states. Accurate scheduling must reproduce VIC-I fetches and register visibility, not copy C64 bad-line stalls."
-open_questions = ["PAL/NTSC display crop and pixel aspect", "exact fetch phases and bus retention", "tone/noise waveform and phase behavior", "interlace field behavior", "paddle and light-pen timing"]
+open_questions = ["full-border geometry, PAL/NTSC palette and pixel aspect", "exact fetch phases and bus retention", "audio gain, nonlinear volume, noise waveform and phase behavior", "interlace field behavior", "paddle and light-pen timing"]
 
 [media]
 candidate_reuse = ["Commodore TAP pulse Format", "PRG load-address convention", "D64 Format", "1541 and drive-link"]
@@ -126,9 +127,9 @@ sha1 = "4fd85ab6647ee2ac7ba40f729323f2472d35b9b4"
 hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
 
 [firmware_policy]
-redistribution_permission = "Not established; firmware is not included or downloaded."
-local_vic20_firmware_found = false
-note = "Hashes identify bytes, not permission. Require lawful user-supplied images or a verified authorized distribution. The archive index lists 901486-04 as 8191 bytes; do not silently pad or accept that as an 8192-byte ROM."
+redistribution_permission = "Not established; firmware is not included. The configured RomM supplied private verification inputs."
+local_vic20_firmware_found = true
+note = "All four listed firmware hashes were downloaded through the Host's firmware-auto path and verified before use. Hashes identify bytes, not permission. The archive index lists 901486-04 as 8191 bytes; do not silently pad or accept that as an 8192-byte ROM."
 
 [scenarios]
 required = ["S1 boot", "S2 input", "S3 each supported medium", "S4 audio", "S5 state and reset", "S6 timing", "S7 hardware diagnostics"]
@@ -136,7 +137,7 @@ optional = ["S8 instruction trace"]
 removed = []
 overrides = []
 hardware_diagnostics = "Not yet selected and license-verified."
-status = "Standard scenarios remain known gaps: real VIC-20 firmware, reference executable and captures are unavailable. Synthetic unit and dynamic-Host checks pass in both modes and regions; they are not reference proof."
+status = "20 passed, 0 failed, 5 known gaps: S1/S2/S4/S5/S6 cover both modes and regions with real firmware; S3 program reference, tape, disk, cartridge and S7 diagnostics remain open."
 note = "Do not create passing manifest entries or weaken tolerances from this intake. Preserve all standard scenarios."
 
 [[source]]

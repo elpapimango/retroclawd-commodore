@@ -35,13 +35,16 @@ existing NMOS `mos6502` Core and two `via6522` Chips. `vic20-machine-plugin`
 owns its Options, matrix-derived keys, shifted combos, debug contract and C ABI;
 `plugin-dlls/vic20` only exports its entry. Fast clocks Chips after an instruction,
 accurate on every CPU bus cycle, including dummy accesses. See `docs/vic20-gaps.md`
-for proof and missing hardware. No real VIC-20 boot or reference capture is
-verified. Do not treat synthetic firmware as a passing boot scenario.
+for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
+types `PRINT 12*34` -> `408` in both modes and regions; text output matches
+the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
-The VIC-20 manifest preserves S1-S7 as known gaps. Uncaptured screen goldens are
-omitted rather than assigned placeholder hashes; this requires the matching
-`rc-scenarios` change described in `docs/vic20-gaps.md`. There are no tolerance
-changes or committed firmware/goldens. Program attachment accepts raw bytes plus
+The VIC-20 manifest preserves S1-S7: 20 S1/S2/S4/S5/S6 variants pass; five S3/S7
+reference/media/diagnostic gaps remain. Tone pitch matches, but audio gain does
+not. Uncaptured screen goldens are omitted rather than assigned placeholder
+hashes; this requires the matching `rc-scenarios` change described in
+`docs/vic20-gaps.md`. Firmware and goldens are never committed. Existing audio
+and timing tolerances are unchanged. Program attachment accepts raw bytes plus
 `org`, validates the complete mapped RAM range before mutation, and does not jump
 or patch BASIC pointers. PRG/P00 header parsing stays in the existing Host.
 
