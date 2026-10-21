@@ -8,14 +8,14 @@ license = "GPL-3.0-or-later"
 name = "vic20_machine_plugin_impl"
 
 [dependencies]
-build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "ae53253565d8bd34ebba7bdde8acebe55b9c028c" }
-machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "ae53253565d8bd34ebba7bdde8acebe55b9c028c" }
-plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "ae53253565d8bd34ebba7bdde8acebe55b9c028c" }
-mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "ae53253565d8bd34ebba7bdde8acebe55b9c028c" }
+build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }
 vic20 = { path = "../../machines/vic20" }
 vic-i = { path = "../../chips/vic-i" }
 serde = { version = "1", features = ["derive"] }
 bincode = { version = "2", features = ["serde"] }
 
 [build-dependencies]
-build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "ae53253565d8bd34ebba7bdde8acebe55b9c028c" }
+build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }

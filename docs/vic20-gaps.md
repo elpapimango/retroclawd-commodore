@@ -37,6 +37,20 @@ PRG/P00 headers, so no duplicate file parser was introduced.
 
 Validation executed:
 
+- IRQ-mask migration: VIC-20 v5, `C64IRQv1`, `128IRQv1`, `154IRQv1` and
+  `158IRQv1` now persist the shared Core's sampled I flag outside its unchanged
+  legacy serde payload. All readers retain their preceding formats; old files
+  restore no poll history, matching their original live-I instruction boundary.
+  The complete GCR and true-drive wrappers use the upgraded inner readers.
+  Focused regressions cover CLI continuation, nested drive loading, legacy
+  loading and truncated latch rejection before mutation. Preserve old files for
+  rollback: old plugins cannot load new files. The Core change fixes CLI/SEI/PLP
+  mask sampling and RTI distinction, not the full cycle-exact interrupt pipeline.
+  The release Host loads preserved published v3 in-flight disk and v4 cartridge
+  files twice, producing byte-identical upgraded continuations without changing
+  either original. All 62 reference manifest cases still pass with unchanged
+  goldens. Full Family tests and strict workspace Clippy pass against shared pin
+  `bf0faf6e36950b43ff1443074487fad7075320fa`, without local Cargo patches.
 - Diagnostic increment: all eight PAL/NTSC x fast/accurate x cartridge/replacement
   KERNAL runs match independently captured VICE memory byte-for-byte (1024 bytes
   each). Full expansion displays 42 RAM pass marks with no ROM/RAM error flags.

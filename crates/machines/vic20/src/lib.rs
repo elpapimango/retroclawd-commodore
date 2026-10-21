@@ -110,6 +110,7 @@ mod tests {
         Option<TapeState>,
         Option<DriveState>,
         Option<[u8; 20]>,
+        Option<bool>,
     );
 
     fn roms() -> Roms {
@@ -374,11 +375,11 @@ mod tests {
             trailing.push(0);
             assert!(m.load_state(&trailing).is_err());
             assert_eq!(m.save_state(), before);
-            let ((mut malformed, tape, drive, cartridge), _): (CurrentState, usize) =
+            let ((mut malformed, tape, drive, cartridge, poll), _): (CurrentState, usize) =
                 bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
             malformed.hardware.ram.pop();
             let malformed = bincode::serde::encode_to_vec(
-                (malformed, tape, drive, cartridge),
+                (malformed, tape, drive, cartridge, poll),
                 bincode::config::standard(),
             )
             .unwrap();
@@ -496,7 +497,7 @@ mod tests {
                 m.step();
             }
             assert_eq!(m.save_state(), future);
-            let ((core, mut tape_state, drive, cartridge), _): (CurrentState, usize) =
+            let ((core, mut tape_state, drive, cartridge, poll), _): (CurrentState, usize) =
                 bincode::serde::decode_from_slice(&state, bincode::config::standard()).unwrap();
             // Corrupt the serialized phase; TapePosition's fields are private.
             let bad_position = bincode::serde::encode_to_vec(
@@ -509,7 +510,7 @@ mod tests {
                     .unwrap()
                     .0;
             let corrupt = bincode::serde::encode_to_vec(
-                (core, tape_state, drive, cartridge),
+                (core, tape_state, drive, cartridge, poll),
                 bincode::config::standard(),
             )
             .unwrap();
@@ -583,11 +584,11 @@ mod tests {
                 m.step();
             }
             assert_eq!(m.save_state(), future);
-            let ((core, tape, mut drive, cartridge), _): (CurrentState, usize) =
+            let ((core, tape, mut drive, cartridge, poll), _): (CurrentState, usize) =
                 bincode::serde::decode_from_slice(&saved, bincode::config::standard()).unwrap();
             drive.as_mut().unwrap().checkpoint.pop();
             let corrupt = bincode::serde::encode_to_vec(
-                (core, tape, drive, cartridge),
+                (core, tape, drive, cartridge, poll),
                 bincode::config::standard(),
             )
             .unwrap();
@@ -612,6 +613,36 @@ mod tests {
     }
 
     #[test]
+    fn irq_latch_continues_after_cli_and_version4_restores_live_i() {
+        for timing in [Timing::Fast, Timing::Accurate] {
+            let mut m = machine(timing);
+            m.load(0x1000, &[0x58, 0x78, 0xea]);
+            m.set_pc(0x1000);
+            m.step();
+            let saved = m.save_state();
+            m.step();
+            let future = m.save_state();
+            m.load_state(&saved).unwrap();
+            assert_eq!(m.cpu.irq_poll_mask(), Some(true));
+            m.step();
+            assert_eq!(m.save_state(), future);
+            let ((mut core, tape, drive, cart, _), _): (CurrentState, usize) =
+                bincode::serde::decode_from_slice(&saved, bincode::config::standard()).unwrap();
+            core.version = 4;
+            let legacy = bincode::serde::encode_to_vec(
+                (core, tape, drive, cart),
+                bincode::config::standard(),
+            )
+            .unwrap();
+            m.load_state(&legacy).unwrap();
+            assert_eq!(m.cpu.irq_poll_mask(), None);
+            let before = m.save_state();
+            assert!(m.load_state(&saved[..saved.len() - 1]).is_err());
+            assert_eq!(m.save_state(), before);
+        }
+    }
+
+    #[test]
     fn old_state_versions_load_without_a_drive_including_version2_tape_phase() {
         let mut m = machine(Timing::Accurate);
         let bytes = m.save_state();
@@ -622,7 +653,7 @@ mod tests {
         m.step();
         m.load_state(&legacy).unwrap();
         assert_eq!(m.save_state(), bytes);
-        let ((mut state, tape, drive, _), _): (CurrentState, usize) =
+        let ((mut state, tape, drive, _, _), _): (CurrentState, usize) =
             bincode::serde::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
         state.version = 3;
         let legacy =
@@ -1380,7 +1411,7 @@ impl Machine for Vic20 {
             (
                 State {
                     magic: *b"VIC1",
-                    version: 4,
+                    version: 5,
                     roms: self.bus.roms.fingerprint(),
                     timing: self.bus.timing,
                     expansion: self.bus.expansion,
@@ -1403,6 +1434,7 @@ impl Machine for Vic20 {
                         .expect("VIC-20 has a GCR Drive"),
                 }),
                 self.cartridge_id(),
+                self.cpu.irq_poll_mask(),
             ),
             bincode::config::standard(),
         )
@@ -1412,14 +1444,14 @@ impl Machine for Vic20 {
         if bytes.len() > 1_048_576 {
             return Err("VIC-20 state exceeds 1 MiB".to_string());
         }
-        let (state, used): (State, usize) = bincode::serde::decode_from_slice(
+        let (mut state, used): (State, usize) = bincode::serde::decode_from_slice(
             bytes,
             bincode::config::standard().with_limit::<1_048_576>(),
         )
         .map_err(|error| format!("invalid VIC-20 state: {error}"))?;
         let (tape_state, drive_state, cartridge_id) = match state.version {
             1 if used == bytes.len() => (None, None, None),
-            2..=4 => {
+            2..=5 => {
                 let (tape, count): (Option<TapeState>, usize) = bincode::serde::decode_from_slice(
                     &bytes[used..],
                     bincode::config::standard().with_limit::<1_048_576>(),
@@ -1436,7 +1468,7 @@ impl Machine for Vic20 {
                     (None, 0)
                 };
                 let end = end + count;
-                let (cartridge, count) = if state.version == 4 {
+                let (cartridge, count) = if state.version >= 4 {
                     bincode::serde::decode_from_slice::<Option<[u8; 20]>, _>(
                         &bytes[end..],
                         bincode::config::standard().with_limit::<1_048_576>(),
@@ -1445,6 +1477,17 @@ impl Machine for Vic20 {
                 } else {
                     (None, 0)
                 };
+                let end = end + count;
+                let (mask, count) = if state.version == 5 {
+                    bincode::serde::decode_from_slice::<Option<bool>, _>(
+                        &bytes[end..],
+                        bincode::config::standard(),
+                    )
+                    .map_err(|error| format!("invalid VIC-20 IRQ state: {error}"))?
+                } else {
+                    (None, 0)
+                };
+                state.cpu.restore_irq_poll_mask(mask);
                 if end + count != bytes.len() {
                     return Err("invalid VIC-20 state trailing bytes".to_string());
                 }

@@ -27,8 +27,15 @@
 //! disk image's own bytes stay external, only the mechanism's own live
 //! mechanical/timing state (head position, motor, density, bit-clock
 //! phase) round-trips.
+//!
+//! New files wrap the original payload with `154IRQv1` and append the CPU's
+//! sampled I flag. Unprefixed legacy files remain readable without poll
+//! history. Complete drive checkpoints use the same decoder for their inner
+//! machine payload, so their CPU continuation retains the latch too.
 
 use crate::C1541;
+
+const IRQ_STATE_HEADER: &[u8; 8] = b"154IRQv1";
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct CompleteState {
@@ -62,14 +69,7 @@ impl C1541 {
             return Err("invalid complete 1541 state header or trailing bytes".to_string());
         }
         state.disk.validate_complete_state()?;
-        let (machine, used): (SaveState, usize) = bincode::serde::decode_from_slice(
-            &state.machine,
-            bincode::config::standard().with_limit::<2_097_152>(),
-        )
-        .map_err(|error| format!("invalid complete 1541 CPU state: {error}"))?;
-        if used != state.machine.len() {
-            return Err("invalid complete 1541 CPU state trailing bytes".to_string());
-        }
+        let machine = decode_machine(&state.machine)?;
         apply(self, machine)?;
         self.bus.disk = state.disk;
         Ok(())
@@ -107,15 +107,45 @@ pub(crate) fn encode(c1541: &C1541) -> Vec<u8> {
         byte_ready_latch: c1541.bus.byte_ready_latch,
         fast_serial_out: c1541.bus.fast_serial_out,
     };
-    bincode::serde::encode_to_vec(&state, bincode::config::standard())
-        .expect("1541 save state should always be encodable")
+    let mut bytes = IRQ_STATE_HEADER.to_vec();
+    bytes.extend(
+        bincode::serde::encode_to_vec(
+            (&state, c1541.cpu.irq_poll_mask()),
+            bincode::config::standard(),
+        )
+        .expect("1541 save state should always be encodable"),
+    );
+    bytes
 }
 
 pub(crate) fn decode(c1541: &mut C1541, bytes: &[u8]) -> Result<(), String> {
-    let (state, _): (SaveState, usize) =
-        bincode::serde::decode_from_slice(bytes, bincode::config::standard())
-            .map_err(|e| format!("failed to decode 1541 save state: {e}"))?;
-    apply(c1541, state)
+    apply(c1541, decode_machine(bytes)?)
+}
+
+fn decode_machine(bytes: &[u8]) -> Result<SaveState, String> {
+    let (bytes, versioned) = match bytes.strip_prefix(IRQ_STATE_HEADER) {
+        Some(payload) => (payload, true),
+        None => (bytes, false),
+    };
+    let (mut state, used): (SaveState, usize) = bincode::serde::decode_from_slice(
+        bytes,
+        bincode::config::standard().with_limit::<2_097_152>(),
+    )
+    .map_err(|e| format!("failed to decode 1541 save state: {e}"))?;
+    let (mask, extra) = if versioned {
+        bincode::serde::decode_from_slice::<Option<bool>, _>(
+            &bytes[used..],
+            bincode::config::standard(),
+        )
+        .map_err(|e| format!("invalid 1541 IRQ state: {e}"))?
+    } else {
+        (None, 0)
+    };
+    if used + extra != bytes.len() {
+        return Err("invalid 1541 state trailing bytes".to_string());
+    }
+    state.cpu.restore_irq_poll_mask(mask);
+    Ok(state)
 }
 
 fn apply(c1541: &mut C1541, state: SaveState) -> Result<(), String> {
@@ -157,6 +187,38 @@ fn apply(c1541: &mut C1541, state: SaveState) -> Result<(), String> {
 mod tests {
     use super::*;
     use machine::Machine;
+
+    #[test]
+    fn irq_latch_survives_machine_and_complete_drive_states() {
+        let mut m = C1541::new(vec![0xea; crate::ROM_SIZE], 8).unwrap();
+        m.set_iec_input(true, true, true);
+        m.load(0x0400, &[0x58, 0x78, 0xea]);
+        m.set_pc(0x0400);
+        m.step();
+        let saved = m.save_state();
+        let complete = m.save_complete_state();
+        m.step();
+        let future = m.cpu;
+        m.load_state(&saved).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), Some(true));
+        m.step();
+        assert_eq!(m.cpu, future);
+        m.load_complete_state(&complete).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), Some(true));
+        m.step();
+        assert_eq!(m.cpu, future);
+        let (old, _): (SaveState, usize) = bincode::serde::decode_from_slice(
+            &saved[IRQ_STATE_HEADER.len()..],
+            bincode::config::standard(),
+        )
+        .unwrap();
+        let legacy = bincode::serde::encode_to_vec(old, bincode::config::standard()).unwrap();
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), None);
+        let before = m.save_state();
+        assert!(m.load_state(&saved[..saved.len() - 1]).is_err());
+        assert_eq!(m.save_state(), before);
+    }
 
     fn save_state_round_trips_cpu_ram_and_via_state() {
         let mut drive = C1541::new(vec![0xEA; crate::ROM_SIZE], 8).unwrap();

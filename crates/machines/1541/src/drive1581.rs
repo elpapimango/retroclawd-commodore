@@ -310,14 +310,38 @@ impl Machine for C1581 {
             ),
             fast_serial_out: self.bus.fast_serial_out,
         };
-        bincode::serde::encode_to_vec(&state, bincode::config::standard())
-            .expect("1581 save state should always be encodable")
+        let mut bytes = b"158IRQv1".to_vec();
+        bytes.extend(
+            bincode::serde::encode_to_vec(
+                (&state, self.cpu.irq_poll_mask()),
+                bincode::config::standard(),
+            )
+            .expect("1581 save state should always be encodable"),
+        );
+        bytes
     }
 
     fn load_state(&mut self, bytes: &[u8]) -> Result<(), String> {
-        let (state, _): (State1581, usize) =
+        let (bytes, versioned) = match bytes.strip_prefix(b"158IRQv1") {
+            Some(payload) => (payload, true),
+            None => (bytes, false),
+        };
+        let (mut state, used): (State1581, usize) =
             bincode::serde::decode_from_slice(bytes, bincode::config::standard())
                 .map_err(|e| format!("failed to decode 1581 save state: {e}"))?;
+        let (mask, extra) = if versioned {
+            bincode::serde::decode_from_slice::<Option<bool>, _>(
+                &bytes[used..],
+                bincode::config::standard(),
+            )
+            .map_err(|e| format!("invalid 1581 IRQ state: {e}"))?
+        } else {
+            (None, 0)
+        };
+        if used + extra != bytes.len() {
+            return Err("invalid 1581 state trailing bytes".to_string());
+        }
+        state.cpu.restore_irq_poll_mask(mask);
         if state.ram.len() != self.bus.ram.len() {
             return Err("save state RAM size mismatch".to_string());
         }
@@ -346,4 +370,33 @@ struct State1581 {
     floppy: Floppy81State,
     iec: (bool, bool, bool),
     fast_serial_out: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn irq_latch_and_legacy_1581_states_restore_without_losing_ram() {
+        let mut m = C1581::new(vec![0xea; ROM_SIZE_1581], 8).unwrap();
+        m.load(0x0400, &[0x58, 0x78, 0xea]);
+        m.set_pc(0x0400);
+        m.step();
+        let saved = m.save_state();
+        m.step();
+        let future = m.save_state();
+        m.load_state(&saved).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), Some(true));
+        m.step();
+        assert_eq!(m.save_state(), future);
+        let (old, _): (State1581, usize) =
+            bincode::serde::decode_from_slice(&saved[8..], bincode::config::standard()).unwrap();
+        let legacy = bincode::serde::encode_to_vec(old, bincode::config::standard()).unwrap();
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), None);
+        assert_eq!(m.read_memory(0x0400), 0x58);
+        let before = m.save_state();
+        assert!(m.load_state(&saved[..saved.len() - 1]).is_err());
+        assert_eq!(m.save_state(), before);
+    }
 }
