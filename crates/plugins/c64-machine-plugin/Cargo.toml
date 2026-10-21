@@ -8,10 +8,10 @@ license = "GPL-3.0-or-later"
 name = "c64_machine_plugin_impl"
 
 [dependencies]
-build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "b28ea9a680edb578afcb37cb018e41059e7a81c5" }
-machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "b28ea9a680edb578afcb37cb018e41059e7a81c5" }
-plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "b28ea9a680edb578afcb37cb018e41059e7a81c5" }
-mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "b28ea9a680edb578afcb37cb018e41059e7a81c5" }
+build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "c240a7aee11208ceefc3ba66cc4caf6c8c914793" }
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "c240a7aee11208ceefc3ba66cc4caf6c8c914793" }
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "c240a7aee11208ceefc3ba66cc4caf6c8c914793" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "c240a7aee11208ceefc3ba66cc4caf6c8c914793" }
 serde = { version = "1", features = ["derive"] }
 c64 = { path = "../../machines/c64" }
 c1541 = { path = "../../machines/1541" }
@@ -27,4 +27,4 @@ d81 = { path = "../../formats/d81" }
 toml = "0.8"
 
 [build-dependencies]
-build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "b28ea9a680edb578afcb37cb018e41059e7a81c5" }
+build-info = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "c240a7aee11208ceefc3ba66cc4caf6c8c914793" }
