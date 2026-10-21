@@ -5,8 +5,8 @@ edition = "2024"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }
-mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }
+machine = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "293f6d33c9a1648c199e0d6c2a67cba05a87a6b2" }
+mos6502 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "293f6d33c9a1648c199e0d6c2a67cba05a87a6b2" }
 vic-ii = { path = "../../chips/vic-ii" }
 sid = { path = "../../chips/sid" }
 cia6526 = { path = "../../chips/cia-6526" }

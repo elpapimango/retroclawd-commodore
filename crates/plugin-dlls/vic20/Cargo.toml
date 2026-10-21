@@ -10,5 +10,5 @@ name = "vic20_machine_plugin"
 crate-type = ["cdylib"]
 
 [dependencies]
-plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "bf0faf6e36950b43ff1443074487fad7075320fa" }
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "293f6d33c9a1648c199e0d6c2a67cba05a87a6b2" }
 vic20-machine-plugin = { path = "../../plugins/vic20-machine-plugin" }

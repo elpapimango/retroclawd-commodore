@@ -51,6 +51,13 @@ Validation executed:
   either original. All 62 reference manifest cases still pass with unchanged
   goldens. Full Family tests and strict workspace Clippy pass against shared pin
   `bf0faf6e36950b43ff1443074487fad7075320fa`, without local Cargo patches.
+- Shared Core BRK/IRQ vector increment: the Family pins
+  `293f6d33c9a1648c199e0d6c2a67cba05a87a6b2`. Its optional
+  `Bus::take_nmi_edge` hook defaults to false; Commodore still delivers its
+  NMIs through the existing instruction-boundary requests. No Chip/Machine
+  implementation or State format changes accompany this pin. All 348 ordinary
+  Family tests and strict release workspace Clippy pass without local patches;
+  25 external/opt-in tests remain explicitly ignored in that ordinary run.
 - Diagnostic increment: all eight PAL/NTSC x fast/accurate x cartridge/replacement
   KERNAL runs match independently captured VICE memory byte-for-byte (1024 bytes
   each). Full expansion displays 42 RAM pass marks with no ROM/RAM error flags.

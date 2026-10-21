@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 name = "build-info"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=bf0faf6e36950b43ff1443074487fad7075320fa#bf0faf6e36950b43ff1443074487fad7075320fa"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=293f6d33c9a1648c199e0d6c2a67cba05a87a6b2#293f6d33c9a1648c199e0d6c2a67cba05a87a6b2"
 
 [[package]]
 name = "bytemuck"
@@ -313,7 +313,7 @@ checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 [[package]]
 name = "machine"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=bf0faf6e36950b43ff1443074487fad7075320fa#bf0faf6e36950b43ff1443074487fad7075320fa"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=293f6d33c9a1648c199e0d6c2a67cba05a87a6b2#293f6d33c9a1648c199e0d6c2a67cba05a87a6b2"
 
 [[package]]
 name = "memchr"
@@ -324,7 +324,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "mos6502"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=bf0faf6e36950b43ff1443074487fad7075320fa#bf0faf6e36950b43ff1443074487fad7075320fa"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=293f6d33c9a1648c199e0d6c2a67cba05a87a6b2#293f6d33c9a1648c199e0d6c2a67cba05a87a6b2"
 dependencies = [
  "machine",
  "serde",
@@ -333,7 +333,7 @@ dependencies = [
 [[package]]
 name = "plugin-api"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=bf0faf6e36950b43ff1443074487fad7075320fa#bf0faf6e36950b43ff1443074487fad7075320fa"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=293f6d33c9a1648c199e0d6c2a67cba05a87a6b2#293f6d33c9a1648c199e0d6c2a67cba05a87a6b2"
 dependencies = [
  "bincode",
  "serde",
@@ -608,7 +608,7 @@ dependencies = [
 [[package]]
 name = "z80"
 version = "0.1.0"
-source = "git+https://github.com/elpapimango/retroclawd-crates?rev=bf0faf6e36950b43ff1443074487fad7075320fa#bf0faf6e36950b43ff1443074487fad7075320fa"
+source = "git+https://github.com/elpapimango/retroclawd-crates?rev=293f6d33c9a1648c199e0d6c2a67cba05a87a6b2#293f6d33c9a1648c199e0d6c2a67cba05a87a6b2"
 dependencies = [
  "machine",
  "serde",
