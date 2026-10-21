@@ -1250,6 +1250,14 @@ against them. The 6502 per-cycle access patterns (dummy reads/writes) follow the
 cycle-by-cycle instruction tables (e.g. the "64doc"/MOS 6502 programming references) and are checked here
 only for count and order by `crates/core/6502/tests/cycle_hook.rs`.
 
+The Family now pins shared revision `ae53253565d8bd34ebba7bdde8acebe55b9c028c`
+with the SHY/SHX/SHA/TAS high-byte store correction exposed by Atari Acid800.
+The mask uses the unindexed base high byte plus one; a page carry replaces the
+write-address high byte with the masked data. See the shared `CREDITS.md` for
+the hardware/reference sources and instability limits. CPU State encoding and
+cycle counts are unchanged. Commodore workspace tests and all 62 existing
+VICE-backed VIC-20 scenarios pass on this pin; IRQ polling is not fixed here.
+
 The pixel side of the same engine follows Bauer's sections 3.7.3 (the graphics sequencer's per-mode colour
 rules), 3.8 (sprite shifters, priority and expansion) and 3.9 (the border unit's six flip-flop rules and the
 24/31 and 335/344 comparison columns, 51/55 and 247/251 rows), again from memory of the article. The

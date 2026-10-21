@@ -10,5 +10,5 @@ name = "c128_machine_plugin"
 crate-type = ["cdylib"]
 
 [dependencies]
-plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "30bbca84f53177148c6ed4ae2b37597747dec654" }
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "ae53253565d8bd34ebba7bdde8acebe55b9c028c" }
 c128-machine-plugin = { path = "../../plugins/c128-machine-plugin" }
