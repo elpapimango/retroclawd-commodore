@@ -1180,7 +1180,7 @@ sensor, side, 2 MHz, fast direction), `drive/iec/cia1571d.c`, `drive/iec/glue157
 user's Denise/VICE downloads; the `U0>M1` mode switch and the `$2750` 1571-mode test were found by
 disassembling that ROM. `cia6526` is the former `c64::cia`, moved unchanged.
 
-## 1581 drive and WD1770 (`crates/chips/wd1770`, `crates/machines/1541/src/{drive1581,floppy81}.rs`, 2026-10-12)
+## 1581 drive and WD1770 (`crates/machines/1541/src/{drive1581,floppy81}.rs`, 2026-10-12; the `wd1770` crate moved to retroclawd-crates 2026-10-21)
 
 Behaviour read from VICE (GPL, reference only, VICE-Team svn mirror): `drive/iec/wd1770.c` (command
 state machine, status bits, timing constants), `drive/iec/fdd.c` (raw track synthesis for a `.d81`, the

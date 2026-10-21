@@ -12,6 +12,6 @@ d64 = { path = "../../formats/d64" }
 d71 = { path = "../../formats/d71" }
 cia6526 = { path = "../../chips/cia-6526" }
 d81 = { path = "../../formats/d81" }
-wd1770 = { path = "../../chips/wd1770" }
+wd1770 = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "b28ea9a680edb578afcb37cb018e41059e7a81c5" }
 serde = { version = "1", features = ["derive"] }
 bincode = { version = "2", features = ["serde"] }
