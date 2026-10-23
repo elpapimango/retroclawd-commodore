@@ -1,0 +1,14 @@
+[package]
+name = "vic20-machine-plugin-dll"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+description = "Shared-library entry point for the VIC-20 machine plugin"
+
+[lib]
+name = "vic20_machine_plugin"
+crate-type = ["cdylib"]
+
+[dependencies]
+plugin-api = { git = "https://github.com/elpapimango/retroclawd-crates", rev = "0777d5e2366e97832f4554acc6e7c2d6e6a9d6ac" }
+vic20-machine-plugin = { path = "../../plugins/vic20-machine-plugin" }

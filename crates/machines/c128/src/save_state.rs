@@ -4,6 +4,8 @@
 
 use crate::C128;
 
+const IRQ_STATE_HEADER: &[u8; 8] = b"128IRQv1";
+
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SaveState {
     cpu: mos6502::Cpu,
@@ -54,14 +56,35 @@ pub(crate) fn encode(m: &C128) -> Vec<u8> {
         cpu_started: m.cpu_started,
         audio_cycle_accumulator: m.audio_cycle_accumulator,
     };
-    bincode::serde::encode_to_vec(&state, bincode::config::standard())
-        .expect("C128 save state should always be encodable")
+    let mut bytes = IRQ_STATE_HEADER.to_vec();
+    bytes.extend(
+        bincode::serde::encode_to_vec((&state, m.cpu.irq_poll_mask()), bincode::config::standard())
+            .expect("C128 save state should always be encodable"),
+    );
+    bytes
 }
 
 pub(crate) fn decode(m: &mut C128, bytes: &[u8]) -> Result<(), String> {
-    let (s, _): (SaveState, usize) =
+    let (bytes, versioned) = match bytes.strip_prefix(IRQ_STATE_HEADER) {
+        Some(payload) => (payload, true),
+        None => (bytes, false),
+    };
+    let (mut s, used): (SaveState, usize) =
         bincode::serde::decode_from_slice(bytes, bincode::config::standard())
             .map_err(|e| format!("failed to decode C128 save state: {e}"))?;
+    let (mask, extra) = if versioned {
+        bincode::serde::decode_from_slice::<Option<bool>, _>(
+            &bytes[used..],
+            bincode::config::standard(),
+        )
+        .map_err(|e| format!("invalid C128 IRQ state: {e}"))?
+    } else {
+        (None, 0)
+    };
+    if used + extra != bytes.len() {
+        return Err("invalid C128 state trailing bytes".to_string());
+    }
+    s.cpu.restore_irq_poll_mask(mask);
     if s.ram.len() != m.bus.ram.len() || s.color_ram.len() != m.bus.color_ram.len() {
         return Err("save state RAM size mismatch".to_string());
     }
@@ -93,4 +116,39 @@ pub(crate) fn decode(m: &mut C128, bytes: &[u8]) -> Result<(), String> {
     m.audio_cycle_accumulator = s.audio_cycle_accumulator;
     m.audio_buffer.clear();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bus::{BASIC_ROM_SIZE, C64_ROM_SIZE, CHARGEN_SIZE, KERNAL_IMAGE_SIZE, Roms};
+    use machine::Machine;
+
+    #[test]
+    fn irq_state_and_legacy_state_restore_distinct_poll_masks() {
+        let mut m = C128::new(Roms {
+            basic: vec![0; BASIC_ROM_SIZE],
+            kernal: vec![0; KERNAL_IMAGE_SIZE],
+            chargen: vec![0; CHARGEN_SIZE],
+            c64_basic: vec![0; C64_ROM_SIZE],
+            c64_kernal: vec![0; C64_ROM_SIZE],
+        })
+        .unwrap();
+        m.cpu.restore_irq_poll_mask(Some(false));
+        let saved = m.save_state();
+        m.cpu.restore_irq_poll_mask(None);
+        m.load_state(&saved).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), Some(false));
+        let (state, _): (SaveState, usize) = bincode::serde::decode_from_slice(
+            &saved[IRQ_STATE_HEADER.len()..],
+            bincode::config::standard(),
+        )
+        .unwrap();
+        let legacy = bincode::serde::encode_to_vec(state, bincode::config::standard()).unwrap();
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), None);
+        let before = m.save_state();
+        assert!(m.load_state(&saved[..saved.len() - 1]).is_err());
+        assert_eq!(m.save_state(), before);
+    }
 }

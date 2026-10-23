@@ -16,6 +16,8 @@
 
 use crate::C64;
 
+const IRQ_STATE_HEADER: &[u8; 8] = b"C64IRQv1";
+
 #[derive(serde::Serialize, serde::Deserialize)]
 struct SaveState {
     cpu: mos6502::Cpu,
@@ -71,14 +73,38 @@ pub(crate) fn encode(c64: &C64) -> Vec<u8> {
         rrnet: c64.bus.rrnet.clone(),
         printer: c64.bus.printer.clone(),
     };
-    bincode::serde::encode_to_vec(&state, bincode::config::standard())
-        .expect("C64 save state should always be encodable")
+    let mut bytes = IRQ_STATE_HEADER.to_vec();
+    bytes.extend(
+        bincode::serde::encode_to_vec(
+            (&state, c64.cpu.irq_poll_mask()),
+            bincode::config::standard(),
+        )
+        .expect("C64 save state should always be encodable"),
+    );
+    bytes
 }
 
 pub(crate) fn decode(c64: &mut C64, bytes: &[u8]) -> Result<(), String> {
-    let (state, _): (SaveState, usize) =
+    let (bytes, versioned) = match bytes.strip_prefix(IRQ_STATE_HEADER) {
+        Some(payload) => (payload, true),
+        None => (bytes, false),
+    };
+    let (mut state, used): (SaveState, usize) =
         bincode::serde::decode_from_slice(bytes, bincode::config::standard())
             .map_err(|e| format!("failed to decode C64 save state: {e}"))?;
+    let (mask, extra) = if versioned {
+        bincode::serde::decode_from_slice::<Option<bool>, _>(
+            &bytes[used..],
+            bincode::config::standard(),
+        )
+        .map_err(|e| format!("invalid C64 IRQ state: {e}"))?
+    } else {
+        (None, 0)
+    };
+    if used + extra != bytes.len() {
+        return Err("invalid C64 state trailing bytes".to_string());
+    }
+    state.cpu.restore_irq_poll_mask(mask);
 
     if state.ram.len() != c64.bus.ram.len() {
         return Err(format!(
@@ -160,6 +186,50 @@ mod tests {
     use super::*;
     use crate::bus::{BASIC_ROM_SIZE, CHAR_ROM_SIZE, KERNAL_ROM_SIZE};
     use machine::{Bus, Machine};
+
+    #[test]
+    fn irq_state_resumes_after_cli_and_reads_legacy_cpu_bytes() {
+        let mut m = C64::new(
+            vec![0; KERNAL_ROM_SIZE],
+            vec![0; BASIC_ROM_SIZE],
+            vec![0; CHAR_ROM_SIZE],
+        )
+        .unwrap();
+        assert_eq!(
+            bincode::serde::encode_to_vec(mos6502::Cpu::new(), bincode::config::standard())
+                .unwrap(),
+            [0, 0, 0, 0xfd, 0, 0x24, 0, 0, 0],
+            "the published CPU field layout must not change"
+        );
+        m.load(0xc000, &[0x58, 0x78, 0xea]);
+        m.set_pc(0xc000);
+        m.step();
+        assert_eq!(m.cpu.irq_poll_mask(), Some(true));
+        let saved = m.save_state();
+        let (base, used): (SaveState, usize) = bincode::serde::decode_from_slice(
+            &saved[IRQ_STATE_HEADER.len()..],
+            bincode::config::standard(),
+        )
+        .unwrap();
+        let legacy = bincode::serde::encode_to_vec(base, bincode::config::standard()).unwrap();
+        assert_eq!(legacy.len(), used);
+        m.step();
+        let future = m.save_state();
+        m.load_state(&saved).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), Some(true));
+        m.step();
+        assert_eq!(m.save_state(), future);
+        m.load_state(&legacy).unwrap();
+        assert_eq!(m.cpu.irq_poll_mask(), None);
+        let before = m.save_state();
+        for broken in [
+            &saved[..saved.len() - 1],
+            &[saved.as_slice(), &[0]].concat(),
+        ] {
+            assert!(m.load_state(broken).is_err());
+            assert_eq!(m.save_state(), before);
+        }
+    }
 
     fn save_state_round_trips_cpu_and_memory() {
         let mut c64 = C64::new(

@@ -4,7 +4,7 @@ Guidance for Claude Code (claude.ai/code) working in this repo.
 
 ## What this repository is
 
-The Commodore (C64, C128, drives) machine family of retroclawd, split out of the main repository (`elpapimango/retroclawd`, the application, referred to as "the host"). Everything here builds into `*_machine_plugin` shared libraries that the host application loads at run time. Shared crates (`machine`, `plugin-api`, `z80`, `mos6502`, `ay-3-8910`, `nec765`, `dsk`, `zx-tape`) come from `elpapimango/retroclawd-crates` as a git dependency pinned to a commit (`rev`); changing that rev means checking `docs/plugin-abi.md` in that repository. Directory layout is the same as in the host (tests find ROMs/software at `CARGO_MANIFEST_DIR/../../../roms|software`).
+The Commodore (experimental VIC-20, C64, C128, drives) machine family of retroclawd, split out of the main repository (`elpapimango/retroclawd`, the application, referred to as "the host"). Everything here builds into `*_machine_plugin` shared libraries that the host application loads at run time. Shared crates (`machine`, `plugin-api`, `z80`, `mos6502`, `ay-3-8910`, `nec765`, `dsk`, `zx-tape`) come from `elpapimango/retroclawd-crates` as a git dependency pinned to a commit (`rev`); changing that rev means checking `docs/plugin-abi.md` in that repository. Directory layout is the same as in the host (tests find ROMs/software at `CARGO_MANIFEST_DIR/../../../roms|software`).
 
 ## Commands
 
@@ -21,6 +21,64 @@ environment). The test media come from `scenarios/c64/hello.asm`, the combined C
 not committed. Known gaps are `status = "known-gap"` entries with a note under `docs/`; none is open. Closed 2026-10-19: the fast loader's missing SEARCHING/LOADING lines (the trap now returns through the KERNAL's own message routines, `docs/c64-load-messages-gap.md`) and the dead test's clock (the CIA TOD clock honours CRA `TODIN`: mains pulses divided by 5 or 6, `docs/c64-deadtest-clock-gap.md`). S6 (frame length) was closed 2026-10-19: `Machine::frame_rate` of the C64 and C128 is the clock over one raster frame (`docs/c64-timing-gap.md`).
 
 ## Crate notes
+
+`c64-tape::ted` is the C16/Plus4 TAP-v2 prerequisite, not a Machine or playback
+implementation. Its typed half-waves use slow TED timer cycles (886724 PAL,
+894886 NTSC), never the switchable CPU rate. It shares only pulse decoding
+with the legacy C64 parser. Header/length/duration checks are strict and
+payloads are capped at 32 MiB; canonical output never rounds or clips cycles.
+Tests cover exact-duration round trips, malformed headers/escapes, truncation,
+limits and C64-parser rejection. No C16/Plus4 firmware/reference run is claimed.
+
+`vic-i` and `vic20` implement an experimental MOS 6560/6561 Machine with the
+existing NMOS `mos6502` Core and two `via6522` Chips. `vic20-machine-plugin`
+owns its Options, matrix-derived keys, shifted combos, debug contract and C ABI;
+`plugin-dlls/vic20` only exports its entry. Fast clocks Chips after an instruction,
+accurate on every CPU bus cycle, including dummy accesses. See `docs/vic20-gaps.md`
+for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
+types `PRINT 12*34` -> `408` in both modes and regions; text output matches
+the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
+
+The VIC-20 manifest preserves S1-S7: 62 variants pass with no known scenario gaps.
+GPL-3.0 VIC-20 Dead Test v1.1.01 (source e4e4bdf8f9758e63da6f2754a576d4bab6eb1631)
+runs as a base-RAM cartridge and a regional replacement KERNAL with 35k RAM.
+All eight configurations match VICE's entire 1024-byte low-memory dump exactly;
+full expansion shows 42 RAM passes. Base-RAM expansion crosses mean absent RAM.
+The diagnostic does not test BLK5 RAM, peripherals or all VIC/VIA fidelity.
+The Host's existing `tools/fetch_diagnostics` downloads hash-pinned binaries;
+none of its bytes or goldens are committed. The tools-built 55-byte Program
+matches VICE in both modes and regions. Audio uses the pinned nonlinear mixer
+calibration, not a fitted gain multiplier: single-voice RMS agrees within 1%
+at full volume in both regions and PAL volume 7.
+Read-only cassette playback reuses `c64-tape::TapePlayer` and its KERNAL encoder.
+`c64-tape::vic20` validates TAP v0/v1, platform 1, PAL/NTSC and exact length.
+VIA1 PA6 is SENSE, CA2 is the active-low motor; each full pulse delivers a
+falling READ edge on VIA2 CA1. No loader trap is used.
+`--true-drive` with the optional `rom_1541` File Option enables the existing
+1541/IEC `drive-link` at device 8, accepting writable D64 only. The Machine
+owns the Drive, so ordinary steps, accurate bus accesses and debugger steps
+advance it consistently. VIA1 PA7 and VIA2 CA2/CB2 are inverted onto IEC;
+high outputs assert physical lines low. Drive CPU stepping remains
+instruction-granular in both modes. State version 3 appends DOS/media identity
+and a complete GCR checkpoint: fractional clock debt, bus assertions, pending
+insertion, medium bytes, dirty track, write shifter and unsaved flag.
+Versions 1/2 still load without a Drive. The existing C64/C128 legacy Drive
+state API is unchanged. Wrong ROM/media/configuration and corrupt checkpoints
+fail before Machine mutation. Tape recording and analogue motor/rising-edge timing are absent.
+`vic20-cartridge` parses generic read-only ROMs (raw block extensions or addressed
+PRG/BIN/ROM), with VICE's mirrors and BLK1/2/3/5 ordering. The Machine owns mapping,
+expansion-conflict checks and reset on attach/eject; the Plugin reports cartridge
+status and uses the existing Media commands. State version 4 appends mapped-ROM
+identity; versions 1/2/3 still load with no cartridge. Both regional KERNALs start
+the tools-built cartridge through its real signature/vector; all four modes/Regions
+match VICE's full glyph, reset and byte-exact state continuation.
+No banking, flash, cartridge RAM, VIC CRT or multi-file assembly is implemented.
+Uncaptured screen goldens are omitted rather than assigned placeholder
+hashes; this requires the matching `rc-scenarios` change described in
+`docs/vic20-gaps.md`. Firmware and goldens are never committed. Existing audio
+and timing tolerances are unchanged. Program attachment accepts raw bytes plus
+`org`, validates the complete mapped RAM range before mutation, and does not jump
+or patch BASIC pointers. PRG/P00 header parsing stays in the existing Host.
 
 The notes below were written in the host repository before the split and refer to it in places (`retroclawd`'s GUI, `HostedMachine`, `emu_thread`, the CLI flags): those parts are host code and are documented in the host's CLAUDE.md.
 

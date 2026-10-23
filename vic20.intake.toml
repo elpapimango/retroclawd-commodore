@@ -1,0 +1,207 @@
+machine = "vic20"
+display_name = "Commodore VIC-20"
+family = "commodore"
+default_region = "pal"
+
+[implementation]
+status = "experimental"
+boot_verified = true
+note = "Real PAL/NTSC boots, BASIC input, tools-built PRG/cassette/disk LOAD and generic cartridge startup, calibrated audio, state continuation, frame budgets and external Dead Test results pass in fast and accurate modes. VICE 3.9 goldens are hash-pinned. Additional fidelity work remains open. See docs/vic20-gaps.md."
+
+[core]
+reuse = "mos6502"
+variant = "NMOS MOS 6502, not the C64's 6510 with its on-chip port"
+tests = ["Klaus Dormann functional test", "Tom Seddon instruction tests"]
+
+[chips]
+reuse = ["via6522"]
+new = ["MOS 6561 VIC-I (PAL)", "MOS 6560 VIC-I (NTSC)"]
+note = "Do not substitute VIC-II or SID. VIC-I supplies both video and sound."
+via_limit = "The existing VIA shift-register implementation documents simplified completion timing and does not model serial data movement. Verify and extend it before claiming serial/user-port fidelity."
+
+[reference]
+emulator = "VICE"
+version = "3.9 GTK3 Win64"
+executable = "xvic"
+binary_sha256 = "a385207b21df29459f5304bf6ed1da90c974512ead3a7ce1e340c46b01d3134f"
+hardware_source_revision = "4d283a2e7dd59b7e378524878e81ecc7826b700c"
+installed = true
+goldens_captured = true
+note = "The installed executable identifies itself as VICE 3.9; its build is not independently reproduced. The separate hardware-source pin is VICE 3.10.0. Commands, crop conversion and measured audio differences are recorded in docs/vic20-gaps.md."
+
+[timing.pal]
+clock_hz = 1108405
+cycles_per_line = 71
+lines = 312
+cycles_per_frame = 22152
+source = "VICE 3.10.0 vice/src/vic20/vic20.h"
+
+[timing.ntsc]
+clock_hz = 1022727
+cycles_per_line = 65
+equivalent_full_lines = 261
+first_line_cycles = 32
+last_line_cycles = 33
+cycles_per_frame = 16965
+source = "VICE 3.10.0 vice/src/vic20/vic20.h"
+note = "The noninterlaced first and last partial lines add to one complete line. Interlace requires separate field scheduling; do not treat 261 equivalent lines as 261 identical raster rows."
+
+[memory]
+ram = ["0000-03ff", "1000-1fff"]
+optional_ram = ["0400-0fff", "2000-3fff", "4000-5fff", "6000-7fff", "a000-bfff"]
+character_rom = "8000-8fff"
+vic = "9000-900f"
+via1 = "9110-911f"
+via2 = "9120-912f"
+color_ram = "9400-97ff"
+expansion_io = ["9800-9bff", "9c00-9fff"]
+basic_rom = "c000-dfff"
+kernal_rom = "e000-ffff"
+note = "Base RAM totals 5 KiB. Verify incomplete Chip decode and simultaneous VIA selection, not just nominal addresses. Unconnected reads follow bus behavior; they are not uniformly ff. Color RAM has four stored bits and bus-driven upper bits."
+
+[wiring]
+via1_interrupt = "CPU NMI"
+via2_interrupt = "CPU IRQ"
+via1_port_a = ["IEC clock in", "IEC data in", "joystick up", "joystick down", "joystick left", "joystick fire/light pen", "cassette sense", "IEC ATN out"]
+via2_port_b = "Keyboard column selection; PB3 also cassette write, PB7 also joystick right"
+via2_port_a = "Keyboard row input; verify reverse-direction scans"
+via1_ca1 = "Restore key"
+via1_ca2 = "Cassette motor"
+via2_ca1 = "Cassette read"
+via2_ca2 = "IEC clock out"
+via2_cb1 = "IEC SRQ in"
+via2_cb2 = "IEC data out"
+iec_polarity = "VIA1 PA7 and VIA2 CA2/CB2 drive inverting IEC buffers: a high output asserts the physical line low. VIA1 PA0/PA1 read physical CLOCK/DATA levels."
+iec_source = "VICE 3.10.0 vice/src/vic20/vic20iec.c, iec_pa_write, iec_pcr_write and resolve_bus_signals."
+
+[keyboard]
+note = "Each entry lists Port A bits 0-7 for a selected Port B bit, following MAME's actual via2_pa_r and COL inputs. The earlier intake transposed this wiring by reading the VICE diagram's row/column comment literally. MAME's input path and the VICE keymap/rev_keyarr path agree with the matrix below. Aliases and shifted combinations are implemented."
+matrix = [
+  ["Digit1", "Digit3", "Digit5", "Digit7", "Digit9", "Plus", "Pound", "Delete"],
+  ["LeftArrow", "KeyW", "KeyR", "KeyY", "KeyI", "KeyP", "Asterisk", "Return"],
+  ["Control", "KeyA", "KeyD", "KeyG", "KeyJ", "KeyL", "Semicolon", "CursorLeftRight"],
+  ["RunStop", "ShiftLeft", "KeyX", "KeyV", "KeyN", "Comma", "Slash", "CursorUpDown"],
+  ["Space", "KeyZ", "KeyC", "KeyB", "KeyM", "Period", "ShiftRight", "F1"],
+  ["Commodore", "KeyS", "KeyF", "KeyH", "KeyK", "Colon", "Equals", "F3"],
+  ["KeyQ", "KeyE", "KeyT", "KeyU", "KeyO", "At", "UpArrow", "F5"],
+  ["Digit2", "Digit4", "Digit6", "Digit8", "Digit0", "Minus", "Home", "F7"],
+]
+
+[video_audio]
+register_range = "9000-900f"
+features = ["programmable screen origin and dimensions", "8x8 and 8x16 characters", "monochrome and multicolor characters", "16 colors", "border and background", "raster readback", "three tone generators", "noise generator", "shared volume", "paddle conversion", "light pen"]
+note = "The primary guide says VIC-I refresh does not insert CPU wait states. Accurate scheduling must reproduce VIC-I fetches and register visibility, not copy C64 bad-line stalls."
+open_questions = ["full-border geometry, PAL/NTSC palette and pixel aspect", "exact fetch phases and bus retention", "polyphonic phase, noise waveform and analogue accuracy beyond the reference calibration", "interlace field behavior", "paddle and light-pen timing"]
+
+[media]
+candidate_reuse = ["Commodore TAP pulse Format", "PRG load-address convention", "D64 Format", "1541 and drive-link"]
+supported = ["raw programs through --program/--org", "PRG/P00 headers through the existing Host parser", "read-only VIC-20 TAP v0/v1, platform 1, matching PAL/NTSC", "writable D64 through a real 1541 at IEC device 8 with true_drive", "read-only generic ROM cartridge; see cartridge scope/layouts"]
+note = "Datasette PLAY is pressed on attach; VIA1 PA6 sense, active-low CA2 motor, VIA2 CA1 falling READ edge per full pulse. Shared TapePlayer/KERNAL encoder and 1541/drive-link are reused. Drive CPU steps at instruction granularity in both modes; no loader trap. No recording, motor inertia, or physical rising-edge phase. Do not advertise C64 CRT cartridges or other Drive models/formats."
+
+[cartridge]
+scope = "One read-only generic ROM cartridge; no bank switching, flash, cartridge RAM, multi-file assembly or CRT container."
+formats = ["raw .20/.40/.60: 4/8/16 KiB (.20 also 32 KiB)", "raw .a0: 4/8 KiB", "raw .b0: 2/4 KiB", "load-address-prefixed .prg/.bin/.rom: 2/4/8/16/32 KiB at supported block addresses"]
+mapping = "BLK1=$2000, BLK2=$4000, BLK3=$6000, BLK5=$a000. A 16 KiB cartridge at $6000 continues at $a000; 32 KiB fills BLK1/2/3/5. Raw 4 KiB block files mirror across 8 KiB; B000 cartridges mirror across BLK5. Addressed 4 KiB images select one half and leave the other ff, matching VICE generic autodetection."
+startup = "Attach/detach resets the Machine. The real KERNAL detects the five-byte A0 CBM signature at $a004 and jumps through the cold-start vector at $a000; there is no Host entry-point shortcut."
+conflicts = "Reject RAM expansion overlapping any cartridge-selected block before mutation; do not simulate conflicting physical drivers."
+reference = "VICE 3.10.0 vice/src/vic20/cart/vic20-generic.c attach_image and generic_blk*_read/store; vic20cart.c cartreset default and -cart2/-cart4/-cart6/-cartA/-cartB."
+
+[[firmware]]
+option = "basic"
+part = "901486-01"
+size = 8192
+sha1 = "587d1e90950675ab6b12d91248a3f0d640d02e8d"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[[firmware]]
+option = "kernal"
+region = "pal"
+part = "901486-07"
+size = 8192
+sha1 = "ce0137ed69f003a299f43538fa9eee27898e621e"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[[firmware]]
+option = "kernal"
+region = "ntsc"
+part = "901486-06"
+size = 8192
+sha1 = "06de7ec017a5e78bd6746d89c2ecebb646efeb19"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[[firmware]]
+option = "char"
+part = "901460-03"
+size = 4096
+sha1 = "4fd85ab6647ee2ac7ba40f729323f2472d35b9b4"
+hash_source = "MAME 848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605 src/mame/commodore/vic20.cpp"
+
+[firmware_policy]
+redistribution_permission = "Not established; firmware is not included. The configured RomM supplied private verification inputs."
+local_vic20_firmware_found = true
+note = "All four Machine firmware hashes and 1541 DOS ab16f56989b27d89babe5f89c5a8cb3da71a82f0 were downloaded through the Host's firmware-auto path and verified before use. Hashes identify bytes, not permission. The archive index lists 901486-04 as 8191 bytes; do not silently pad or accept that as an 8192-byte ROM."
+
+[scenarios]
+required = ["S1 boot", "S2 input", "S3 each supported medium", "S4 audio", "S5 state and reset", "S6 timing", "S7 hardware diagnostics"]
+optional = ["S8 instruction trace"]
+removed = []
+overrides = []
+hardware_diagnostics = "VIC-20 Dead Test v1.1.01 by Simon Rowe / Greg McCarthy / Piers Finlayson, GPL-3.0 at the release source pin below. Cartridge + base RAM checks real regional ROM CRCs; replacement regional KERNAL + 35k expansion passes all 42 displayed RAM checks. All eight mode/region/configuration runs match 1024 reference memory bytes exactly. No test plugs required. This does not test VIA/IEC/tape/analogue fidelity or BLK5 expansion RAM."
+status = "62 passed, 0 failed, 0 known scenario gaps: S1-S7 cover both modes and regions with real firmware; PAL volume-7, complete Drive state, raw/addressed cartridge/reset/state and both external diagnostic configurations also pass. Experimental fidelity limits remain documented."
+note = "Do not create passing manifest entries or weaken tolerances from this intake. Preserve all standard scenarios."
+
+[[source]]
+kind = "external hardware diagnostic"
+title = "VIC-20 Dead Test v1.1.01"
+url = "https://github.com/piersfinlayson/Vic20-dead-test/tree/e4e4bdf8f9758e63da6f2754a576d4bab6eb1631"
+revision = "e4e4bdf8f9758e63da6f2754a576d4bab6eb1631"
+license = "GPL-3.0 (readme.md and LICENSE in the release source; no firmware redistribution inferred)"
+binary_url = "https://github.com/piersfinlayson/Vic20-dead-test/releases/download/v1.1.01/dead-test.a0"
+binary_sha256 = "1b23bd17ec878fa6f87d5be67d40406f0f28abdbd7f6ffb21c5826b796198ea3"
+binary_size = 4096
+pal_kernal_url = "https://github.com/piersfinlayson/Vic20-dead-test/releases/download/v1.1.01/dead-test.pal.e0"
+pal_kernal_sha256 = "60873ebefe0d00ee1ebe1345c6b170ff2306ee87912d63ec90b7a602e8ee2be1"
+ntsc_kernal_url = "https://github.com/piersfinlayson/Vic20-dead-test/releases/download/v1.1.01/dead-test.ntsc.e0"
+ntsc_kernal_sha256 = "77f25a9c859ec04e89915d29c79aecb80b3084f32360ae71b490c7cb8357f841"
+kernal_size = 8192
+note = "Use the raw BLK5 cartridge with real regional KERNAL startup, not the unsupported VIC CRT container. Full-RAM runs use the replacement KERNAL because 35k RAM conflicts with a BLK5 cartridge. The diagnostic explicitly skips self-CRC in this configuration. Missing expansion marks in base-RAM runs match VICE; do not call absent RAM faulty emulation. Third-party bytes/goldens stay outside git."
+
+[[source]]
+kind = "reference source"
+title = "VICE generic VIC-20 ROM cartridge layouts, mirrors and reset lifecycle"
+url = "https://github.com/VICE-Team/svn-mirror/blob/4d283a2e7dd59b7e378524878e81ecc7826b700c/vice/src/vic20/cart/vic20-generic.c"
+files = ["vic20-generic.c", "vic20cart.c"]
+license = "GPL-2.0-or-later"
+
+[[source]]
+kind = "reference source"
+title = "VICE VIC-20 IEC output inversion and open-collector bus equations"
+url = "https://github.com/VICE-Team/svn-mirror/blob/4d283a2e7dd59b7e378524878e81ecc7826b700c/vice/src/vic20/vic20iec.c"
+license = "GPL-2.0-or-later"
+
+[[source]]
+kind = "manufacturer manual"
+title = "Commodore VIC-20 Programmer's Reference Guide, etext 1.1"
+url = "https://www.zimmers.net/anonftp/pub/cbm/manuals/vic20/vic20-programmers-reference-guide-1.1.txt"
+sections = ["memory map, printed pages 174-177", "VIC Chip, printed pages 212-216"]
+note = "Treat the etext as a transcription, not an error-free datasheet: cross-check duplicated color-RAM bit text and inconsistent timer labels against the Chip API/datasheet."
+
+[[source]]
+kind = "reference source"
+title = "VICE 3.10.0 VIC-20 timing definitions"
+url = "https://github.com/VICE-Team/svn-mirror/blob/4d283a2e7dd59b7e378524878e81ecc7826b700c/vice/src/vic20/vic20.h"
+license = "GPL-2.0-or-later"
+
+[[source]]
+kind = "reference source"
+title = "VICE VIC-20 memory, keyboard, and VIA wiring"
+revision = "d928b850b7ef4c1b1826a6efd175d8eaa80344d8"
+url = "https://github.com/VICE-Team/svn-mirror/tree/d928b850b7ef4c1b1826a6efd175d8eaa80344d8/vice/src/vic20"
+files = ["vic20mem.c", "vic20via1.c", "vic20via2.c", "../../data/VIC20/gtk3_sym.vkm"]
+license = "GPL-2.0-or-later"
+
+[[source]]
+kind = "reference source and firmware metadata"
+title = "MAME VIC-20 driver"
+url = "https://github.com/mamedev/mame/blob/848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605/src/mame/commodore/vic20.cpp"
+license = "BSD-3-Clause"

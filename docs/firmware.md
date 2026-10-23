@@ -7,6 +7,35 @@ ROM images are copyrighted and are **not** part of this repository. Put your own
 ROMs; supply your own dumps. The application checks the size of every ROM and refuses a mismatch (a
 Spectrum ROM is not silently loaded into a ZX81).
 
+## Commodore VIC-20 (experimental)
+
+`vic20` requires three separate images. Supply lawful local dumps; no VIC-20
+firmware is bundled. Hash-verified PAL/NTSC boots are recorded in `docs/vic20-gaps.md`.
+`firmware.toml` contains identity hashes, not download URLs or permission grants.
+
+| Option | Configuration key | Part | Size |
+|---|---|---|---|
+| `--rom-basic` | `basic` | 901486-01 | 8192 bytes |
+| `--rom-kernal` | `kernal` | 901486-07 (PAL), 901486-06 (NTSC) | 8192 bytes |
+| `--rom-char` | `char` | 901460-03 | 4096 bytes |
+
+Select the matching `--region pal|ntsc`. The Plugin validates each image's size;
+it does not infer its Region from contents. Automatic hash lookup selects the
+KERNAL by Region. Japan is unsupported and rejected.
+
+```
+retroclawd vic20 --rom-basic basic.bin --rom-kernal kernal-pal.bin \
+  --rom-char characters.bin --region pal --execution-mode accurate \
+  --headless --frames 180 --dump-screen vic20.png
+```
+
+For a real 1541 at IEC device 8, add `--true-drive --disk game.d64`.
+Its optional File Option is `--rom-1541` / configuration key `rom_1541`,
+requiring a 16384-byte 1541 DOS ROM. `--firmware auto` resolves the existing
+1541 DOS hashes when `true_drive` is enabled. Without that Option, the Drive
+is absent and its ROM is not fetched. Other Drive models and disk formats
+are not advertised for the VIC-20. See `vic20.manifest.toml` and `docs/vic20-gaps.md`.
+
 ## Commodore 64
 
 `c64` needs three separate images (a real C64 has no single boot ROM) under `c64/`; the known-good set is the

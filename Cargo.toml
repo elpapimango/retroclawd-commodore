@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/machines/c64", "crates/machines/c128", "crates/machines/1541", "crates/machines/drive-link", "crates/plugins/c64-machine-plugin", "crates/plugins/c128-machine-plugin", "crates/plugin-dlls/c64", "crates/plugin-dlls/c128", "crates/formats/c64-tape", "crates/formats/c64-cartridge", "crates/formats/d64", "crates/formats/d71", "crates/formats/d81", "crates/formats/g64", "crates/formats/cbm-dos", "crates/chips/sid", "crates/chips/vic-ii", "crates/chips/via-6522", "crates/chips/cia-6526", "crates/chips/acia-6551", "crates/chips/cs8900a", "crates/chips/vdc-8563"]
+members = ["crates/formats/vic20-cartridge", "crates/machines/vic20", "crates/machines/c64", "crates/machines/c128", "crates/machines/1541", "crates/machines/drive-link", "crates/plugins/vic20-machine-plugin", "crates/plugins/c64-machine-plugin", "crates/plugins/c128-machine-plugin", "crates/plugin-dlls/vic20", "crates/plugin-dlls/c64", "crates/plugin-dlls/c128", "crates/formats/c64-tape", "crates/formats/c64-cartridge", "crates/formats/d64", "crates/formats/d71", "crates/formats/d81", "crates/formats/g64", "crates/formats/cbm-dos", "crates/chips/sid", "crates/chips/vic-ii", "crates/chips/vic-i", "crates/chips/via-6522", "crates/chips/cia-6526", "crates/chips/acia-6551", "crates/chips/cs8900a", "crates/chips/vdc-8563"]
 
 # Same release profile as the retroclawd host.
 [profile.release]

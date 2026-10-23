@@ -1,5 +1,44 @@
 # Which firmware satisfies which machine option, by SHA-1 (see sinclair/firmware.toml for the format).
 
+# ---- VIC-20. Identity metadata: pinned MAME source in vic20.intake.toml.
+
+[[rom]]
+machines = ["vic20"]
+option = "basic"
+label = "VIC-20 BASIC (901486-01)"
+sha1 = ["587d1e90950675ab6b12d91248a3f0d640d02e8d"]
+
+[[rom]]
+machines = ["vic20"]
+option = "kernal"
+label = "VIC-20 PAL KERNAL (901486-07)"
+when = { region = "pal" }
+sha1 = ["ce0137ed69f003a299f43538fa9eee27898e621e"]
+
+[[rom]]
+machines = ["vic20"]
+option = "kernal"
+label = "VIC-20 NTSC KERNAL (901486-06)"
+when = { region = "ntsc" }
+sha1 = ["06de7ec017a5e78bd6746d89c2ecebb646efeb19"]
+
+[[rom]]
+machines = ["vic20"]
+option = "char"
+label = "VIC-20 character ROM (901460-03)"
+sha1 = ["4fd85ab6647ee2ac7ba40f729323f2472d35b9b4"]
+
+[[rom]]
+machines = ["vic20"]
+option = "rom_1541"
+label = "1541 DOS for the VIC-20 IEC Drive"
+when = { true_drive = "true" }
+sha1 = [
+  "ab16f56989b27d89babe5f89c5a8cb3da71a82f0",
+  "d3b78c3dbac55f5199f33f3fe0036439811f7fb3",
+  "38a7a489c7bbc8661cf63476bf1eb07b38b1c704",
+]
+
 # ---- C64: the US/EU revision 3 set first, older revisions after it.
 
 [[rom]]

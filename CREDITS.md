@@ -6,6 +6,105 @@ implementation of documented behavior, cited here because that behavior
 (file layouts, byte offsets, register constants) came from reading them,
 not from independent derivation.
 
+## C16/Plus4 TAP-v2 prerequisite (`c64-tape::ted`)
+
+The [VICE manual, section 17.1](https://vice-emu.sourceforge.io/vice_17.html)
+specifies the 20-byte header, `C16-TAPE-RAW` version-2 identity, platform/video
+fields, half-wave polarity/order and cycle encoding. VICE 3.10.0 revision
+`4d283a2e7dd59b7e378524878e81ecc7826b700c`, `vice/src/tape/tap.c`,
+independently confirms platform 2 and slow TED timer clocks (886724 PAL,
+894886 NTSC). That file's block-import helper joins half-wave pairs; this
+format API intentionally retains individual exact durations instead.
+
+Strict length checks, rejection of unknown/unsupported header values and
+zero durations, and the 32 MiB payload limit are local safety policy, not
+claims that VICE rejects the same inputs. Canonical writing has synthetic
+round-trip proof, not a VICE executable or real tape-load verification.
+No source code, firmware or software image was copied.
+
+## Experimental VIC-20 (`vic-i`, `vic20`, `vic20-machine-plugin`)
+
+The VICE raw-tape specification (manual section 17.1) establishes VIC-20
+platform 1, PAL/NTSC timer clocks and TAP-v0/v1 pulse encoding.
+At the pinned 3.10.0 revision below, `vic20/vic20via1.c` confirms PA6
+SENSE and active-low CA2 motor control; `vic20/vic20via2.c` confirms the
+cassette wiring. Playback reuses this family's existing full-pulse player
+and Commodore KERNAL encoder. Exact-duration writing is shared with TED,
+but full pulses and TED half-waves remain separate APIs.
+The installed VICE 3.9 was also run with `+virtualdev1`, real TAP playback
+and the same firmware; both regional cassette outputs match retroclawd.
+
+At the same source pin, `vic20/vic20iec.c` (`iec_pa_write`,
+`iec_pcr_write`, `resolve_bus_signals`) establishes the inverting IEC buffers:
+VIA1 PA7 and VIA2 CA2/CB2 high assert physical ATN/CLOCK/DATA low.
+The existing 1541 Core, GCR mechanism and `drive-link` are reused.
+Installed VICE 3.9 was run with `-drive8truedrive +virtualdev8`,
+the same hash-verified 1541 DOS and tools-built D64. Both regional disk LOADs
+produce the same glyph. No reference source or DOS ROM was copied.
+
+At that same 3.10.0 source revision,
+[`vic20/cart/vic20-generic.c`](https://github.com/VICE-Team/svn-mirror/blob/4d283a2e7dd59b7e378524878e81ecc7826b700c/vice/src/vic20/cart/vic20-generic.c)
+documents generic ROM layouts, half-block selection, mirrors, BLK1/2/3/5
+ordering and read-only stores; `vic20cart.c` documents reset-on-change and
+explicit block flags. These files are GPL-2.0-or-later reference sources.
+The private regional KERNALs confirm the signature/vector startup used by the
+first-party cartridge fixture. Installed VICE 3.9 was independently captured
+with `-cartA`; all 64 glyph pixels match in both execution modes and Regions.
+`vic20-cartridge` is a separate pure Format crate; no commercial ROM is included.
+
+[VIC-20 Dead Test v1.1.01](https://github.com/piersfinlayson/Vic20-dead-test/tree/e4e4bdf8f9758e63da6f2754a576d4bab6eb1631)
+is an external GPL-3.0 diagnostic by Simon Rowe, Greg McCarthy and Piers
+Finlayson (license and authorship read at that release source pin). Its released
+BLK5 cartridge and regional replacement KERNALs run unmodified, with all eight
+mode/Region/configuration results matching independently captured VICE memory.
+The Host's existing diagnostic downloader pins their SHA-256 hashes; the
+intake and S7 notes record scope, missing-expansion output and self-CRC limits.
+No diagnostic source/binary or reference golden is included in this repository.
+
+`vic20.intake.toml` records hardware facts and unresolved prerequisites.
+`docs/vic20-gaps.md` distinguishes implemented behavior from reference proof.
+References read for this implementation:
+
+- Commodore, *VIC-20 Programmer's Reference Guide*, etext 1.1, archived at
+  <https://www.zimmers.net/anonftp/pub/cbm/manuals/vic20/vic20-programmers-reference-guide-1.1.txt>.
+  Printed pages 174-177 identify the memory map and VIA wiring; pages 212-216
+  describe VIC-I registers, character modes, video, and sound. The transcription
+  has conflicting timer labels and duplicated color-RAM wording; it must not
+  override the Chip datasheet or verified behavior.
+- VICE 3.10.0, revision `4d283a2e7dd59b7e378524878e81ecc7826b700c`,
+  `vice/src/vic20/vic20.h`, for PAL and NTSC timing, including the partial
+  first/last NTSC raster lines. VICE revision
+  `d928b850b7ef4c1b1826a6efd175d8eaa80344d8`, `vic20mem.c`, `vic20via1.c`,
+  `vic20via2.c`, and `data/VIC20/gtk3_sym.vkm`, for open bus, keyboard
+  matrix, shifted legends and VIA wiring. The diagram's row/column comment
+  must be read together with `rev_keyarr` and the keymap, not in isolation.
+  At the 3.10.0 revision, `vic/vic-mem.c` and `vic20/vic20sound.c` inform
+  register behavior, divider/shift-register sound, noise taps and filtering.
+  The palette uses VICE's original VIC-I RGB calibration, not VIC-II colors;
+  the nonlinear mixer now uses 39 interpolation knots derived from its 436
+  published voltage-calibration entries. Maximum checked f32 reconstruction
+  error is 0.008516 PCM16 units. Calibration attribution: Rami Rasanen and
+  Ville-Matias Heikkila, GPL-2.0-or-later, compatible with this repository's
+  GPL-3.0-or-later license. Filter update order follows the same RC network.
+  <https://github.com/VICE-Team/svn-mirror> (GPL-2.0-or-later).
+- MAME revision `848a0b5b0ab016f2fb22f259c9fc7eba0cfe8605`,
+  `src/mame/commodore/vic20.cpp`, for independent address-decode checks and
+  firmware SHA-1/size metadata. Its `COL` inputs and `via2_pa_r` independently
+  establish the Port B selection / Port A input orientation used here.
+  <https://github.com/mamedev/mame> (driver: BSD-3-Clause).
+
+Firmware and generated reference images are not committed. The calibration
+data above are reused with attribution; no reference emulator algorithm was copied.
+Firmware hashes establish identity only; firmware redistribution permission
+has not been established. The configured RomM supplied the four hash-verified
+VIC-20 images for private execution in both retroclawd and VICE.
+Boot/input captures and tone recordings were made with the installed VICE 3.9
+GTK3 Win64 `xvic.exe`, SHA-256
+`a385207b21df29459f5304bf6ed1da90c974512ead3a7ce1e340c46b01d3134f`.
+This executable identity is separate from the 3.10.0 hardware-source pin above.
+`docs/vic20-gaps.md` records capture commands, logical-pixel conversion,
+measured pitch/RMS, the original gain regression and remaining gaps. Golden hashes, not images,
+are stored in the manifest.
 
 ## Commodore 64 hardware (`crates/machines/c64`, `crates/chips/vic-ii`)
 
@@ -780,7 +879,8 @@ mechanism's own entries above already established.
   project's own "error clearly, don't guess" convention already
   established for e.g. `UnsupportedHardwareMode`). **Version 2**
   ("half-wave", real but C16/Plus4-only per VICE's own source) is out of
-  scope for this C64-only crate. There is no separate "level" encoded
+  scope for the C64 parser; the separate `ted` API above handles it.
+  There is no separate "level" encoded
   anywhere in the file -- each pulse is a real half-wave toggle, confirmed
   via `datasette.c`'s own `fullwave[port] ^= 1`.
 - **`.t64` directory container layout** -- VICE's own real
@@ -1150,6 +1250,14 @@ against them. The 6502 per-cycle access patterns (dummy reads/writes) follow the
 cycle-by-cycle instruction tables (e.g. the "64doc"/MOS 6502 programming references) and are checked here
 only for count and order by `crates/core/6502/tests/cycle_hook.rs`.
 
+The Family now pins shared revision `ae53253565d8bd34ebba7bdde8acebe55b9c028c`
+with the SHY/SHX/SHA/TAS high-byte store correction exposed by Atari Acid800.
+The mask uses the unindexed base high byte plus one; a page carry replaces the
+write-address high byte with the masked data. See the shared `CREDITS.md` for
+the hardware/reference sources and instability limits. CPU State encoding and
+cycle counts are unchanged. Commodore workspace tests and all 62 existing
+VICE-backed VIC-20 scenarios pass on this pin; IRQ polling is not fixed here.
+
 The pixel side of the same engine follows Bauer's sections 3.7.3 (the graphics sequencer's per-mode colour
 rules), 3.8 (sprite shifters, priority and expansion) and 3.9 (the border unit's six flip-flop rules and the
 24/31 and 335/344 comparison columns, 51/55 and 247/251 rows), again from memory of the article. The
@@ -1200,5 +1308,3 @@ kernal, character ROM halves) was confirmed by running the ROMs. The C128 Progra
 Reference Guide gives the MMU register table. `roms/c128/` is user-supplied (from the VICE data set). The
 C64-mode mapping reuses the C64 PLA behaviour documented above. Everything was then checked by running the
 real ROMs (`crates/machines/c128/tests/{boot,drive}.rs`), not by comparing with VICE output.
-
-

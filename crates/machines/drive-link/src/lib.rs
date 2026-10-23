@@ -80,6 +80,15 @@ pub enum Disk {
     D81(d81::D81),
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct GcrCheckpoint {
+    magic: [u8; 4],
+    drive: Vec<u8>,
+    bus: IecBus,
+    owed: f64,
+    pending: Option<(Medium, u64)>,
+}
+
 enum Unit {
     Gcr(Box<C1541>),
     Mfm(Box<C1581>),
@@ -169,6 +178,67 @@ pub struct DriveLink {
 }
 
 impl DriveLink {
+    pub fn gcr_status(&self) -> Option<(u8, bool)> {
+        match &self.drive {
+            Unit::Gcr(drive) => Some((drive.current_track(), drive.read_memory(0x1c00) & 4 != 0)),
+            Unit::Mfm(_) => None,
+        }
+    }
+
+    /// Complete checkpoint for a GCR drive, including a disk awaiting insertion.
+    /// The existing legacy drive-only state API is unchanged.
+    pub fn save_gcr_checkpoint(&self) -> Result<Vec<u8>, String> {
+        let Unit::Gcr(drive) = &self.drive else {
+            return Err("complete GCR checkpoints do not support the 1581".to_string());
+        };
+        let pending = match &self.pending_disk {
+            Some((Disk::Gcr(disk), left)) => Some((disk.clone(), *left)),
+            Some(_) => return Err("a GCR drive has an incompatible pending disk".to_string()),
+            None => None,
+        };
+        bincode::serde::encode_to_vec(
+            GcrCheckpoint {
+                magic: *b"DLG1",
+                drive: drive.save_complete_state(),
+                bus: self.bus,
+                owed: self.owed,
+                pending,
+            },
+            bincode::config::standard(),
+        )
+        .map_err(|error| format!("cannot save GCR checkpoint: {error}"))
+    }
+
+    pub fn load_gcr_checkpoint(&mut self, bytes: &[u8]) -> Result<(), String> {
+        let (state, used): (GcrCheckpoint, usize) = bincode::serde::decode_from_slice(
+            bytes,
+            bincode::config::standard().with_limit::<2_097_152>(),
+        )
+        .map_err(|error| format!("invalid GCR checkpoint: {error}"))?;
+        if state.magic != *b"DLG1"
+            || used != bytes.len()
+            || !state.owed.is_finite()
+            || !(-32.0..1.0).contains(&state.owed)
+            || state
+                .pending
+                .as_ref()
+                .is_some_and(|(_, left)| *left == 0 || *left > DISK_SWAP_GAP_CYCLES)
+        {
+            return Err("invalid GCR checkpoint header, timing or trailing bytes".to_string());
+        }
+        let Unit::Gcr(drive) = &mut self.drive else {
+            return Err("complete GCR checkpoints do not support the 1581".to_string());
+        };
+        if matches!(&state.pending, Some((Medium::D71(_), _))) && !drive.model().is_1571_family() {
+            return Err("a 1541 checkpoint cannot contain a pending D71".to_string());
+        }
+        drive.load_complete_state(&state.drive)?;
+        self.bus = state.bus;
+        self.owed = state.owed;
+        self.pending_disk = state.pending.map(|(disk, left)| (Disk::Gcr(disk), left));
+        Ok(())
+    }
+
     pub fn new(kind: DriveKind, rom: Vec<u8>, device: u8) -> Result<Self, String> {
         let drive = match kind {
             DriveKind::C1541 => {
@@ -408,6 +478,39 @@ mod tests {
 
     fn blank_disk() -> d64::D64 {
         d64::D64::parse(&vec![0u8; 683 * d64::SECTOR_SIZE]).unwrap()
+    }
+
+    #[test]
+    fn complete_checkpoint_keeps_fractional_clock_debt_and_pending_disk_insertion() {
+        let mut c64 = c64();
+        let mut link = DriveLink::new(DriveKind::C1541, drive_rom(), 8).unwrap();
+        link.attach_disk(Disk::Gcr(Medium::D64(blank_disk())))
+            .unwrap();
+        link.attach_disk(Disk::Gcr(Medium::D64(blank_disk())))
+            .unwrap();
+        for _ in 0..1234 {
+            link.after_host_step(&mut Host(&mut c64), 1);
+        }
+        let saved = link.save_gcr_checkpoint().unwrap();
+        assert!(link.owed < 0.0);
+        assert!(link.pending_disk.is_some());
+        for _ in 0..310_000 {
+            link.after_host_step(&mut Host(&mut c64), 1);
+        }
+        assert!(link.pending_disk.is_none());
+        let future = link.save_gcr_checkpoint().unwrap();
+        link.load_gcr_checkpoint(&saved).unwrap();
+        assert!(link.pending_disk.is_some());
+        for _ in 0..310_000 {
+            link.after_host_step(&mut Host(&mut c64), 1);
+        }
+        assert_eq!(link.save_gcr_checkpoint().unwrap(), future);
+        let (mut bad, _): (GcrCheckpoint, usize) =
+            bincode::serde::decode_from_slice(&saved, bincode::config::standard()).unwrap();
+        bad.owed = f64::NAN;
+        let bad = bincode::serde::encode_to_vec(bad, bincode::config::standard()).unwrap();
+        assert!(link.load_gcr_checkpoint(&bad).is_err());
+        assert_eq!(link.save_gcr_checkpoint().unwrap(), future);
     }
 
     #[test]
