@@ -143,6 +143,14 @@ gap markers; the updated manifest passes without unexpected closed gaps.
 
 ### Reference capture recipe
 
+**2026-10-30:** every golden of the manifest is reproduced by `retroclawd-tools/scripts/capture_vic20_goldens.py KIND REGION`
+(`s1 s2 program tape disk cartridge s7-cartridge s7-kernal`), and the SHA-256 of each result equals the pinned `golden_sha256`
+(S1, S2, S3 and S7 checked in both regions), using the installed **VICE 3.10** (the recipe below was written against 3.9). Only the
+names of two options changed: 3.10 has `+trapdevice1` / `+trapdevice8` where 3.9 had `+virtualdev1` / `+virtualdev8` (fast tape and
+disk traps off). The raw NTSC screenshot places the 8x8 test glyph at the same position as the PAL one, `[96, 48, 112, 56)`, not
+at the text-area origin. With the goldens, the ROMs from RomM (`--firmware auto`, copied into `roms/vic20/`), `scenarios/build.sh` and
+`tools/fetch_diagnostics.sh`, all 62 manifest variants pass.
+
 Use the command in the manifest with the matching BASIC, regional KERNAL and
 character ROM. Boot, input, Program, tape and audio captures disable all four
 Drives; disk captures enable a real 1541 as described below. `-limitcycles` deliberately

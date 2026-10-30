@@ -39,7 +39,7 @@ for proof and missing hardware. Hash-verified RomM firmware reaches BASIC and
 types `PRINT 12*34` -> `408` in both modes and regions; text output matches
 the installed, binary-hash-pinned VICE 3.9 after palette/framing normalization.
 
-The VIC-20 manifest preserves S1-S7: 62 variants pass with no known scenario gaps.
+The VIC-20 manifest preserves S1-S7: 62 variants pass with no known scenario gaps. The goldens are reproducible with VICE 3.10 (`retroclawd-tools/scripts/capture_vic20_goldens.py`; the hashes equal the pinned ones, only `+virtualdev` became `+trapdevice`).
 GPL-3.0 VIC-20 Dead Test v1.1.01 (source e4e4bdf8f9758e63da6f2754a576d4bab6eb1631)
 runs as a base-RAM cartridge and a regional replacement KERNAL with 35k RAM.
 All eight configurations match VICE's entire 1024-byte low-memory dump exactly;
